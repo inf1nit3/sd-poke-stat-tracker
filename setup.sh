@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# pokemon-overlay-plugin — installer for Steam Deck
-# Run AFTER extracting the package into ~/homebrew/plugins/pokemon-overlay-plugin/
+# setup.sh — fast installer for the Steam Deck
+#
+# dist/index.js is pre-built and committed. This script does NOT run
+# `pnpm install` (which would download 100+ npm packages and take
+# minutes on Steam Deck). It only installs the Python dependencies
+# needed at runtime.
+#
+# Total install time: ~5 seconds (just pip install of 3 small packages)
 
 set -euo pipefail
 
-PLUGIN_NAME="pokemon-overlay-plugin"
+PLUGIN_NAME="sd-poke-stat-tracker"
 PLUGIN_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 red()   { printf '\033[31m%s\033[0m\n' "$*"; }
@@ -15,7 +21,7 @@ yellow() { printf '\033[33m%s\033[0m\n' "$*"; }
 banner() {
     echo
     blue "============================================================"
-    blue "  Pokémon Essentials Overlay — Steam Deck installer"
+    blue "  $PLUGIN_NAME — fast installer"
     blue "============================================================"
     echo
 }
@@ -30,9 +36,6 @@ check_requirements() {
         local pyver
         pyver="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
         green "  ✓ python3 ($pyver)"
-        if [[ "$(printf '%s\n3.11' "$pyver" | sort -V | head -1)" != "3.11" ]]; then
-            yellow "  ! python 3.11+ recommended (you have $pyver)"
-        fi
     fi
 
     if ! command -v pip3 >/dev/null 2>&1 && ! command -v pip >/dev/null 2>&1; then
@@ -45,22 +48,14 @@ check_requirements() {
 
     if [[ ${#missing[@]} -gt 0 ]]; then
         red "  ✗ Missing tools: ${missing[*]}"
-        red ""
-        red "  Install them with: sudo steamos-readonly disable && sudo pacman -S python-pip"
-        red "  Then re-run this script."
+        red "  Install: sudo steamos-readonly disable && sudo pacman -S python-pip"
         exit 1
     fi
 }
 
 check_plugin_layout() {
     yellow "▶ Verifying plugin layout…"
-    local required=(
-        "plugin.json"
-        "main.py"
-        "package.json"
-        "pyproject.toml"
-        "dist/index.js"
-    )
+    local required=("plugin.json" "main.py" "dist/index.js" "pyproject.toml")
     for f in "${required[@]}"; do
         if [[ -f "$PLUGIN_DIR/$f" ]]; then
             green "  ✓ $f"
@@ -72,52 +67,52 @@ check_plugin_layout() {
 }
 
 install_python_deps() {
-    yellow "▶ Installing Python dependencies (psutil, pyyaml, rubymarshal)…"
-
+    yellow "▶ Installing Python dependencies (3 small packages)…"
     local pipcmd
     pipcmd="$(command -v pip3 || command -v pip)"
 
-    if [[ -n "${VIRTUAL_ENV:-}" ]]; then
-        yellow "  Detected active venv: $VIRTUAL_ENV"
-        "$pipcmd" install --quiet psutil pyyaml rubymarshal
-    else
-        "$pipcmd" install --user --quiet psutil pyyaml rubymarshal 2>/dev/null || \
-        "$pipcmd" install --user --quiet --break-system-packages psutil pyyaml rubymarshal 2>/dev/null || {
-            yellow "  --user install failed, retrying with sudo (Decky venv path)…"
-            sudo "$pipcmd" install --quiet psutil pyyaml rubymarshal 2>/dev/null || {
-                red "  ✗ Could not install Python deps"
-                red "  Try manually: $pipcmd install --user psutil pyyaml rubymarshal"
-                exit 1
-            }
-        }
-    fi
-
-    local verif_ok=true
+    local installed=true
     for mod in psutil yaml rubymarshal; do
-        if ! python3 -c "import $mod" 2>/dev/null; then
-            red "  ✗ Module '$mod' still not importable after install"
-            verif_ok=false
+        if python3 -c "import $mod" 2>/dev/null; then
+            green "  ✓ $mod (already installed)"
         else
-            green "  ✓ $mod importable"
+            installed=false
+            break
         fi
     done
 
-    if ! $verif_ok; then
-        red ""
-        red "  Some Python modules could not be imported."
-        red "  Try with --break-system-packages: $pipcmd install --user --break-system-packages psutil pyyaml rubymarshal"
-        exit 1
+    if $installed; then
+        green "  All deps present, skipping pip install"
+        return
     fi
+
+    "$pipcmd" install --user --quiet psutil pyyaml rubymarshal 2>/dev/null || \
+    "$pipcmd" install --user --quiet --break-system-packages psutil pyyaml rubymarshal 2>/dev/null || {
+        yellow "  --user failed, trying sudo…"
+        sudo "$pipcmd" install --quiet psutil pyyaml rubymarshal 2>/dev/null || {
+            red "  ✗ Could not install Python deps"
+            red "  Try: $pipcmd install --user --break-system-packages psutil pyyaml rubymarshal"
+            exit 1
+        }
+    }
+
+    for mod in psutil yaml rubymarshal; do
+        if python3 -c "import $mod" 2>/dev/null; then
+            green "  ✓ $mod"
+        else
+            red "  ✗ $mod still not importable"
+            exit 1
+        fi
+    done
 }
 
-verify_plugin_imports() {
-    yellow "▶ Smoke-testing plugin imports…"
+verify_plugin() {
+    yellow "▶ Smoke-testing plugin…"
     (
         cd "$PLUGIN_DIR"
         PYTHONPATH="$PLUGIN_DIR" python3 -c "
-import sys
+import sys, types
 sys.path.insert(0, '.')
-import types
 mock = types.ModuleType('decky')
 class L:
     def info(self, *a, **kw): pass
@@ -126,49 +121,30 @@ class L:
 mock.logger = L()
 sys.modules['decky'] = mock
 
-import main
-import typechart
-import saveparser
-import savepath
-import pbsparser
-import pbsfinder
-import moves
-import themes
-import livewatch
-print('  All modules import OK')
-        "
+import main, typechart, saveparser, savepath, pbsparser, pbsfinder, moves, themes, livewatch
+print('  All 9 Python modules import OK')
+        " 2>&1
     )
-    green "  ✓ Plugin Python modules import cleanly"
+    green "  ✓ Plugin ready"
 }
 
 check_decky_layout() {
-    yellow "▶ Checking Decky plugin layout…"
+    yellow "▶ Checking Decky layout…"
     if [[ "$PLUGIN_DIR" == */homebrew/plugins/* ]]; then
         green "  ✓ Plugin is in ~/homebrew/plugins/"
     else
         yellow "  ! Plugin folder is: $PLUGIN_DIR"
-        yellow "  ! Decky expects plugins under ~/homebrew/plugins/$PLUGIN_NAME/"
-        yellow "  ! Move the folder there and re-run, or symlink it:"
-        yellow "    ln -s \"$PLUGIN_DIR\" \"\$HOME/homebrew/plugins/$PLUGIN_NAME\""
+        yellow "  ! Move to ~/homebrew/plugins/$PLUGIN_NAME/ for Decky to load it"
     fi
 }
 
 final_instructions() {
     echo
     green "============================================================"
-    green "  ✓ Install complete"
+    green "  ✓ Install complete in seconds (no npm/pnpm download)"
     green "============================================================"
     echo
-    blue "  Next steps:"
-    blue "  1. Restart Decky (or toggle the plugin off/on in QAM)"
-    blue "     QAM → Decky → Pokémon Essentials Overlay"
-    blue "  2. Open the plugin in QAM to see the Status tab"
-    blue "  3. If save auto-detection fails, set a manual path in"
-    blue "     Settings → Save resolution"
-    echo
-    blue "  Plugin folder: $PLUGIN_DIR"
-    echo
-    blue "  Logs: check Decky's loader log for '[pokemon-overlay]' lines"
+    blue "  Next: restart Decky (QAM → Decky → toggle plugin)"
     echo
 }
 
@@ -177,7 +153,7 @@ main() {
     check_requirements
     check_plugin_layout
     install_python_deps
-    verify_plugin_imports
+    verify_plugin
     check_decky_layout
     final_instructions
 }
