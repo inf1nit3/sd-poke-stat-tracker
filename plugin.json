@@ -1,0 +1,13 @@
+{
+  "name": "SD Poké Stat Tracker",
+  "author": "inf1nit3",
+  "homepage": "https://github.com/inf1nit3/sd-poke-stat-tracker",
+  "flags": ["debug"],
+  "api_version": 1,
+  "minimum_steamdeck_version": "1.0.0",
+  "publish": {
+    "tags": ["pokemon", "fan-game", "rpg-maker", "essentials", "tracker", "stats", "type-chart", "save-parser", "qol"],
+    "description": "In-game party stat tracker for Pokémon Essentials fan games (RPG Maker XP / MV / MZ) on Steam Deck. Live HP/IV/EV display, type chart, save-file parser, and a draggable touch menu. Reads the game's own PBS files for accurate move types including custom fan-game moves. Adapts its UI to what the save actually contains — no empty placeholders.",
+    "image": ""
+  }
+}

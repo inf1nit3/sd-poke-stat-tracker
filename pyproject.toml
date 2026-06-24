@@ -1,0 +1,18 @@
+[project]
+name = "pokemon-overlay-plugin"
+version = "0.1.0"
+description = "In-game overlay for Pokémon Essentials fan games on Steam Deck"
+requires-python = ">=3.11"
+dependencies = [
+  "python-decky",
+  "psutil>=5.9.0",
+  "pyyaml>=6.0",
+  "rubymarshal>=1.2.0"
+]
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main", "typechart", "saveparser", "savepath", "pbsparser", "pbsfinder", "moves", "themes", "livewatch"]

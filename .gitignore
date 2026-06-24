@@ -1,0 +1,38 @@
+# Build artifacts (keep dist/ — Decky needs dist/index.js pre-built)
+*.tsbuildinfo
+
+# Node
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Test / build outputs (zip + tarball are local deploy artifacts)
+*.zip
+*.tar.gz
+*.log
+
+# Runtime-generated user data (never commit these)
+data/settings.json
+data/cache/
+
+# Generated test outputs
+test_*.rxdata
+test_*.rb-output.rxdata
