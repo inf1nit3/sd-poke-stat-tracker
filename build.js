@@ -1,18 +1,14 @@
 const esbuild = require("esbuild");
 const path = require("path");
-const { dependencies, peerDependencies } = require("./package.json");
 
 const watch = process.argv.includes("--watch");
 
-const externals = [
-  ...Object.keys(dependencies || {}),
-  ...Object.keys(peerDependencies || {}),
-  "decky-frontend-lib",
-  "@decky/api",
-  "@decky/manifest",
-  "typescript-transform-paths"
-];
-
+// Nothing should be external — everything is bundled so the plugin works
+// without a Node-style require() at runtime.
+//
+// @decky/api and decky-frontend-lib are intentionally NOT here: they live in
+// the global window namespace on the Steam Deck and are accessed via
+// src/decky-shim.js and src/decky-frontend-lib-shim.js.
 const config = {
   entryPoints: [path.join(__dirname, "src", "index.tsx")],
   bundle: true,
@@ -20,7 +16,6 @@ const config = {
   target: "es2020",
   format: "iife",
   outfile: path.join(__dirname, "dist", "index.js"),
-  external: externals,
   jsx: "automatic",
   loader: {
     ".png": "dataurl",
