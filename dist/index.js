@@ -1,25 +1,1822 @@
-var tn=Object.create;var Ye=Object.defineProperty;var nn=Object.getOwnPropertyDescriptor;var on=Object.getOwnPropertyNames;var rn=Object.getPrototypeOf,an=Object.prototype.hasOwnProperty;var he=(e,t)=>()=>(t||e((t={exports:{}}).exports,t),t.exports);var sn=(e,t,n,o)=>{if(t&&typeof t=="object"||typeof t=="function")for(let r of on(t))!an.call(e,r)&&r!==n&&Ye(e,r,{get:()=>t[r],enumerable:!(o=nn(t,r))||o.enumerable});return e};var b=(e,t,n)=>(n=e!=null?tn(rn(e)):{},sn(t||!e||!e.__esModule?Ye(n,"default",{value:e,enumerable:!0}):n,e));var ct=he(h=>{"use strict";var de=Symbol.for("react.element"),un=Symbol.for("react.portal"),dn=Symbol.for("react.fragment"),pn=Symbol.for("react.strict_mode"),fn=Symbol.for("react.profiler"),mn=Symbol.for("react.provider"),gn=Symbol.for("react.context"),yn=Symbol.for("react.forward_ref"),vn=Symbol.for("react.suspense"),bn=Symbol.for("react.memo"),hn=Symbol.for("react.lazy"),Je=Symbol.iterator;function Sn(e){return e===null||typeof e!="object"?null:(e=Je&&e[Je]||e["@@iterator"],typeof e=="function"?e:null)}var tt={isMounted:function(){return!1},enqueueForceUpdate:function(){},enqueueReplaceState:function(){},enqueueSetState:function(){}},nt=Object.assign,ot={};function oe(e,t,n){this.props=e,this.context=t,this.refs=ot,this.updater=n||tt}oe.prototype.isReactComponent={};oe.prototype.setState=function(e,t){if(typeof e!="object"&&typeof e!="function"&&e!=null)throw Error("setState(...): takes an object of state variables to update or a function which returns an object of state variables.");this.updater.enqueueSetState(this,e,t,"setState")};oe.prototype.forceUpdate=function(e){this.updater.enqueueForceUpdate(this,e,"forceUpdate")};function rt(){}rt.prototype=oe.prototype;function Ae(e,t,n){this.props=e,this.context=t,this.refs=ot,this.updater=n||tt}var Le=Ae.prototype=new rt;Le.constructor=Ae;nt(Le,oe.prototype);Le.isPureReactComponent=!0;var Qe=Array.isArray,at=Object.prototype.hasOwnProperty,Oe={current:null},st={key:!0,ref:!0,__self:!0,__source:!0};function it(e,t,n){var o,r={},s=null,c=null;if(t!=null)for(o in t.ref!==void 0&&(c=t.ref),t.key!==void 0&&(s=""+t.key),t)at.call(t,o)&&!st.hasOwnProperty(o)&&(r[o]=t[o]);var i=arguments.length-2;if(i===1)r.children=n;else if(1<i){for(var u=Array(i),S=0;S<i;S++)u[S]=arguments[S+2];r.children=u}if(e&&e.defaultProps)for(o in i=e.defaultProps,i)r[o]===void 0&&(r[o]=i[o]);return{$$typeof:de,type:e,key:s,ref:c,props:r,_owner:Oe.current}}function xn(e,t){return{$$typeof:de,type:e.type,key:t,ref:e.ref,props:e.props,_owner:e._owner}}function $e(e){return typeof e=="object"&&e!==null&&e.$$typeof===de}function _n(e){var t={"=":"=0",":":"=2"};return"$"+e.replace(/[=:]/g,function(n){return t[n]})}var et=/\/+/g;function Ie(e,t){return typeof e=="object"&&e!==null&&e.key!=null?_n(""+e.key):t.toString(36)}function xe(e,t,n,o,r){var s=typeof e;(s==="undefined"||s==="boolean")&&(e=null);var c=!1;if(e===null)c=!0;else switch(s){case"string":case"number":c=!0;break;case"object":switch(e.$$typeof){case de:case un:c=!0}}if(c)return c=e,r=r(c),e=o===""?"."+Ie(c,0):o,Qe(r)?(n="",e!=null&&(n=e.replace(et,"$&/")+"/"),xe(r,t,n,"",function(S){return S})):r!=null&&($e(r)&&(r=xn(r,n+(!r.key||c&&c.key===r.key?"":(""+r.key).replace(et,"$&/")+"/")+e)),t.push(r)),1;if(c=0,o=o===""?".":o+":",Qe(e))for(var i=0;i<e.length;i++){s=e[i];var u=o+Ie(s,i);c+=xe(s,t,n,u,r)}else if(u=Sn(e),typeof u=="function")for(e=u.call(e),i=0;!(s=e.next()).done;)s=s.value,u=o+Ie(s,i++),c+=xe(s,t,n,u,r);else if(s==="object")throw t=String(e),Error("Objects are not valid as a React child (found: "+(t==="[object Object]"?"object with keys {"+Object.keys(e).join(", ")+"}":t)+"). If you meant to render a collection of children, use an array instead.");return c}function Se(e,t,n){if(e==null)return e;var o=[],r=0;return xe(e,o,"","",function(s){return t.call(n,s,r++)}),o}function Pn(e){if(e._status===-1){var t=e._result;t=t(),t.then(function(n){(e._status===0||e._status===-1)&&(e._status=1,e._result=n)},function(n){(e._status===0||e._status===-1)&&(e._status=2,e._result=n)}),e._status===-1&&(e._status=0,e._result=t)}if(e._status===1)return e._result.default;throw e._result}var $={current:null},_e={transition:null},wn={ReactCurrentDispatcher:$,ReactCurrentBatchConfig:_e,ReactCurrentOwner:Oe};function lt(){throw Error("act(...) is not supported in production builds of React.")}h.Children={map:Se,forEach:function(e,t,n){Se(e,function(){t.apply(this,arguments)},n)},count:function(e){var t=0;return Se(e,function(){t++}),t},toArray:function(e){return Se(e,function(t){return t})||[]},only:function(e){if(!$e(e))throw Error("React.Children.only expected to receive a single React element child.");return e}};h.Component=oe;h.Fragment=dn;h.Profiler=fn;h.PureComponent=Ae;h.StrictMode=pn;h.Suspense=vn;h.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=wn;h.act=lt;h.cloneElement=function(e,t,n){if(e==null)throw Error("React.cloneElement(...): The argument must be a React element, but you passed "+e+".");var o=nt({},e.props),r=e.key,s=e.ref,c=e._owner;if(t!=null){if(t.ref!==void 0&&(s=t.ref,c=Oe.current),t.key!==void 0&&(r=""+t.key),e.type&&e.type.defaultProps)var i=e.type.defaultProps;for(u in t)at.call(t,u)&&!st.hasOwnProperty(u)&&(o[u]=t[u]===void 0&&i!==void 0?i[u]:t[u])}var u=arguments.length-2;if(u===1)o.children=n;else if(1<u){i=Array(u);for(var S=0;S<u;S++)i[S]=arguments[S+2];o.children=i}return{$$typeof:de,type:e.type,key:r,ref:s,props:o,_owner:c}};h.createContext=function(e){return e={$$typeof:gn,_currentValue:e,_currentValue2:e,_threadCount:0,Provider:null,Consumer:null,_defaultValue:null,_globalName:null},e.Provider={$$typeof:mn,_context:e},e.Consumer=e};h.createElement=it;h.createFactory=function(e){var t=it.bind(null,e);return t.type=e,t};h.createRef=function(){return{current:null}};h.forwardRef=function(e){return{$$typeof:yn,render:e}};h.isValidElement=$e;h.lazy=function(e){return{$$typeof:hn,_payload:{_status:-1,_result:e},_init:Pn}};h.memo=function(e,t){return{$$typeof:bn,type:e,compare:t===void 0?null:t}};h.startTransition=function(e){var t=_e.transition;_e.transition={};try{e()}finally{_e.transition=t}};h.unstable_act=lt;h.useCallback=function(e,t){return $.current.useCallback(e,t)};h.useContext=function(e){return $.current.useContext(e)};h.useDebugValue=function(){};h.useDeferredValue=function(e){return $.current.useDeferredValue(e)};h.useEffect=function(e,t){return $.current.useEffect(e,t)};h.useId=function(){return $.current.useId()};h.useImperativeHandle=function(e,t,n){return $.current.useImperativeHandle(e,t,n)};h.useInsertionEffect=function(e,t){return $.current.useInsertionEffect(e,t)};h.useLayoutEffect=function(e,t){return $.current.useLayoutEffect(e,t)};h.useMemo=function(e,t){return $.current.useMemo(e,t)};h.useReducer=function(e,t,n){return $.current.useReducer(e,t,n)};h.useRef=function(e){return $.current.useRef(e)};h.useState=function(e){return $.current.useState(e)};h.useSyncExternalStore=function(e,t,n){return $.current.useSyncExternalStore(e,t,n)};h.useTransition=function(){return $.current.useTransition()};h.version="18.3.1"});var H=he((go,ut)=>{"use strict";ut.exports=ct()});var pt=he(Pe=>{"use strict";var kn=H(),Tn=Symbol.for("react.element"),Rn=Symbol.for("react.fragment"),Dn=Object.prototype.hasOwnProperty,Cn=kn.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner,En={key:!0,ref:!0,__self:!0,__source:!0};function dt(e,t,n){var o,r={},s=null,c=null;n!==void 0&&(s=""+n),t.key!==void 0&&(s=""+t.key),t.ref!==void 0&&(c=t.ref);for(o in t)Dn.call(t,o)&&!En.hasOwnProperty(o)&&(r[o]=t[o]);if(e&&e.defaultProps)for(o in t=e.defaultProps,t)r[o]===void 0&&(r[o]=t[o]);return{$$typeof:Tn,type:e,key:s,ref:c,props:r,_owner:Cn.current}}Pe.Fragment=Rn;Pe.jsx=dt;Pe.jsxs=dt});var w=he((vo,ft)=>{"use strict";ft.exports=pt()});var Ze="__DECKY_SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED_deckyLoaderAPIInit";function ln(){let e=typeof window<"u"?window[Ze]:void 0;if(!e)throw new Error("[@decky/api shim] Failed to connect to loader \u2014 "+Ze+" missing.");return e}var ue=null;function cn(){if(ue)return ue;let e=ln(),t=2,n={name:"SD Pok\xE9 Stat Tracker"};try{ue=e.connect(t,n.name)}catch{ue=e.connect(1,n.name)}return ue}async function Xe(e,...t){return cn().call(e,...t)}var J=b(H());var X=b(w());function pe({size:e=18,style:t}){let n=e;return(0,X.jsxs)("svg",{width:n,height:n,viewBox:"0 0 24 24",style:t,xmlns:"http://www.w3.org/2000/svg","aria-label":"Pokeball",children:[(0,X.jsx)("circle",{cx:"12",cy:"12",r:"11",fill:"#fff",stroke:"#222",strokeWidth:"1.5"}),(0,X.jsx)("path",{d:"M 1 12 A 11 11 0 0 1 23 12 Z",fill:"#dc2626",stroke:"#222",strokeWidth:"1.5"}),(0,X.jsx)("line",{x1:"1",y1:"12",x2:"23",y2:"12",stroke:"#222",strokeWidth:"1.5"}),(0,X.jsx)("circle",{cx:"12",cy:"12",r:"4",fill:"#fff",stroke:"#222",strokeWidth:"1.5"}),(0,X.jsx)("circle",{cx:"12",cy:"12",r:"1.5",fill:"#222"})]})}var mt="DFL";function V(){if(typeof window>"u")throw new Error("[decky-frontend-lib shim] window is not available");let e=window[mt];if(!e)throw new Error("[decky-frontend-lib shim] "+mt+" global not found");return e}var ho=new Proxy({},{get(e,t){let n=V(),o=n[t];return typeof o=="function"?o.bind(n):o},has(e,t){return t in V()}}),P=(...e)=>V().PanelSection(...e),m=(...e)=>V().PanelSectionRow(...e),U=(...e)=>V().ButtonItem(...e);var we=(...e)=>V().TextField(...e),re=(...e)=>V().Dropdown(...e);var fe=(...e)=>V().Toggle(...e);var Q=(...e)=>V().Spinner(...e);var Fe=(...e)=>V().Focusable(...e);var gt=(...e)=>V().PatchTouchMenu(...e),So=new Proxy({},{get(e,t){let n=V().staticClasses;return n?n[t]:void 0}});var Ne=b(w());function yt({tabs:e,activeId:t,onChange:n}){return(0,Ne.jsx)(Fe,{focusWithinClassName:"gp-tabs-active",style:{display:"flex",flexDirection:"row",gap:"4px",padding:"8px 0 6px 0",borderBottom:"1px solid #2a2a2a",marginBottom:"4px"},children:e.map(o=>{let r=o.id===t;return(0,Ne.jsx)(Fe,{onClick:()=>!o.disabled&&n(o.id),style:{padding:"6px 10px",background:r?"rgba(255,255,255,0.08)":"transparent",color:o.disabled?"#555":r?"#fff":"#969696",borderRadius:"4px",cursor:o.disabled?"not-allowed":"pointer",fontSize:"12px",fontWeight:r?600:500,borderBottom:r?"2px solid #5eba7d":"2px solid transparent",transition:"color 120ms, background 120ms",outline:"none"},children:o.label},o.id)})})}var vt=b(H());async function R(e,...t){try{return await Xe(e,...t)}catch(n){let o=n instanceof Error?n.message:String(n);throw new Error(`[${e}] ${o}`)}}var k={getPluginInfo:()=>R("get_plugin_info"),getSettings:()=>R("get_settings"),updateSettings:e=>R("update_settings",e),getTypeChart:()=>R("get_type_chart"),getMatchup:(e,t)=>R("get_matchup",e,t),getDefenseSummary:e=>R("get_defense_summary",e),getOffenseSummary:e=>R("get_offense_summary",e),findSavePath:()=>R("find_save_path"),listSaveFiles:()=>R("list_save_files"),getSaveData:(e=!1)=>R("get_save_data",e),getSaveDataFromPath:e=>R("get_save_data_from_path",e),getMovesDatabase:()=>R("get_moves_database"),getMoveInfo:e=>R("get_move_info",e),lookupMoves:e=>R("lookup_moves",e),findPbsFiles:e=>R("find_pbs_files",e??null),loadPbsMoves:e=>R("load_pbs_moves",e),autoLoadPbs:()=>R("auto_load_pbs"),getThemes:()=>R("get_themes"),getActiveTheme:()=>R("get_active_theme"),getLiveState:()=>R("get_live_state"),getLiveSaveData:()=>R("get_live_save_data"),setWatcherEnabled:e=>R("set_watcher_enabled",e),findProcessBySave:e=>R("find_process_by_save",e),getProcessMemoryRegions:e=>R("get_process_memory_regions",e)};var bt={info:null,typeChart:null,saveData:null,settings:null,movesDatabase:null,theme:null},ee=bt,We=new Set,ke=null,Ve=0;function zn(){for(let e of We)e()}function me(e){ee=e,zn()}function Mn(e){return We.add(e),()=>{We.delete(e)}}function Bn(){return ee}function In(){return bt}function D(e){return(0,vt.useSyncExternalStore)(Mn,()=>e(Bn()),()=>e(In()))}async function ht(){try{let[e,t,n,o,r]=await Promise.all([k.getPluginInfo(),k.getTypeChart(),k.getSettings(),k.getMovesDatabase(),k.getThemes()]);me({...ee,info:e,typeChart:t,settings:n,movesDatabase:o,theme:r.active})}catch(e){console.error("[store] refreshStatic failed",e)}}async function Ue(){try{let e=await k.getThemes();me({...ee,theme:e.active})}catch(e){console.error("[store] refreshTheme failed",e)}}async function Te(e=!0){try{let t=await k.getSaveData(e);me({...ee,saveData:t})}catch(t){console.error("[store] refreshSave failed",t)}}async function Re(){try{let e=await k.getMovesDatabase();me({...ee,movesDatabase:e})}catch(e){console.error("[store] refreshMoves failed",e)}}async function K(e){try{let t=await k.updateSettings(e);return me({...ee,settings:t}),"theme"in e&&await Ue(),t}catch(t){throw console.error("[store] applySettingsPatch failed",t),t}}function St(e){De();let t=Math.max(5,e);t!==Ve&&(Ve=t,Te(!0),ke=setInterval(()=>{Te(!0)},t*1e3),console.log(`[store] polling started, every ${t}s`))}function De(){ke!==null&&(clearInterval(ke),ke=null,Ve=0,console.log("[store] polling stopped"))}var xt={bg:"#0e0e0e",bgSecondary:"rgba(255,255,255,0.04)",bgTertiary:"rgba(255,255,255,0.02)",border:"rgba(255,255,255,0.08)",text:"#fff",textSecondary:"#ccc",textMuted:"#888",textFaint:"#555",accent:"#5eba7d",accentBg:"rgba(94,186,125,0.15)",shiny:"#f7d02c",female:"#e87ba3",male:"#7ba3e8",genderless:"#888",hpGood:"#5eba7d",hpWarn:"#e0a458",hpBad:"#e87b7b",statusOK:"#5eba7d",statusPSN:"#a33ea1",statusPAR:"#e0a458",statusBRN:"#c22e28",statusSLP:"#969696",statusFRZ:"#96d9d6",statusFNT:"#888",typeBadgeText:"#fff",badgeShadow:"0 1px 2px rgba(0,0,0,0.5)"};function _t(e){let t={};for(let[n,o]of Object.entries(e)){let r="--theme-"+n.replace(/[A-Z]/g,s=>"-"+s.toLowerCase());t[r]=String(o)}return t}var Ct=b(H());var te=b(H());var Pt=b(w()),An={Normal:"#A8A77A",Fire:"#EE8130",Water:"#6390F0",Electric:"#F7D02C",Grass:"#7AC74C",Ice:"#96D9D6",Fighting:"#C22E28",Poison:"#A33EA1",Ground:"#E2BF65",Flying:"#A98FF3",Psychic:"#F95587",Bug:"#A6B91A",Rock:"#B6A136",Ghost:"#735797",Dragon:"#6F35FC",Dark:"#705746",Steel:"#B7B7CE",Fairy:"#D685AD"},Ln={sm:{padding:"2px 6px",fontSize:"10px"},md:{padding:"3px 8px",fontSize:"12px"},lg:{padding:"4px 12px",fontSize:"13px"}};function E({type:e,size:t="md",style:n,dimmed:o=!1}){let r=An[e]??"#777";return(0,Pt.jsx)("span",{style:{display:"inline-block",background:r,color:"#fff",textShadow:"0 1px 2px rgba(0,0,0,0.5)",borderRadius:"4px",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.4px",whiteSpace:"nowrap",opacity:o?.45:1,...Ln[t],...n},children:e})}var _=b(w()),On=[{key:"super_effective",label:"Super effective (2\xD7)",color:"#ff8a3d"},{key:"not_very_effective",label:"Not very effective (\xBD\xD7)",color:"#5eba7d"},{key:"no_effect",label:"No effect (0\xD7)",color:"#888"}];function wt(){let e=D(x=>x.saveData),t=D(x=>x.movesDatabase),[n,o]=(0,te.useState)(null),[r,s]=(0,te.useState)(null),[c,i]=(0,te.useState)(null),[u,S]=(0,te.useState)(!1);if((0,te.useEffect)(()=>{if(!n){s(null),i(null);return}S(!0),i(null),k.getMoveInfo(n).then(x=>(s(x),x&&x.type?k.getOffenseSummary(x.type).then(i):null)).catch(x=>console.error("[move-lookup]",x)).finally(()=>S(!1))},[n]),!e||e.error)return(0,_.jsx)("div",{style:{padding:24,textAlign:"center",color:"#888",fontSize:13},children:"Load a save first to see party moves."});let B=e.party||[],O=[];for(let x of B)for(let N of x.moves)N&&O.push({move:N,owner:x.nickname||x.species});return(0,_.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:10},children:[(0,_.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",paddingBottom:4,borderBottom:"1px solid #2a2a2a"},children:[(0,_.jsx)("span",{style:{fontSize:11,color:"#888",fontWeight:600},children:"PARTY MOVES:"}),O.map((x,N)=>{let Y=t?.moves?.[Fn(x.move)]?.type;return(0,_.jsxs)("button",{onClick:()=>o(x.move),style:{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 8px",background:n===x.move?"rgba(94,186,125,0.2)":"rgba(255,255,255,0.05)",color:"#ddd",border:n===x.move?"1px solid #5eba7d":"1px solid transparent",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:500},children:[Y&&(0,_.jsx)(E,{type:Y,size:"sm"}),(0,_.jsx)("span",{children:x.move})]},`${x.owner}-${x.move}-${N}`)})]}),!n&&(0,_.jsx)("div",{style:{padding:20,textAlign:"center",color:"#888",fontSize:12,fontStyle:"italic"},children:"Tap a move to see its type and effectiveness"}),n&&u&&(0,_.jsx)("div",{style:{padding:16,textAlign:"center",color:"#aaa"},children:"Loading\u2026"}),n&&!u&&(0,_.jsx)($n,{move:n,info:r,offense:c}),t&&(0,_.jsxs)("div",{style:{fontSize:10,color:"#555",textAlign:"right",marginTop:2},children:[t.merged_count," moves available",t.pbs_source&&(0,_.jsxs)(_.Fragment,{children:[" ","\xB7 PBS: ",t.pbs_source.split("/").slice(-2).join("/")]})]})]})}function $n({move:e,info:t,offense:n}){return(0,_.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:8,padding:10,background:"rgba(255,255,255,0.04)",borderRadius:6},children:[(0,_.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:8},children:[(0,_.jsx)("span",{style:{fontSize:16,fontWeight:600,color:"#fff",textTransform:"uppercase"},children:t?.name||e}),t?.type&&(0,_.jsx)(E,{type:t.type,size:"md"}),(0,_.jsx)("div",{style:{flex:1}}),t?.source&&(0,_.jsxs)("span",{style:{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:.5},children:[t.source,t.guessed&&" (heuristic)"]})]}),t&&(0,_.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,fontSize:11,color:"#ccc"},children:[(0,_.jsx)(Ge,{label:"Category",value:t.category}),(0,_.jsx)(Ge,{label:"Power",value:t.power?String(t.power):"\u2014"}),(0,_.jsx)(Ge,{label:"Accuracy",value:t.accuracy?`${t.accuracy}%`:"\u2014"})]}),t?.description&&(0,_.jsx)("div",{style:{fontSize:11,color:"#888",fontStyle:"italic",lineHeight:1.4},children:t.description}),n?.summary&&(0,_.jsx)("div",{style:{display:"flex",flexDirection:"column",gap:6},children:On.map(o=>{let r=n.summary?.[o.key]??[];return r.length===0?null:(0,_.jsxs)("div",{style:{padding:"5px 7px",background:"rgba(255,255,255,0.02)",borderRadius:4,borderLeft:`3px solid ${o.color}`},children:[(0,_.jsxs)("div",{style:{fontSize:10,fontWeight:600,color:o.color,textTransform:"uppercase",letterSpacing:.4,marginBottom:3},children:[o.label," (",r.length,")"]}),(0,_.jsx)("div",{style:{display:"flex",flexWrap:"wrap",gap:3},children:r.map(s=>(0,_.jsx)(E,{type:s,size:"sm"},s))})]},o.key)})})]})}function Ge({label:e,value:t}){return(0,_.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:2},children:[(0,_.jsx)("div",{style:{fontSize:9,color:"#777",textTransform:"uppercase",letterSpacing:.4},children:e}),(0,_.jsx)("div",{style:{fontSize:12,color:"#ddd"},children:t})]})}function Fn(e){return(e||"").toUpperCase().replace(/[^A-Z0-9]/g,"")}var ne=b(w());function Nn(e){return e>=.5?"#5eba7d":e>=.25?"#e0a458":"#e87b7b"}function Wn(e){return!e||e==="OK"?{color:""}:{color:{PSN:"#a33ea1",PAR:"#e0a458",BRN:"#c22e28",SLP:"#969696",FRZ:"#96d9d6",FNT:"#444"}[e]||"#888"}}function Ce({hp:e,maxHp:t,statusName:n,width:o="100%",showLabel:r=!0}){let s=t>0?t:1,c=Math.max(0,Math.min(1,e/s)),i=Nn(c),u=Wn(n),S={position:"relative",width:o,height:8,background:"rgba(255,255,255,0.08)",borderRadius:2,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)"},B={width:`${c*100}%`,height:"100%",background:i,transition:"width 200ms ease-out"},O=u.color?{position:"absolute",top:0,left:0,width:`${c*100}%`,height:"100%",background:`repeating-linear-gradient(45deg, ${u.color}, ${u.color} 4px, transparent 4px, transparent 8px)`,opacity:.7,pointerEvents:"none"}:void 0;return(0,ne.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:6,width:"100%"},children:[(0,ne.jsxs)("div",{style:S,children:[(0,ne.jsx)("div",{style:B}),O&&(0,ne.jsx)("div",{style:O})]}),r&&(0,ne.jsxs)("div",{style:{fontSize:11,color:"#bbb",minWidth:56,textAlign:"right",fontVariantNumeric:"tabular-nums"},children:[e,"/",t]})]})}function kt(e){return(e||"").toUpperCase().replace(/[^A-Z0-9]/g,"")}var d=b(w()),Vn={OK:"#5eba7d",PSN:"#a33ea1",PAR:"#e0a458",BRN:"#c22e28",SLP:"#969696",FRZ:"#96d9d6",FNT:"#888"},Un={M:"\u2642",F:"\u2640","\u2014":"\u25CB"},Tt=6;function Rt(){let e=D(s=>s.saveData),t=D(s=>s.movesDatabase);if(!e)return(0,d.jsx)(He,{children:"Loading save data\u2026"});if(e.error==="no_save_file_found")return(0,d.jsxs)(He,{children:["No save file found.",(0,d.jsx)("br",{}),"Configure a path in ",(0,d.jsx)("strong",{children:"Settings"}),"."]});if(e.error==="parse_failed")return(0,d.jsxs)(He,{children:["Parse error: ",e.message??"unknown"]});let n=e.party||[],o=Array.from({length:Tt}).map((s,c)=>n[c]||null),r=e.features;return(0,d.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:6},children:[(0,d.jsx)(Gn,{trainer:e.trainer_name,count:n.length,max:Tt,money:r?.items?e.money:0,badges:e.badges,location:e.location_name||(e.map_id!=null?`Map #${e.map_id}`:""),pbsSource:t?.pbs_source??null,features:r}),o.map((s,c)=>s?(0,d.jsx)(Hn,{pokemon:s,movesDb:t,features:r},`slot-${c}`):(0,d.jsx)(qn,{index:c},`slot-${c}`))]})}function Gn({trainer:e,count:t,max:n,money:o,badges:r,location:s,pbsSource:c,features:i}){return(0,d.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:10,padding:"4px 8px",background:"rgba(255,255,255,0.04)",borderRadius:4,fontSize:12,color:"#ccc",flexWrap:"wrap"},children:[(0,d.jsx)("span",{style:{fontWeight:600,color:"#fff"},children:e||"Trainer"}),(0,d.jsx)("span",{style:{color:"#666"},children:"\xB7"}),(0,d.jsxs)("span",{children:["Party ",t,"/",n]}),i?.items&&o>0&&(0,d.jsxs)(d.Fragment,{children:[(0,d.jsx)("span",{style:{color:"#666"},children:"\xB7"}),(0,d.jsxs)("span",{children:["\u20BD",o.toLocaleString("en-US")]})]}),r>0&&(0,d.jsxs)(d.Fragment,{children:[(0,d.jsx)("span",{style:{color:"#666"},children:"\xB7"}),(0,d.jsxs)("span",{style:{color:"#f7d02c"},children:[r," \u{1F3C6}"]})]}),s&&(0,d.jsxs)(d.Fragment,{children:[(0,d.jsx)("span",{style:{color:"#666"},children:"\xB7"}),(0,d.jsx)("span",{style:{color:"#888"},children:s})]}),c&&(0,d.jsx)("span",{style:{marginLeft:"auto",fontSize:9,color:"#5eba7d",background:"rgba(94,186,125,0.1)",padding:"1px 4px",borderRadius:2},title:c,children:"PBS \u2713"})]})}function Hn({pokemon:e,movesDb:t,features:n}){let o=Vn[e.status_name]??"#888",r=e.has_stats,s=e.has_gender_data,c=e.has_type2&&e.type2,i=e.has_moves&&e.moves.length>0;return(0,d.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:"rgba(255,255,255,0.04)",borderRadius:5,borderLeft:`3px solid ${o}`,opacity:e.is_fainted?.55:1},children:[(0,d.jsxs)("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",minWidth:24,gap:1},children:[e.shiny&&(0,d.jsx)("span",{style:{color:"#f7d02c",fontSize:11,lineHeight:1},children:"\u2605"}),s&&(0,d.jsx)("span",{style:{color:e.gender_name==="F"?"#e87ba3":e.gender_name==="M"?"#7ba3e8":"#888",fontSize:12,fontWeight:700,lineHeight:1},children:Un[e.gender_name]??"?"})]}),(0,d.jsxs)("div",{style:{flex:1,minWidth:0},children:[(0,d.jsxs)("div",{style:{display:"flex",alignItems:"baseline",gap:8,marginBottom:4,flexWrap:"wrap"},children:[(0,d.jsx)("span",{style:{fontSize:13,fontWeight:600,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:180},children:e.nickname||e.species}),(0,d.jsxs)("span",{style:{fontSize:10,color:"#888"},children:["Lv.",e.level]}),e.nature&&(0,d.jsx)("span",{style:{fontSize:9,color:"#888"},children:e.nature}),(0,d.jsx)("div",{style:{flex:1}}),(0,d.jsxs)("div",{style:{display:"flex",gap:3},children:[e.type1&&(0,d.jsx)(E,{type:e.type1,size:"sm"}),c&&(0,d.jsx)(E,{type:e.type2,size:"sm"})]})]}),(0,d.jsx)(Ce,{hp:e.hp,maxHp:e.max_hp,statusName:e.status_name,showLabel:!1}),(0,d.jsxs)("div",{style:{display:"flex",gap:8,fontSize:10,color:"#888",marginTop:3,alignItems:"center",flexWrap:"wrap"},children:[(0,d.jsxs)("span",{children:[e.hp,"/",e.max_hp]}),(0,d.jsx)("span",{style:{color:o,fontWeight:600},children:e.status_name}),e.ability&&(0,d.jsxs)("span",{children:[(0,d.jsx)("span",{style:{color:"#666"},children:"\xB7"})," ",e.ability]}),e.item&&(0,d.jsxs)("span",{children:[(0,d.jsx)("span",{style:{color:"#666"},children:"\xB7"})," ",e.item]}),n?.happiness&&e.happiness!=null&&(0,d.jsxs)("span",{style:{color:"#e87ba3"},children:["\u2665",e.happiness]}),r&&e.speed!=null&&(0,d.jsxs)("span",{style:{color:"#666"},children:["SPE:",e.speed]})]}),i&&(0,d.jsx)("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginTop:5},children:e.moves.map((u,S)=>{let B=t?.moves?.[kt(u)]?.type;return(0,d.jsxs)("span",{style:{display:"inline-flex",alignItems:"center",gap:3,padding:"1px 5px",background:"rgba(255,255,255,0.05)",borderRadius:3,fontSize:10,color:"#ccc"},children:[B&&(0,d.jsx)(E,{type:B,size:"sm"}),u]},S)})})]})]})}function qn({index:e}){return(0,d.jsxs)("div",{style:{padding:8,background:"rgba(255,255,255,0.02)",borderRadius:4,border:"1px dashed #333",textAlign:"center",fontSize:11,color:"#555",fontStyle:"italic"},children:["Slot ",e+1," \u2014 empty"]})}function He({children:e}){return(0,d.jsx)("div",{style:{padding:24,textAlign:"center",color:"#888",fontSize:13,lineHeight:1.5},children:e})}var ae=b(H());var L=b(w()),Kn=[{key:"super_effective",label:"Super effective (2\xD7)",color:"#ff8a3d"},{key:"not_very_effective",label:"Not very effective (\xBD\xD7)",color:"#5eba7d"},{key:"no_effect",label:"No effect (0\xD7)",color:"#888"}];function Dt(){let e=D(i=>i.typeChart),[t,n]=(0,ae.useState)("Fire"),[o,r]=(0,ae.useState)(null),[s,c]=(0,ae.useState)(null);return(0,ae.useEffect)(()=>{t&&(r(null),c(null),k.getOffenseSummary(t).then(i=>{"error"in i&&i.error?c(i.error):r(i)}).catch(i=>c(i.message)))},[t]),e?(0,L.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:10},children:[(0,L.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#aaa"},children:[(0,L.jsx)("span",{children:"Attacker:"}),(0,L.jsx)("select",{value:t,onChange:i=>n(i.target.value),style:{flex:1,padding:"6px 8px",background:"#1a1a1a",color:"#fff",border:"1px solid #444",borderRadius:4,fontSize:13,outline:"none"},children:e.types.map(i=>(0,L.jsx)("option",{value:i,children:i},i))}),(0,L.jsx)(E,{type:t,size:"md"})]}),s&&(0,L.jsx)("div",{style:{color:"#e87b7b",fontSize:12,padding:"4px 0"},children:s}),o?.summary&&(0,L.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:6},children:[Kn.map(i=>{let u=o.summary?.[i.key]??[];return u.length===0?null:(0,L.jsxs)("div",{style:{padding:"6px 8px",background:"rgba(255,255,255,0.03)",borderRadius:4,borderLeft:`3px solid ${i.color}`},children:[(0,L.jsxs)("div",{style:{fontSize:10,fontWeight:600,color:i.color,textTransform:"uppercase",letterSpacing:.4,marginBottom:4},children:[i.label," (",u.length,")"]}),(0,L.jsx)("div",{style:{display:"flex",flexWrap:"wrap",gap:4},children:u.map(S=>(0,L.jsx)(E,{type:S,size:"sm"},S))})]},i.key)}),(0,L.jsxs)("div",{style:{fontSize:10,color:"#555",textAlign:"right",marginTop:2},children:["Generation ",e.generation," type chart"]})]})]}):(0,L.jsx)("div",{style:{padding:24,textAlign:"center",color:"#888",fontSize:13},children:"Loading type chart\u2026"})}var j=b(w()),jn=[{id:"party",label:"Party"},{id:"types",label:"Type Lookup"},{id:"moves",label:"Move Lookup"}];function Et(){let[e,t]=(0,Ct.useState)("party");return(0,j.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:10,padding:"10px 12px 14px 12px",minWidth:360,maxWidth:720},children:[(0,j.jsx)("div",{style:{display:"flex",gap:6,paddingBottom:4,borderBottom:"1px solid #2a2a2a"},children:jn.map(n=>(0,j.jsx)(Yn,{active:e===n.id,onClick:()=>t(n.id),children:n.label},n.id))}),e==="party"&&(0,j.jsx)(Rt,{}),e==="types"&&(0,j.jsx)(Dt,{}),e==="moves"&&(0,j.jsx)(wt,{})]})}function Yn({active:e,onClick:t,children:n}){return(0,j.jsx)("button",{onClick:t,style:{flex:1,padding:"6px 10px",background:e?"rgba(94,186,125,0.15)":"rgba(255,255,255,0.04)",color:e?"#5eba7d":"#aaa",border:e?"1px solid #5eba7d":"1px solid transparent",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:e?600:500,textTransform:"uppercase",letterSpacing:.4},children:n})}var qe=b(w()),ge=null;function zt(){ge||(ge=gt({menuLabel:"Pok\xE9mon Essentials",icon:(0,qe.jsx)(pe,{}),content:(0,qe.jsx)(Et,{}),onMenuClose:()=>{console.log("[pokemon-overlay] touch menu closed")}}),console.log("[pokemon-overlay] touch menu registered"))}function Ke(){if(ge){try{ge()}catch(e){console.error("[pokemon-overlay] unpatch error",e)}ge=null,console.log("[pokemon-overlay] touch menu unregistered")}}var ze=b(H());var p=b(w()),Zn={OK:"#5eba7d",PSN:"#a33ea1",PAR:"#e0a458",BRN:"#c22e28",SLP:"#969696",FRZ:"#96d9d6",FNT:"#888"},Xn={M:"\u2642",F:"\u2640","\u2014":"\u25CB"},Mt={stats:!0,ivs:!0,evs:!0,nature:!0,ability:!0,item:!0,happiness:!0,gender:!0,moves:!0,type2:!0};function je(e,t){let n=e/t;return n>=.9?"#5eba7d":n>=.5?"#e0a458":n>=.25?"#e87b7b":"#777"}function Jn(e,t,n){let o=t;return{stats:(n?.stats??!0)&&(e.has_stats||(o?.stats??!1)),ivs:(n?.ivs??!0)&&(e.has_ivs||(o?.ivs??!1)),evs:(n?.evs??!0)&&(e.has_evs||(o?.evs??!1))&&(e.has_ivs||(o?.ivs??!1)),nature:(n?.nature??!0)&&(e.has_nature||(o?.natures??!1)),ability:(n?.ability??!0)&&(e.has_ability||(o?.abilities??!1)),item:(n?.item??!0)&&(e.has_item||(o?.items??!1)),happiness:(n?.happiness??!0)&&(e.has_happiness||(o?.happiness??!1)),gender:(n?.gender??!0)&&(e.has_gender_data||(o?.gender??!1)),moves:(n?.moves??!0)&&(e.has_moves||(o?.moves??!1)),type2:(n?.type2??!0)&&(e.has_type2??!1)}}function Bt({pokemon:e,features:t,forced:n}){let o=Jn(e,t,n),r=e.nickname||e.species,s=Zn[e.status_name]??"#888",c=e.is_fainted,i=[];return o.ability&&e.ability&&i.push({label:"Ability",value:e.ability}),o.item&&e.item&&i.push({label:"Item",value:e.item}),o.nature&&e.nature&&i.push({label:"Nature",value:e.nature}),o.happiness&&e.happiness!=null&&i.push({label:"\u2665",value:String(e.happiness)}),(0,p.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:6,padding:10,background:"rgba(255,255,255,0.03)",borderRadius:6,borderLeft:`3px solid ${s}`,opacity:c?.6:1},children:[(0,p.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:8},children:[e.shiny&&(0,p.jsx)("span",{style:{color:"#f7d02c",fontSize:14,textShadow:"0 0 4px rgba(247, 208, 44, 0.5)"},title:"Shiny",children:"\u2605"}),(0,p.jsx)("span",{style:{fontSize:14,fontWeight:600,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:r}),(0,p.jsxs)("span",{style:{fontSize:11,color:"#888"},children:["Lv.",e.level]}),o.gender&&(0,p.jsx)("span",{style:{fontSize:12,color:e.gender_name==="F"?"#e87ba3":e.gender_name==="M"?"#7ba3e8":"#888",fontWeight:700,marginLeft:"auto"},title:e.gender_name==="\u2014"?"Genderless":e.gender_name==="M"?"Male":"Female",children:Xn[e.gender_name]??"?"})]}),e.nickname&&e.nickname!==e.species&&(0,p.jsx)("div",{style:{fontSize:11,color:"#888",textTransform:"uppercase",letterSpacing:.5},children:e.species}),(0,p.jsxs)("div",{style:{display:"flex",gap:4,flexWrap:"wrap"},children:[e.type1&&(0,p.jsx)(E,{type:e.type1,size:"sm"}),o.type2&&e.has_type2&&e.type2&&(0,p.jsx)(E,{type:e.type2,size:"sm"})]}),(0,p.jsx)(Ce,{hp:e.hp,maxHp:e.max_hp,statusName:e.status_name}),(0,p.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:12,fontSize:11,color:"#aaa",flexWrap:"wrap"},children:[(0,p.jsx)("span",{children:(0,p.jsx)("span",{style:{color:s,fontWeight:600},children:e.status_name})}),i.map(u=>(0,p.jsxs)("span",{children:[(0,p.jsxs)("span",{style:{color:"#777"},children:[u.label,":"]})," ",u.value]},u.label))]}),o.moves&&e.moves.length>0&&(0,p.jsx)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginTop:2},children:Array.from({length:4}).map((u,S)=>{let B=e.moves[S];return(0,p.jsx)("div",{style:{fontSize:11,padding:"3px 6px",background:B?"rgba(255,255,255,0.05)":"transparent",borderRadius:3,color:B?"#ddd":"#555",fontStyle:B?"normal":"italic",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},children:B??"\u2014"},S)})}),o.stats&&e.has_stats&&(0,p.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 0",borderTop:"1px solid rgba(255,255,255,0.05)",fontSize:10},children:[(0,p.jsx)(ye,{label:"ATK",value:e.attack}),(0,p.jsx)(ye,{label:"DEF",value:e.defense}),(0,p.jsx)(ye,{label:"SpA",value:e.spatk}),(0,p.jsx)(ye,{label:"SpD",value:e.spdef}),(0,p.jsx)(ye,{label:"SPE",value:e.speed})]}),o.ivs&&e.has_ivs&&e.iv_total!=null&&(0,p.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:4,padding:"6px 0",borderTop:"1px solid rgba(255,255,255,0.05)",fontSize:10},children:[(0,p.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4},children:[(0,p.jsx)(se,{label:"HP",value:e.iv_hp}),(0,p.jsx)(se,{label:"ATK",value:e.iv_attack}),(0,p.jsx)(se,{label:"DEF",value:e.iv_defense}),(0,p.jsx)(se,{label:"SpA",value:e.iv_spatk}),(0,p.jsx)(se,{label:"SpD",value:e.iv_spdef}),(0,p.jsx)(se,{label:"SPE",value:e.iv_speed})]}),o.evs&&e.has_evs&&e.ev_total!=null&&(0,p.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr 1fr",gap:4,color:"#666"},children:[(0,p.jsx)(ie,{label:"HP",value:e.ev_hp}),(0,p.jsx)(ie,{label:"ATK",value:e.ev_attack}),(0,p.jsx)(ie,{label:"DEF",value:e.ev_defense}),(0,p.jsx)(ie,{label:"SpA",value:e.ev_spatk}),(0,p.jsx)(ie,{label:"SpD",value:e.ev_spdef}),(0,p.jsx)(ie,{label:"SPE",value:e.ev_speed})]}),(0,p.jsxs)("div",{style:{fontSize:10,color:"#888",display:"flex",gap:8,marginTop:2},children:[(0,p.jsxs)("span",{children:["IV: ",e.iv_total,"/186"," ",(0,p.jsx)("span",{style:{color:je(e.iv_total,186)},children:"\u25CF"})]}),o.evs&&e.has_evs&&e.ev_total!=null&&(0,p.jsxs)("span",{children:["EV: ",e.ev_total,"/510"," ",(0,p.jsx)("span",{style:{color:je(e.ev_total,510)},children:"\u25CF"})]})]})]})]})}function ye({label:e,value:t}){return(0,p.jsxs)("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1},children:[(0,p.jsx)("div",{style:{fontSize:9,color:"#777",textTransform:"uppercase",letterSpacing:.3},children:e}),(0,p.jsx)("div",{style:{fontSize:12,color:"#ddd",fontVariantNumeric:"tabular-nums"},children:t??"\u2014"})]})}function se({label:e,value:t}){return(0,p.jsxs)("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1},title:t==null?"?":`${t}/31`,children:[(0,p.jsx)("div",{style:{fontSize:9,color:"#5eba7d",textTransform:"uppercase",letterSpacing:.3},children:e}),(0,p.jsx)("div",{style:{fontSize:11,color:t==null?"#555":je(t,31),fontVariantNumeric:"tabular-nums"},children:t??"\u2014"})]})}function ie({label:e,value:t}){return(0,p.jsxs)("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1},title:t==null?"?":`${t} EVs`,children:[(0,p.jsx)("div",{style:{fontSize:9,color:"#7ba3e8",textTransform:"uppercase",letterSpacing:.3},children:e}),(0,p.jsx)("div",{style:{fontSize:10,color:t==null?"#555":"#aaa",fontVariantNumeric:"tabular-nums"},children:t??"\u2014"})]})}function Ee({features:e}){if(!e)return null;let t=[];return e.ivs&&t.push(["IVs","Available"]),e.evs&&t.push(["EVs","Available"]),e.happiness&&t.push(["Friendship","Available"]),e.shiny&&t.push(["Shiny","Supported"]),e.stats&&t.push(["Stats","Available"]),e.natures&&t.push(["Natures","Available"]),e.abilities&&t.push(["Abilities","Available"]),e.items&&t.push(["Held items","Available"]),e.type2&&t.push(["Dual-types","Available"]),e.moves&&t.push(["Moves","Available"]),t.length===0?null:(0,p.jsx)("div",{style:{display:"flex",flexWrap:"wrap",gap:4,fontSize:10,color:"#888"},children:t.map(([n,o])=>(0,p.jsx)("span",{style:{background:"rgba(94,186,125,0.1)",color:"#5eba7d",padding:"2px 6px",borderRadius:3,border:"1px solid rgba(94,186,125,0.2)"},children:n},n))})}var g=b(w());function ve({ok:e}){return(0,g.jsx)("span",{style:{display:"inline-block",width:8,height:8,borderRadius:"50%",marginRight:8,backgroundColor:e?"#5eba7d":"#e0a458",boxShadow:e?"0 0 4px rgba(94, 186, 125, 0.6)":"0 0 4px rgba(224, 164, 88, 0.6)"}})}function Qn(e){if(!e)return"never";let t=Date.now()/1e3-e;return t<5?"just now":t<60?`${Math.floor(t)}s ago`:t<3600?`${Math.floor(t/60)}m ago`:`${Math.floor(t/3600)}h ago`}function It(){let e=D(s=>s.info),t=D(s=>s.saveData),n=D(s=>s.movesDatabase),[o,r]=(0,ze.useState)(null);return(0,ze.useEffect)(()=>{let s=!1,c=async()=>{try{let u=await k.getLiveState();s||r(u)}catch(u){console.error("[home] live state",u)}};c();let i=setInterval(c,5e3);return()=>{s=!0,clearInterval(i)}},[]),e?(0,g.jsxs)(g.Fragment,{children:[(0,g.jsx)(P,{title:"About",children:(0,g.jsx)(m,{children:(0,g.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:4,padding:"4px 0"},children:[(0,g.jsxs)("div",{style:{fontSize:14,fontWeight:600},children:[e.name," ",(0,g.jsxs)("span",{style:{color:"#969696",fontWeight:400},children:["v",e.version]})]}),(0,g.jsx)("div",{style:{fontSize:12,color:"#969696",lineHeight:1.4},children:e.description})]})})}),(0,g.jsx)(P,{title:"Status",children:(0,g.jsx)(m,{children:(0,g.jsxs)("div",{style:{fontSize:12,display:"flex",flexDirection:"column",gap:6,padding:"4px 0"},children:[(0,g.jsxs)("div",{children:[(0,g.jsx)(ve,{ok:e.initialized}),e.initialized?"Backend ready":"Backend not initialized"]}),(0,g.jsxs)("div",{children:[(0,g.jsx)(ve,{ok:e.type_chart_loaded}),e.type_chart_loaded?`Type chart loaded (${e.type_chart_types} types)`:"Type chart not loaded"]}),(0,g.jsxs)("div",{children:[(0,g.jsx)(ve,{ok:n?.loaded??!1}),n?.loaded?n.pbs_source?`Moves DB: ${n.merged_count} (PBS loaded)`:`Moves DB: ${n.static_count} static only`:"Moves DB not loaded"]}),o&&(0,g.jsxs)(g.Fragment,{children:[(0,g.jsxs)("div",{children:[(0,g.jsx)(ve,{ok:o.game_running}),o.game_running?`Game running: ${o.active_process?.name??"unknown"} (pid ${o.active_process?.pid??"?"})`:"No game process detected"]}),(0,g.jsxs)("div",{children:[(0,g.jsx)(ve,{ok:o.watcher_active}),o.watcher_active?`Save watcher active${o.last_live_event?.at?` \xB7 last event ${Qn(o.last_live_event.at)}`:""}`:"Save watcher inactive"]})]}),t&&!t.error&&t.features&&(0,g.jsxs)("div",{style:{marginTop:4,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.05)"},children:[(0,g.jsxs)("div",{style:{fontSize:10,color:"#777",textTransform:"uppercase",letterSpacing:.4,marginBottom:4},children:["Save features (",t.version,")"]}),(0,g.jsx)(Ee,{features:t.features})]})]})})}),(0,g.jsx)(P,{title:"Roadmap",children:(0,g.jsx)(m,{children:(0,g.jsxs)("div",{style:{fontSize:12,color:"#969696",lineHeight:1.6},children:[(0,g.jsxs)("div",{children:[(0,g.jsx)("span",{style:{color:"#5eba7d"},children:"\u25CF"})," Phase 1 \u2014 Foundation"]}),(0,g.jsxs)("div",{children:[(0,g.jsx)("span",{style:{color:"#5eba7d"},children:"\u25CF"})," Phase 2 \u2014 Interactive type chart"]}),(0,g.jsxs)("div",{children:[(0,g.jsx)("span",{style:{color:"#5eba7d"},children:"\u25CF"})," Phase 3 \u2014 Save-file parser & party status"]}),(0,g.jsxs)("div",{children:[(0,g.jsx)("span",{style:{color:"#5eba7d"},children:"\u25CF"})," Phase 4 \u2014 In-game TouchMenu overlay"]}),(0,g.jsxs)("div",{children:[(0,g.jsx)("span",{style:{color:"#5eba7d"},children:"\u25CF"})," Phase 5 \u2014 Live PBS, IV/EV, dynamic UI, themes, watcher"]})]})})})]}):(0,g.jsx)(P,{title:"Pok\xE9mon Essentials Overlay",children:(0,g.jsx)(m,{children:(0,g.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0"},children:[(0,g.jsx)(Q,{}),(0,g.jsx)("span",{style:{fontSize:13,color:"#969696"},children:"Loading\u2026"})]})})})}var Me=b(H());var y=b(w());function eo(e){return`\u20BD${e.toLocaleString("en-US")}`}function to(e){if(!e||e<0)return"\u2014";let t=Math.floor(e/3600),n=Math.floor(e%3600/60),o=e%60;return t>0?`${t}h ${n}m`:n>0?`${n}m ${o}s`:`${o}s`}function no(e){if(!e)return"never";let t=Date.now()/1e3-e;return t<5?"just now":t<60?`${Math.floor(t)}s ago`:t<3600?`${Math.floor(t/60)}m ago`:t<86400?`${Math.floor(t/3600)}h ago`:`${Math.floor(t/86400)}d ago`}var At=6;function Lt(){let e=D(c=>c.saveData),t=D(c=>c.settings),[n,o]=(0,Me.useState)(!1),r=(0,Me.useCallback)(async()=>{o(!0);try{await Te(!0)}finally{o(!1)}},[]);if(!e)return(0,y.jsx)(P,{title:"Party",children:(0,y.jsx)(m,{children:(0,y.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:8,padding:"12px 0"},children:[(0,y.jsx)(Q,{}),(0,y.jsx)("span",{style:{fontSize:13,color:"#969696"},children:"Loading save data\u2026"})]})})});if(e.error==="no_save_file_found")return(0,y.jsxs)(P,{title:"Party",children:[(0,y.jsx)(m,{children:(0,y.jsxs)("div",{style:{fontSize:13,color:"#969696",lineHeight:1.5},children:["No save file found. Start the game and save once, or set a manual path in ",(0,y.jsx)("strong",{children:"Settings"}),"."]})}),(0,y.jsx)(U,{layout:"below",onClick:r,disabled:n,children:n?"Scanning\u2026":"Scan again"})]});if(e.error==="parse_failed")return(0,y.jsxs)(P,{title:"Party",children:[(0,y.jsxs)(m,{children:[(0,y.jsxs)("div",{style:{color:"#e87b7b",fontSize:13},children:["Parse error: ",e.message]}),(0,y.jsx)("div",{style:{fontSize:11,color:"#777",marginTop:6,wordBreak:"break-all"},children:e.path})]}),(0,y.jsx)(U,{layout:"below",onClick:r,disabled:n,children:"Try again"})]});let s=t?.compact_mode??!0;return(0,y.jsx)(oo,{data:e,reloading:n,onReload:r,autoRefreshSeconds:t?.scan_interval_seconds??30,forced:s?void 0:Mt})}function oo({data:e,reloading:t,onReload:n,autoRefreshSeconds:o,forced:r}){let s=e.party||[],c=Array.from({length:At}).map((i,u)=>s[u]||null);return(0,y.jsxs)(y.Fragment,{children:[(0,y.jsxs)(P,{title:e.trainer_name||"Trainer",children:[(0,y.jsx)(m,{children:(0,y.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,fontSize:12},children:[(0,y.jsx)(le,{label:"Money",value:eo(e.money)}),(0,y.jsx)(le,{label:"Badges",value:String(e.badges)}),(0,y.jsx)(le,{label:"Location",value:e.location_name||`Map #${e.map_id??"?"}`}),(0,y.jsx)(le,{label:"Position",value:`${e.x??"?"}, ${e.y??"?"}`}),(0,y.jsx)(le,{label:"Play time",value:to(e.play_time_seconds)}),(0,y.jsx)(le,{label:"Version",value:e.version})]})}),(0,y.jsx)(m,{children:(0,y.jsxs)("div",{style:{fontSize:11,color:"#777"},children:["Updated ",no(e.parsed_at)," \xB7 auto-refresh every"," ",Math.max(5,o),"s"]})}),(0,y.jsx)(U,{layout:"below",onClick:n,disabled:t,children:t?"Reloading\u2026":"Reload from disk"})]}),e.features&&(0,y.jsx)(P,{title:"Detected features",children:(0,y.jsx)(m,{children:(0,y.jsx)(Ee,{features:e.features})})}),(0,y.jsx)(P,{title:`Party (${s.length}/${At})`,children:c.map((i,u)=>i?(0,y.jsx)(m,{children:(0,y.jsx)(Bt,{pokemon:i,features:e.features,forced:r})},`slot-${u}`):(0,y.jsx)(m,{children:(0,y.jsxs)("div",{style:{padding:10,background:"rgba(255,255,255,0.02)",borderRadius:6,border:"1px dashed #333",textAlign:"center",fontSize:11,color:"#555",fontStyle:"italic"},children:["Slot ",u+1," \u2014 empty"]})},`slot-${u}`))}),(0,y.jsx)(P,{title:"Source",children:(0,y.jsx)(m,{children:(0,y.jsx)("div",{style:{fontSize:10,color:"#666",wordBreak:"break-all",lineHeight:1.4},children:e.source_path})})})]})}function le({label:e,value:t}){return(0,y.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:2},children:[(0,y.jsx)("div",{style:{fontSize:10,color:"#777",textTransform:"uppercase",letterSpacing:.4},children:e}),(0,y.jsx)("div",{style:{fontSize:12,color:"#ddd"},children:t})]})}var T=b(H());var l=b(w());function ro(e){return e?new Date(e*1e3).toLocaleString():"\u2014"}function ao(e){return e<1024?`${e} B`:e<1024*1024?`${(e/1024).toFixed(1)} KB`:`${(e/(1024*1024)).toFixed(2)} MB`}function Ot(e,t=60){if(e.length<=t)return e;let n=e.split("/");return n.length<=3?"\u2026"+e.slice(-t+1):n.slice(0,2).join("/")+"/\u2026/"+n.slice(-2).join("/")}function $t(){let e=D(a=>a.settings),t=D(a=>a.movesDatabase),n=D(a=>a.theme),[o,r]=(0,T.useState)(null),[s,c]=(0,T.useState)([]),[i,u]=(0,T.useState)(""),[S,B]=(0,T.useState)(""),[O,x]=(0,T.useState)(!1),[N,G]=(0,T.useState)(!1),[Y,z]=(0,T.useState)(null),[Z,C]=(0,T.useState)(null),[ce,be]=(0,T.useState)([]),M=(0,T.useCallback)(async()=>{x(!0),z(null),C(null);try{let[a,f]=await Promise.all([k.findSavePath(),k.listSaveFiles()]);r(a),c(f)}catch(a){let f=a instanceof Error?a.message:String(a);C(f)}finally{x(!1)}},[]);(0,T.useEffect)(()=>{M()},[M]),(0,T.useEffect)(()=>{k.getThemes().then(a=>be(a.themes)).catch(a=>console.error("themes",a))},[n?.id]),(0,T.useEffect)(()=>{e&&u(e.save_path_override??"")},[e?.save_path_override]),(0,T.useEffect)(()=>{t&&B(t.pbs_source??"")},[t?.pbs_source]);let q=(0,T.useCallback)(async()=>{G(!0),z(null),C(null);try{let a=await k.autoLoadPbs();await Re(),a.loaded?z(`Auto-loaded ${a.database.pbs_count} moves from PBS: ${Ot(a.source??"")}`):z("No PBS/moves.txt found in common locations.")}catch(a){let f=a instanceof Error?a.message:String(a);C(f)}finally{G(!1)}},[]),Gt=(0,T.useCallback)(async()=>{if(S.trim()){G(!0),z(null),C(null);try{let a=await k.loadPbsMoves(S.trim());await Re(),a.loaded?z(`Loaded ${a.count} moves from PBS file.`):C("Failed to load PBS file (file not readable or malformed).")}catch(a){let f=a instanceof Error?a.message:String(a);C(f)}finally{G(!1)}}},[S]),Ht=(0,T.useCallback)(async()=>{B(""),G(!0),z(null),C(null);try{let a=await k.loadPbsMoves("/dev/null");await Re(),z("PBS override cleared. Static moves database only.")}catch(a){let f=a instanceof Error?a.message:String(a);C(f)}finally{G(!1)}},[]),qt=(0,T.useCallback)(async()=>{x(!0),z(null),C(null);try{let a=i.trim()===""?null:i.trim();await K({save_path_override:a}),z(a?"Override saved.":"Override cleared.");let f=await k.findSavePath();r(f)}catch(a){let f=a instanceof Error?a.message:String(a);C(f)}finally{x(!1)}},[i]),Kt=(0,T.useCallback)(async()=>{u(""),x(!0),z(null),C(null);try{await K({save_path_override:null}),z("Override cleared.");let a=await k.findSavePath();r(a)}catch(a){let f=a instanceof Error?a.message:String(a);C(f)}finally{x(!1)}},[]),jt=(0,T.useCallback)(async a=>{u(a),x(!0),z(null),C(null);try{await K({save_path_override:a}),z(`Override set: ${a}`);let f=await k.findSavePath();r(f)}catch(f){let W=f instanceof Error?f.message:String(f);C(W)}finally{x(!1)}},[]),Yt=(0,T.useCallback)(async a=>{try{await K({auto_scan_enabled:a})}catch(f){let W=f instanceof Error?f.message:String(f);C(W)}},[]),Zt=(0,T.useCallback)(async a=>{try{await K({touchmenu_enabled:a})}catch(f){let W=f instanceof Error?f.message:String(f);C(W)}},[]),Xt=(0,T.useCallback)(async a=>{try{await K({scan_interval_seconds:Math.max(5,a)})}catch(f){let W=f instanceof Error?f.message:String(f);C(W)}},[]),Jt=(0,T.useCallback)(async a=>{try{await K({compact_mode:a})}catch(f){let W=f instanceof Error?f.message:String(f);C(W)}},[]),Qt=(0,T.useCallback)(async a=>{try{await K({theme:a}),await Ue()}catch(f){let W=f instanceof Error?f.message:String(f);C(W)}},[]),en=(0,T.useCallback)(async a=>{try{await k.setWatcherEnabled(a),z(a?"Live save watcher enabled.":"Live save watcher disabled.")}catch(f){let W=f instanceof Error?f.message:String(f);C(W)}},[]);return e?(0,l.jsxs)(l.Fragment,{children:[(0,l.jsxs)(P,{title:"Save resolution",children:[(0,l.jsxs)(m,{children:[(0,l.jsx)("div",{style:{fontSize:11,color:"#969696",textTransform:"uppercase",letterSpacing:.4},children:"Active save"}),(0,l.jsx)("div",{style:{fontSize:12,color:o?.path?"#5eba7d":"#e0a458",wordBreak:"break-all",marginTop:4},children:o?.path||"\u2014 no save found \u2014"}),o?.using_override&&(0,l.jsx)("div",{style:{fontSize:10,color:"#777",marginTop:2},children:"(using manual override)"})]}),(0,l.jsx)(U,{layout:"below",onClick:M,disabled:O,children:O?"Scanning\u2026":"Rescan saves"})]}),(0,l.jsxs)(P,{title:"Manual override",children:[(0,l.jsx)(m,{children:(0,l.jsxs)("div",{style:{fontSize:11,color:"#888",lineHeight:1.4,marginBottom:4},children:["If auto-detection fails, paste the full path to"," ",(0,l.jsx)("code",{style:{color:"#ccc"},children:"Game.rxdata"})," here. Leave blank to use auto-detection."]})}),(0,l.jsx)(m,{children:(0,l.jsx)(we,{label:"Path to Game.rxdata",value:i,onChange:a=>u(a.target.value)})}),(0,l.jsx)(U,{layout:"below",onClick:qt,disabled:O,children:"Apply override"}),e.save_path_override&&(0,l.jsx)(U,{layout:"below",onClick:Kt,disabled:O,children:"Clear override"})]}),(0,l.jsx)(P,{title:"Auto-detect options",children:(0,l.jsx)(m,{children:(0,l.jsx)(fe,{value:e.auto_scan_enabled,onChange:Yt,children:"Auto-scan running processes and Wine prefixes"})})}),(0,l.jsxs)(P,{title:"Display",children:[(0,l.jsx)(m,{children:(0,l.jsx)(fe,{value:e.compact_mode,onChange:Jt,children:"Compact mode (auto-hide empty sections)"})}),(0,l.jsx)(m,{children:(0,l.jsx)("div",{style:{fontSize:11,color:"#888",lineHeight:1.4},children:"When enabled, the UI only shows sections that have actual data from the save (e.g. IVs/EVs only on Essentials v17+, gender only when the game stores it). Disable to always show all sections with placeholder dashes."})})]}),(0,l.jsxs)(P,{title:"Theme",children:[(0,l.jsxs)(m,{children:[(0,l.jsx)("div",{style:{fontSize:11,color:"#969696",textTransform:"uppercase",letterSpacing:.4},children:"Active theme"}),(0,l.jsx)("div",{style:{fontSize:12,color:n?n.palette.accent:"#888",marginTop:4},children:n?n.name:"Loading\u2026"}),n&&(0,l.jsx)("div",{style:{fontSize:10,color:"#777",marginTop:2},children:n.description})]}),(0,l.jsx)(m,{children:(0,l.jsx)(re,{menuLabel:"Theme",selectedOption:e.theme||"default",onChange:a=>Qt(a.data),options:ce.map(a=>({data:a.id,label:a.name})),disabled:ce.length===0})}),n&&(0,l.jsx)(m,{children:(0,l.jsx)("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginTop:4},children:Object.keys(n.palette).filter(a=>["accent","hpGood","hpWarn","hpBad","shiny","female","male"].includes(a)).map(a=>(0,l.jsx)("div",{style:{width:22,height:22,borderRadius:4,background:n.palette[a],border:"1px solid rgba(255,255,255,0.15)"},title:`${a}: ${n.palette[a]}`},a))})})]}),(0,l.jsxs)(P,{title:"PBS moves database",children:[(0,l.jsxs)(m,{children:[(0,l.jsx)("div",{style:{fontSize:11,color:"#969696",textTransform:"uppercase",letterSpacing:.4},children:"Active PBS source"}),(0,l.jsx)("div",{style:{fontSize:11,color:t?.pbs_source?"#5eba7d":"#888",wordBreak:"break-all",marginTop:4},children:t?.pbs_source?Ot(t.pbs_source,80):"\u2014 not loaded (using static DB) \u2014"}),(0,l.jsx)("div",{style:{fontSize:10,color:"#777",marginTop:4},children:t?`${t.merged_count} moves total \xB7 ${t.static_count} static \xB7 ${t.pbs_count} from game PBS`:"Loading\u2026"})]}),(0,l.jsx)(m,{children:(0,l.jsxs)("div",{style:{fontSize:11,color:"#888",lineHeight:1.4},children:["PBS files from your game are auto-discovered from the save folder. Loading them adds ",(0,l.jsx)("em",{children:"custom moves"})," (fan-game specials) on top of the static Gen 1-6 database."]})}),(0,l.jsx)(U,{layout:"below",onClick:q,disabled:N,children:N?"Scanning\u2026":"Auto-discover PBS"}),(0,l.jsx)(m,{children:(0,l.jsx)(we,{label:"Manual PBS path (moves.txt)",value:S,onChange:a=>B(a.target.value)})}),(0,l.jsx)(U,{layout:"below",onClick:Gt,disabled:N||!S.trim(),children:"Load PBS from path"}),t?.pbs_source&&(0,l.jsx)(U,{layout:"below",onClick:Ht,disabled:N,children:"Clear PBS (use static only)"})]}),(0,l.jsxs)(P,{title:"TouchMenu overlay",children:[(0,l.jsx)(m,{children:(0,l.jsx)(fe,{value:e.touchmenu_enabled,onChange:Zt,children:"Enable in-game touch menu"})}),(0,l.jsx)(m,{children:(0,l.jsx)("div",{style:{fontSize:11,color:"#888",lineHeight:1.4},children:"When enabled, a touch menu appears over the game. Tap with two fingers on the screen to open it. Disable if it interferes with gameplay."})})]}),(0,l.jsxs)(P,{title:"Polling",children:[(0,l.jsx)(m,{children:(0,l.jsxs)("div",{style:{fontSize:11,color:"#888",marginBottom:4},children:["Save file is re-parsed every"," ",(0,l.jsxs)("strong",{style:{color:"#ccc"},children:[Math.max(5,e.scan_interval_seconds),"s"]}),". Lower values = fresher data, higher CPU. Minimum 5s."]})}),(0,l.jsx)(m,{children:(0,l.jsx)(we,{label:"Interval (seconds)",value:String(e.scan_interval_seconds),onChange:a=>{let f=parseInt(a.target.value,10);isNaN(f)||Xt(f)}})}),(0,l.jsx)(m,{children:(0,l.jsx)(fe,{value:!0,onChange:en,children:"Live save watcher (sub-second updates)"})}),(0,l.jsx)(m,{children:(0,l.jsx)("div",{style:{fontSize:11,color:"#888",lineHeight:1.4},children:"Watches the save file mtime via a background thread and re-parses on every change. ~1s latency, near-zero CPU. Recommended when in-game; disable for battery savings."})})]}),s.length>0&&(0,l.jsx)(P,{title:`Discovered saves (${s.length})`,children:s.map(a=>(0,l.jsx)(m,{children:(0,l.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:4},children:[(0,l.jsx)("div",{style:{fontSize:11,color:"#ddd",wordBreak:"break-all"},children:a.path}),(0,l.jsxs)("div",{style:{fontSize:10,color:"#777"},children:[ao(a.size)," \xB7 modified ",ro(a.modified)]}),(0,l.jsx)(U,{layout:"inline",onClick:()=>jt(a.path),children:"Use this save"})]})},a.path))}),(Y||Z)&&(0,l.jsx)(P,{title:"Status",children:(0,l.jsxs)(m,{children:[Y&&(0,l.jsx)("div",{style:{fontSize:12,color:"#5eba7d"},children:Y}),Z&&(0,l.jsx)("div",{style:{fontSize:12,color:"#e87b7b"},children:Z})]})})]}):(0,l.jsx)(P,{title:"Settings",children:(0,l.jsx)(m,{children:(0,l.jsx)("div",{style:{fontSize:12,color:"#969696"},children:"Loading\u2026"})})})}var F=b(H());var I=b(w()),so={quadruple:"4\xD7 damage",double:"2\xD7 damage",neutral:"Normal",half:"\xBD\xD7 damage",quarter:"\xBC\xD7 damage",immune:"No effect"},io=["quadruple","double","neutral","half","quarter","immune"],Ft={quadruple:"#ff4d4d",double:"#ff8a3d",neutral:"#888",half:"#5eba7d",quarter:"#2f8a55",immune:"#444"};function Nt({defenders:e,summary:t}){return(0,I.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:"8px"},children:[(0,I.jsxs)("div",{style:{fontSize:"12px",color:"#969696"},children:["Defender:"," ",e.map((n,o)=>(0,I.jsxs)("span",{style:{marginRight:"4px"},children:[(0,I.jsx)(E,{type:n,size:"sm"}),o<e.length-1?" /":""]},n))]}),io.filter(n=>(t[n]||[]).length>0).map(n=>{let o=t[n]||[];return(0,I.jsxs)("div",{style:{padding:"6px 8px",background:"rgba(255,255,255,0.03)",borderRadius:"4px",borderLeft:`3px solid ${Ft[n]}`},children:[(0,I.jsxs)("div",{style:{fontSize:"11px",fontWeight:600,color:Ft[n],textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"4px"},children:[so[n]," (",o.length,")"]}),(0,I.jsx)("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px"},children:o.map(r=>(0,I.jsx)(E,{type:r,size:"sm"},r))})]},n)})]})}var lo=[{key:"super_effective",label:"Super effective",color:"#ff8a3d"},{key:"not_very_effective",label:"Not very effective",color:"#5eba7d"},{key:"no_effect",label:"No effect",color:"#444"},{key:"neutral",label:"Normal damage",color:"#888"}];function Wt({attacker:e,summary:t}){return(0,I.jsxs)("div",{style:{display:"flex",flexDirection:"column",gap:"8px"},children:[(0,I.jsxs)("div",{style:{fontSize:"12px",color:"#969696"},children:["Attacker: ",(0,I.jsx)(E,{type:e,size:"sm"})]}),lo.filter(n=>(t[n.key]||[]).length>0).map(n=>{let o=t[n.key]||[];return(0,I.jsxs)("div",{style:{padding:"6px 8px",background:"rgba(255,255,255,0.03)",borderRadius:"4px",borderLeft:`3px solid ${n.color}`},children:[(0,I.jsxs)("div",{style:{fontSize:"11px",fontWeight:600,color:n.color,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"4px"},children:[n.label," (",o.length,")"]}),(0,I.jsx)("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px"},children:o.map(r=>(0,I.jsx)(E,{type:r,size:"sm"},r))})]},n.key)})]})}var v=b(w()),Be="(none)";function Ut(){let e=D(M=>M.typeChart),[t,n]=(0,F.useState)(null),[o,r]=(0,F.useState)("defense"),[s,c]=(0,F.useState)("Fire"),[i,u]=(0,F.useState)("Fire"),[S,B]=(0,F.useState)(Be),[O,x]=(0,F.useState)(null),[N,G]=(0,F.useState)(null),[Y,z]=(0,F.useState)(!1),Z=e?.types??[],C=(0,F.useMemo)(()=>[{data:Be,label:Be},...Z.map(M=>({data:M,label:M}))],[Z]),ce=(0,F.useMemo)(()=>Z.map(M=>({data:M,label:M})),[Z]),be=(0,F.useMemo)(()=>S===Be?[i]:[i,S],[i,S]);return(0,F.useEffect)(()=>{if(!e)return;z(!0),n(null),(o==="defense"?k.getDefenseSummary(be):k.getOffenseSummary(s)).then(q=>{"error"in q&&q.error?(n(q.error),x(null),G(null)):o==="defense"?(x(q),G(null)):(G(q),x(null))}).catch(q=>n(q.message)).finally(()=>z(!1))},[e,o,s,be]),e?(0,v.jsxs)(v.Fragment,{children:[(0,v.jsx)(P,{title:"Mode",children:(0,v.jsx)(m,{children:(0,v.jsxs)("div",{style:{display:"flex",gap:"8px",padding:"4px 0"},children:[(0,v.jsx)(Vt,{label:"Defender",active:o==="defense",onClick:()=>r("defense")}),(0,v.jsx)(Vt,{label:"Attacker",active:o==="offense",onClick:()=>r("offense")})]})})}),(0,v.jsx)(P,{title:o==="defense"?"Defender types":"Attacker type",children:o==="defense"?(0,v.jsxs)(v.Fragment,{children:[(0,v.jsx)(m,{children:(0,v.jsx)(re,{menuLabel:"Type 1",selectedOption:i,onChange:M=>u(M.data),options:ce})}),(0,v.jsx)(m,{children:(0,v.jsx)(re,{menuLabel:"Type 2",selectedOption:S,onChange:M=>B(M.data),options:C})})]}):(0,v.jsx)(m,{children:(0,v.jsx)(re,{menuLabel:"Attacker",selectedOption:s,onChange:M=>c(M.data),options:ce})})}),Y&&(0,v.jsx)(P,{children:(0,v.jsx)(m,{children:(0,v.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:"8px",padding:"4px 0"},children:[(0,v.jsx)(Q,{}),(0,v.jsx)("span",{style:{fontSize:"12px",color:"#969696"},children:"Updating\u2026"})]})})}),t&&(0,v.jsx)(P,{children:(0,v.jsx)(m,{children:(0,v.jsx)("div",{style:{color:"#e87b7b",fontSize:"12px"},children:t})})}),o==="defense"&&O&&O.summary&&(0,v.jsx)(P,{title:"What hits this Pok\xE9mon?",children:(0,v.jsx)(m,{children:(0,v.jsx)(Nt,{defenders:O.defenders??[],summary:O.summary})})}),o==="offense"&&N&&N.summary&&(0,v.jsx)(P,{title:"What does it hit?",children:(0,v.jsx)(m,{children:(0,v.jsx)(Wt,{attacker:N.attacker??s,summary:N.summary})})}),(0,v.jsx)(P,{title:"Reference",children:(0,v.jsx)(m,{children:(0,v.jsxs)("div",{style:{fontSize:"11px",color:"#777",lineHeight:"1.5"},children:["Gen ",e.generation," type chart. STAB (Same-Type Attack Bonus) is applied by the game engine, not by this calculator. Values are the standard multipliers for a single-typed attack."]})})})]}):(0,v.jsx)(P,{title:"Type Chart",children:(0,v.jsx)(m,{children:(0,v.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:8,padding:"8px 0"},children:[(0,v.jsx)(Q,{}),(0,v.jsx)("span",{style:{fontSize:13,color:"#969696"},children:"Loading type chart\u2026"})]})})})}function Vt({label:e,active:t,onClick:n}){return(0,v.jsx)("button",{onClick:n,style:{flex:1,padding:"8px 12px",background:t?"rgba(94,186,125,0.15)":"rgba(255,255,255,0.04)",color:t?"#5eba7d":"#969696",border:t?"1px solid #5eba7d":"1px solid transparent",borderRadius:"4px",cursor:"pointer",fontSize:"12px",fontWeight:t?600:500,textTransform:"uppercase",letterSpacing:"0.5px"},children:e})}var A=b(w()),co=[{id:"status",label:"Status"},{id:"typechart",label:"Type Chart"},{id:"party",label:"Party"},{id:"settings",label:"Settings"}];function uo(){let[e,t]=(0,J.useState)("status"),n=D(i=>i.settings),o=D(i=>i.theme),r=n?.scan_interval_seconds??30;(0,J.useEffect)(()=>{ht()},[]),(0,J.useEffect)(()=>(St(r),()=>De()),[r]),(0,J.useEffect)(()=>(zt(),()=>Ke()),[]);let s=o?.palette??xt,c=(0,J.useMemo)(()=>_t(s),[s]);return(0,A.jsxs)("div",{style:{display:"flex",flexDirection:"column",...c},children:[(0,A.jsx)(yt,{tabs:co,activeId:e,onChange:i=>t(i)}),(0,A.jsx)("div",{style:{display:e==="status"?"block":"none"},children:(0,A.jsx)(It,{})}),(0,A.jsx)("div",{style:{display:e==="typechart"?"block":"none"},children:(0,A.jsx)(Ut,{})}),(0,A.jsx)("div",{style:{display:e==="party"?"block":"none"},children:(0,A.jsx)(Lt,{})}),(0,A.jsx)("div",{style:{display:e==="settings"?"block":"none"},children:(0,A.jsx)($t,{})})]})}var Zr=()=>({name:"Pok\xE9mon Essentials Overlay",titleView:(0,A.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:"6px",paddingLeft:"4px"},children:[(0,A.jsx)(pe,{size:18}),(0,A.jsx)("span",{children:"Pok\xE9mon Essentials Overlay"})]}),content:(0,A.jsx)(uo,{}),icon:(0,A.jsx)(pe,{}),onDismount(){Ke(),De(),console.log("[pokemon-overlay] dismounted")}});export{Zr as default};
-/*! Bundled license information:
+const manifest = {name: 'SD Poké Stat Tracker'};
+const API_VERSION = 2;
+const internalAPIConnection = window.__DECKY_SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED_deckyLoaderAPIInit;
+if (!internalAPIConnection) {
+    throw new Error('[@decky/api]: Failed to connect to the loader as as the loader API was not initialized. This is likely a bug in Decky Loader.');
+}
+let api$1;
+try {
+    api$1 = internalAPIConnection.connect(API_VERSION, manifest.name);
+}
+catch {
+    api$1 = internalAPIConnection.connect(1, manifest.name);
+    console.warn(`[@decky/api] Requested API version ${API_VERSION} but the running loader only supports version 1. Some features may not work.`);
+}
+if (api$1._version != API_VERSION) {
+    console.warn(`[@decky/api] Requested API version ${API_VERSION} but the running loader only supports version ${api$1._version}. Some features may not work.`);
+}
+const call = api$1.call;
+api$1.callable;
+api$1.addEventListener;
+api$1.removeEventListener;
+api$1.routerHook;
+api$1.toaster;
+api$1.openFilePicker;
+api$1.executeInTab;
+api$1.injectCssIntoTab;
+api$1.removeCssFromTab;
+api$1.fetchNoCors;
+api$1.getExternalResourceURL;
+api$1.useQuickAccessVisible;
+const definePlugin = (fn) => {
+    return (...args) => {
+        return fn(...args);
+    };
+};
 
-react/cjs/react.production.min.js:
-  (**
-   * @license React
-   * react.production.min.js
-   *
-   * Copyright (c) Facebook, Inc. and its affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   *)
+function PokeballIcon({ size = 18, style }) {
+    const s = size;
+    return (window.SP_JSX.jsxs("svg", { width: s, height: s, viewBox: "0 0 24 24", style: style, xmlns: "http://www.w3.org/2000/svg", "aria-label": "Pokeball", children: [window.SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "11", fill: "#fff", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("path", { d: "M 1 12 A 11 11 0 0 1 23 12 Z", fill: "#dc2626", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("line", { x1: "1", y1: "12", x2: "23", y2: "12", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "4", fill: "#fff", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "1.5", fill: "#222" })] }));
+}
 
-react/cjs/react-jsx-runtime.production.min.js:
-  (**
-   * @license React
-   * react-jsx-runtime.production.min.js
-   *
-   * Copyright (c) Facebook, Inc. and its affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   *)
-*/
+function TabBar({ tabs, activeId, onChange }) {
+    return (window.SP_JSX.jsx(window.DFL.Focusable, { focusWithinClassName: "gp-tabs-active", style: {
+            display: "flex",
+            flexDirection: "row",
+            gap: "4px",
+            padding: "8px 0 6px 0",
+            borderBottom: "1px solid #2a2a2a",
+            marginBottom: "4px",
+        }, children: tabs.map((tab) => {
+            const active = tab.id === activeId;
+            return (window.SP_JSX.jsx(window.DFL.Focusable, { onClick: () => !tab.disabled && onChange(tab.id), style: {
+                    padding: "6px 10px",
+                    background: active ? "rgba(255,255,255,0.08)" : "transparent",
+                    color: tab.disabled ? "#555" : active ? "#fff" : "#969696",
+                    borderRadius: "4px",
+                    cursor: tab.disabled ? "not-allowed" : "pointer",
+                    fontSize: "12px",
+                    fontWeight: active ? 600 : 500,
+                    borderBottom: active ? "2px solid #5eba7d" : "2px solid transparent",
+                    transition: "color 120ms, background 120ms",
+                    outline: "none",
+                }, children: tab.label }, tab.id));
+        }) }));
+}
+
+async function callOrThrow(method, ...args) {
+    try {
+        return await call(method, ...args);
+    }
+    catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        throw new Error(`[${method}] ${reason}`);
+    }
+}
+const api = {
+    getPluginInfo: () => callOrThrow("get_plugin_info"),
+    getSettings: () => callOrThrow("get_settings"),
+    updateSettings: (patch) => callOrThrow("update_settings", patch),
+    getTypeChart: () => callOrThrow("get_type_chart"),
+    getMatchup: (attacker, defenderTypes) => callOrThrow("get_matchup", attacker, defenderTypes),
+    getDefenseSummary: (defenderTypes) => callOrThrow("get_defense_summary", defenderTypes),
+    getOffenseSummary: (attacker) => callOrThrow("get_offense_summary", attacker),
+    findSavePath: () => callOrThrow("find_save_path"),
+    listSaveFiles: () => callOrThrow("list_save_files"),
+    getSaveData: (forceReload = false) => callOrThrow("get_save_data", forceReload),
+    getSaveDataFromPath: (path) => callOrThrow("get_save_data_from_path", path),
+    getMovesDatabase: () => callOrThrow("get_moves_database"),
+    getMoveInfo: (name) => callOrThrow("get_move_info", name),
+    lookupMoves: (names) => callOrThrow("lookup_moves", names),
+    findPbsFiles: (savePath) => callOrThrow("find_pbs_files", savePath ?? null),
+    loadPbsMoves: (path) => callOrThrow("load_pbs_moves", path),
+    autoLoadPbs: () => callOrThrow("auto_load_pbs"),
+    clearPbs: () => callOrThrow("clear_pbs"),
+    getThemes: () => callOrThrow("get_themes"),
+    getActiveTheme: () => callOrThrow("get_active_theme"),
+    getLiveState: () => callOrThrow("get_live_state"),
+    getLiveSaveData: () => callOrThrow("get_live_save_data"),
+    setWatcherEnabled: (enabled) => callOrThrow("set_watcher_enabled", enabled),
+    findProcessBySave: (savePath) => callOrThrow("find_process_by_save", savePath),
+    getProcessMemoryRegions: (pid) => callOrThrow("get_process_memory_regions", pid),
+};
+
+const initialState = {
+    info: null,
+    typeChart: null,
+    saveData: null,
+    settings: null,
+    movesDatabase: null,
+    theme: null,
+    liveState: null,
+};
+let state = initialState;
+const listeners = new Set();
+let pollTimer = null;
+function notify() {
+    for (const l of listeners)
+        l();
+}
+/**
+ * Functional state updater that always reads the *current* module-level
+ * state before merging, preventing stale-closure race conditions when
+ * multiple async operations resolve concurrently.
+ */
+function updateState(patch) {
+    state = { ...state, ...patch };
+    notify();
+}
+function subscribe(listener) {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+}
+function getSnapshot() {
+    return state;
+}
+function getServerSnapshot() {
+    return initialState;
+}
+function useStore(selector) {
+    return window.SP_REACT.useSyncExternalStore(subscribe, () => selector(getSnapshot()), () => selector(getServerSnapshot()));
+}
+async function refreshStatic() {
+    try {
+        const [info, typeChart, settings, movesDatabase, themes] = await Promise.all([
+            api.getPluginInfo(),
+            api.getTypeChart(),
+            api.getSettings(),
+            api.getMovesDatabase(),
+            api.getThemes(),
+        ]);
+        updateState({
+            info,
+            typeChart,
+            settings,
+            movesDatabase,
+            theme: themes.active,
+        });
+    }
+    catch (e) {
+        console.error("[store] refreshStatic failed", e);
+    }
+}
+async function refreshTheme() {
+    try {
+        const themes = await api.getThemes();
+        updateState({ theme: themes.active });
+    }
+    catch (e) {
+        console.error("[store] refreshTheme failed", e);
+    }
+}
+async function refreshSave(force = false) {
+    try {
+        const saveData = await api.getSaveData(force);
+        updateState({ saveData });
+    }
+    catch (e) {
+        console.error("[store] refreshSave failed", e);
+    }
+}
+async function refreshMoves() {
+    try {
+        const movesDatabase = await api.getMovesDatabase();
+        updateState({ movesDatabase });
+    }
+    catch (e) {
+        console.error("[store] refreshMoves failed", e);
+    }
+}
+async function refreshLiveState() {
+    try {
+        const liveState = await api.getLiveState();
+        updateState({ liveState });
+    }
+    catch (e) {
+        console.error("[store] refreshLiveState failed", e);
+    }
+}
+async function applySettingsPatch(patch) {
+    try {
+        const settings = await api.updateSettings(patch);
+        updateState({ settings });
+        if ("theme" in patch) {
+            await refreshTheme();
+        }
+        return settings;
+    }
+    catch (e) {
+        console.error("[store] applySettingsPatch failed", e);
+        throw e;
+    }
+}
+function startPolling(intervalSeconds) {
+    stopPolling();
+    refreshSave(false);
+    refreshLiveState();
+    pollTimer = setInterval(() => {
+        refreshSave(false);
+        refreshLiveState();
+    }, 1500);
+    console.log(`[store] live frontend polling started, every 1.5s`);
+}
+function stopPolling() {
+    if (pollTimer !== null) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        console.log("[store] polling stopped");
+    }
+}
+
+const DEFAULT_PALETTE = {
+    bg: "#0e0e0e",
+    bgSecondary: "rgba(255,255,255,0.04)",
+    bgTertiary: "rgba(255,255,255,0.02)",
+    border: "rgba(255,255,255,0.08)",
+    text: "#fff",
+    textSecondary: "#ccc",
+    textMuted: "#888",
+    textFaint: "#555",
+    accent: "#5eba7d",
+    accentBg: "rgba(94,186,125,0.15)",
+    shiny: "#f7d02c",
+    female: "#e87ba3",
+    male: "#7ba3e8",
+    genderless: "#888",
+    hpGood: "#5eba7d",
+    hpWarn: "#e0a458",
+    hpBad: "#e87b7b",
+    statusOK: "#5eba7d",
+    statusPSN: "#a33ea1",
+    statusPAR: "#e0a458",
+    statusBRN: "#c22e28",
+    statusSLP: "#969696",
+    statusFRZ: "#96d9d6",
+    statusFNT: "#888",
+    typeBadgeText: "#fff",
+    badgeShadow: "0 1px 2px rgba(0,0,0,0.5)",
+};
+function paletteToCssVars(p) {
+    const map = {};
+    for (const [k, v] of Object.entries(p)) {
+        const varName = "--theme-" + k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+        map[varName] = String(v);
+    }
+    return map;
+}
+
+const TYPE_COLORS = {
+    Normal: "#A8A77A",
+    Fire: "#EE8130",
+    Water: "#6390F0",
+    Electric: "#F7D02C",
+    Grass: "#7AC74C",
+    Ice: "#96D9D6",
+    Fighting: "#C22E28",
+    Poison: "#A33EA1",
+    Ground: "#E2BF65",
+    Flying: "#A98FF3",
+    Psychic: "#F95587",
+    Bug: "#A6B91A",
+    Rock: "#B6A136",
+    Ghost: "#735797",
+    Dragon: "#6F35FC",
+    Dark: "#705746",
+    Steel: "#B7B7CE",
+    Fairy: "#D685AD",
+};
+const SIZES = {
+    sm: { padding: "2px 6px", fontSize: "10px" },
+    md: { padding: "3px 8px", fontSize: "12px" },
+    lg: { padding: "4px 12px", fontSize: "13px" },
+};
+function TypeBadge({ type, size = "md", style, dimmed = false }) {
+    const color = TYPE_COLORS[type] ?? "#777";
+    return (window.SP_JSX.jsx("span", { style: {
+            display: "inline-block",
+            background: color,
+            color: "#fff",
+            textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+            borderRadius: "4px",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.4px",
+            whiteSpace: "nowrap",
+            opacity: dimmed ? 0.45 : 1,
+            ...SIZES[size],
+            ...style,
+        }, children: type }));
+}
+
+const BUCKETS$1 = [
+    {
+        key: "super_effective",
+        label: "Super effective (2×)",
+        color: "#ff8a3d",
+    },
+    {
+        key: "not_very_effective",
+        label: "Not very effective (½×)",
+        color: "#5eba7d",
+    },
+    {
+        key: "no_effect",
+        label: "No effect (0×)",
+        color: "#888",
+    },
+];
+function MoveLookupTouchMenu() {
+    const saveData = useStore((s) => s.saveData);
+    const movesDb = useStore((s) => s.movesDatabase);
+    const [selectedMove, setSelectedMove] = window.SP_REACT.useState(null);
+    const [moveInfo, setMoveInfo] = window.SP_REACT.useState(null);
+    const [offense, setOffense] = window.SP_REACT.useState(null);
+    const [loading, setLoading] = window.SP_REACT.useState(false);
+    window.SP_REACT.useEffect(() => {
+        if (!selectedMove) {
+            setMoveInfo(null);
+            setOffense(null);
+            return;
+        }
+        setLoading(true);
+        setOffense(null);
+        api
+            .getMoveInfo(selectedMove)
+            .then((info) => {
+            setMoveInfo(info);
+            if (info && info.type) {
+                return api.getOffenseSummary(info.type).then(setOffense);
+            }
+            return null;
+        })
+            .catch((e) => console.error("[move-lookup]", e))
+            .finally(() => setLoading(false));
+    }, [selectedMove]);
+    if (!saveData || saveData.error) {
+        return (window.SP_JSX.jsx("div", { style: {
+                padding: 24,
+                textAlign: "center",
+                color: "#888",
+                fontSize: 13,
+            }, children: "Load a save first to see party moves." }));
+    }
+    const party = saveData.party || [];
+    const partyMoves = [];
+    for (const p of party) {
+        for (const m of p.moves) {
+            if (m)
+                partyMoves.push({ move: m, owner: p.nickname || p.species });
+        }
+    }
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [window.SP_JSX.jsxs("div", { style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    paddingBottom: 4,
+                    borderBottom: "1px solid #2a2a2a",
+                }, children: [window.SP_JSX.jsx("span", { style: { fontSize: 11, color: "#888", fontWeight: 600 }, children: "PARTY MOVES:" }), partyMoves.map((pm, i) => {
+                        const info = movesDb?.moves?.[normalizeKey$1(pm.move)];
+                        const type = info?.type;
+                        return (window.SP_JSX.jsxs("button", { onClick: () => setSelectedMove(pm.move), style: {
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                padding: "4px 8px",
+                                background: selectedMove === pm.move
+                                    ? "rgba(94,186,125,0.2)"
+                                    : "rgba(255,255,255,0.05)",
+                                color: "#ddd",
+                                border: selectedMove === pm.move
+                                    ? "1px solid #5eba7d"
+                                    : "1px solid transparent",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                                fontSize: 11,
+                                fontWeight: 500,
+                            }, children: [type && window.SP_JSX.jsx(TypeBadge, { type: type, size: "sm" }), window.SP_JSX.jsx("span", { children: pm.move })] }, `${pm.owner}-${pm.move}-${i}`));
+                    })] }), !selectedMove && (window.SP_JSX.jsx("div", { style: {
+                    padding: 20,
+                    textAlign: "center",
+                    color: "#888",
+                    fontSize: 12,
+                    fontStyle: "italic",
+                }, children: "Tap a move to see its type and effectiveness" })), selectedMove && loading && (window.SP_JSX.jsx("div", { style: { padding: 16, textAlign: "center", color: "#aaa" }, children: "Loading\u2026" })), selectedMove && !loading && (window.SP_JSX.jsx(MoveDetail, { move: selectedMove, info: moveInfo, offense: offense })), movesDb && (window.SP_JSX.jsxs("div", { style: {
+                    fontSize: 10,
+                    color: "#555",
+                    textAlign: "right",
+                    marginTop: 2,
+                }, children: [movesDb.merged_count, " moves available", movesDb.pbs_source && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [" ", "\u00B7 PBS: ", movesDb.pbs_source.split("/").slice(-2).join("/")] }))] }))] }));
+}
+function MoveDetail({ move, info, offense, }) {
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            padding: 10,
+            background: "rgba(255,255,255,0.04)",
+            borderRadius: 6,
+        }, children: [window.SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [window.SP_JSX.jsx("span", { style: {
+                            fontSize: 16,
+                            fontWeight: 600,
+                            color: "#fff",
+                            textTransform: "uppercase",
+                        }, children: info?.name || move }), info?.type && window.SP_JSX.jsx(TypeBadge, { type: info.type, size: "md" }), window.SP_JSX.jsx("div", { style: { flex: 1 } }), info?.source && (window.SP_JSX.jsxs("span", { style: {
+                            fontSize: 9,
+                            color: "#666",
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                        }, children: [info.source, info.guessed && " (heuristic)"] }))] }), info && (window.SP_JSX.jsxs("div", { style: {
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 8,
+                    fontSize: 11,
+                    color: "#ccc",
+                }, children: [window.SP_JSX.jsx(Detail, { label: "Category", value: info.category }), window.SP_JSX.jsx(Detail, { label: "Power", value: info.power ? String(info.power) : "—" }), window.SP_JSX.jsx(Detail, { label: "Accuracy", value: info.accuracy ? `${info.accuracy}%` : "—" })] })), info?.description && (window.SP_JSX.jsx("div", { style: {
+                    fontSize: 11,
+                    color: "#888",
+                    fontStyle: "italic",
+                    lineHeight: 1.4,
+                }, children: info.description })), offense?.summary && (window.SP_JSX.jsx("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: BUCKETS$1.map((bucket) => {
+                    const types = offense.summary?.[bucket.key] ?? [];
+                    if (types.length === 0)
+                        return null;
+                    return (window.SP_JSX.jsxs("div", { style: {
+                            padding: "5px 7px",
+                            background: "rgba(255,255,255,0.02)",
+                            borderRadius: 4,
+                            borderLeft: `3px solid ${bucket.color}`,
+                        }, children: [window.SP_JSX.jsxs("div", { style: {
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: bucket.color,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.4,
+                                    marginBottom: 3,
+                                }, children: [bucket.label, " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 3 }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
+                }) }))] }));
+}
+function Detail({ label, value }) {
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [window.SP_JSX.jsx("div", { style: {
+                    fontSize: 9,
+                    color: "#777",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                }, children: label }), window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#ddd" }, children: value })] }));
+}
+function normalizeKey$1(name) {
+    return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function colorForPercent(pct) {
+    if (pct >= 0.5)
+        return "#5eba7d";
+    if (pct >= 0.25)
+        return "#e0a458";
+    return "#e87b7b";
+}
+function statusToBar(statusName) {
+    if (!statusName || statusName === "OK")
+        return { color: "" };
+    const colors = {
+        PSN: "#a33ea1",
+        PAR: "#e0a458",
+        BRN: "#c22e28",
+        SLP: "#969696",
+        FRZ: "#96d9d6",
+        FNT: "#444",
+    };
+    return { color: colors[statusName] || "#888" };
+}
+function HealthBar({ hp, maxHp, statusName, width = "100%", showLabel = true, }) {
+    const safeMax = maxHp > 0 ? maxHp : 1;
+    const pct = Math.max(0, Math.min(1, hp / safeMax));
+    const fillColor = colorForPercent(pct);
+    const status = statusToBar(statusName);
+    const wrapperStyle = {
+        position: "relative",
+        width,
+        height: 8,
+        background: "rgba(255,255,255,0.08)",
+        borderRadius: 2,
+        overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.1)",
+    };
+    const fillStyle = {
+        width: `${pct * 100}%`,
+        height: "100%",
+        background: fillColor,
+        transition: "width 200ms ease-out",
+    };
+    const statusOverlayStyle = status.color
+        ? {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: `${pct * 100}%`,
+            height: "100%",
+            background: `repeating-linear-gradient(45deg, ${status.color}, ${status.color} 4px, transparent 4px, transparent 8px)`,
+            opacity: 0.7,
+            pointerEvents: "none",
+        }
+        : undefined;
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6, width: "100%" }, children: [window.SP_JSX.jsxs("div", { style: wrapperStyle, children: [window.SP_JSX.jsx("div", { style: fillStyle }), statusOverlayStyle && window.SP_JSX.jsx("div", { style: statusOverlayStyle })] }), showLabel && (window.SP_JSX.jsxs("div", { style: {
+                    fontSize: 11,
+                    color: "#bbb",
+                    minWidth: 56,
+                    textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                }, children: [hp, "/", maxHp] }))] }));
+}
+
+function normalizeKey(name) {
+    return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+const STATUS_COLORS$1 = {
+    OK: "#5eba7d",
+    PSN: "#a33ea1",
+    PAR: "#e0a458",
+    BRN: "#c22e28",
+    SLP: "#969696",
+    FRZ: "#96d9d6",
+    FNT: "#888",
+};
+const GENDER_SYMBOLS$1 = {
+    M: "♂",
+    F: "♀",
+    "—": "○",
+};
+const MAX_SLOTS = 6;
+function PartyTouchMenu() {
+    const saveData = useStore((s) => s.saveData);
+    const movesDb = useStore((s) => s.movesDatabase);
+    if (!saveData) {
+        return window.SP_JSX.jsx(EmptyState, { children: "Loading save data\u2026" });
+    }
+    if (saveData.error === "no_save_file_found") {
+        return (window.SP_JSX.jsxs(EmptyState, { children: ["No save file found.", window.SP_JSX.jsx("br", {}), "Configure a path in ", window.SP_JSX.jsx("strong", { children: "Settings" }), "."] }));
+    }
+    if (saveData.error === "parse_failed") {
+        return (window.SP_JSX.jsxs(EmptyState, { children: ["Parse error: ", saveData.message ?? "unknown"] }));
+    }
+    const party = saveData.party || [];
+    const slots = Array.from({ length: MAX_SLOTS }).map((_, i) => party[i] || null);
+    const features = saveData.features;
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: [window.SP_JSX.jsx(Header, { trainer: saveData.trainer_name, count: party.length, max: MAX_SLOTS, money: features?.items ? saveData.money : 0, badges: saveData.badges, location: saveData.location_name || (saveData.map_id != null ? `Map #${saveData.map_id}` : ""), pbsSource: movesDb?.pbs_source ?? null, features: features }), slots.map((p, i) => p ? (window.SP_JSX.jsx(PartyRow, { pokemon: p, movesDb: movesDb, features: features }, `slot-${i}`)) : (window.SP_JSX.jsx(EmptySlot, { index: i }, `slot-${i}`)))] }));
+}
+function Header({ trainer, count, max, money, badges, location, pbsSource, features, }) {
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "4px 8px",
+            background: "rgba(255,255,255,0.04)",
+            borderRadius: 4,
+            fontSize: 12,
+            color: "#ccc",
+            flexWrap: "wrap",
+        }, children: [window.SP_JSX.jsx("span", { style: { fontWeight: 600, color: "#fff" }, children: trainer || "Trainer" }), window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsxs("span", { children: ["Party ", count, "/", max] }), features?.items && money > 0 && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsxs("span", { children: ["\u20BD", money.toLocaleString("en-US")] })] })), badges > 0 && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsxs("span", { style: { color: "#f7d02c" }, children: [badges, " \uD83C\uDFC6"] })] })), location && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsx("span", { style: { color: "#888" }, children: location })] })), pbsSource && (window.SP_JSX.jsx("span", { style: {
+                    marginLeft: "auto",
+                    fontSize: 9,
+                    color: "#5eba7d",
+                    background: "rgba(94,186,125,0.1)",
+                    padding: "1px 4px",
+                    borderRadius: 2,
+                }, title: pbsSource, children: "PBS \u2713" }))] }));
+}
+function PartyRow({ pokemon: p, movesDb, features, }) {
+    const statusColor = STATUS_COLORS$1[p.status_name] ?? "#888";
+    const showStats = p.has_stats;
+    const showGender = p.has_gender_data;
+    const showType2 = p.has_type2 && p.type2;
+    const showMoves = p.has_moves && p.moves.length > 0;
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 10px",
+            background: "rgba(255,255,255,0.04)",
+            borderRadius: 5,
+            borderLeft: `3px solid ${statusColor}`,
+            opacity: p.is_fainted ? 0.55 : 1,
+        }, children: [window.SP_JSX.jsxs("div", { style: {
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    minWidth: 24,
+                    gap: 1,
+                }, children: [p.shiny && (window.SP_JSX.jsx("span", { style: { color: "#f7d02c", fontSize: 11, lineHeight: 1 }, children: "\u2605" })), showGender && (window.SP_JSX.jsx("span", { style: {
+                            color: p.gender_name === "F"
+                                ? "#e87ba3"
+                                : p.gender_name === "M"
+                                    ? "#7ba3e8"
+                                    : "#888",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            lineHeight: 1,
+                        }, children: GENDER_SYMBOLS$1[p.gender_name] ?? "?" }))] }), window.SP_JSX.jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [window.SP_JSX.jsxs("div", { style: {
+                            display: "flex",
+                            alignItems: "baseline",
+                            gap: 8,
+                            marginBottom: 4,
+                            flexWrap: "wrap",
+                        }, children: [window.SP_JSX.jsx("span", { style: {
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    color: "#fff",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    maxWidth: 180,
+                                }, children: p.nickname || p.species }), window.SP_JSX.jsxs("span", { style: { fontSize: 10, color: "#888" }, children: ["Lv.", p.level] }), p.nature && (window.SP_JSX.jsx("span", { style: { fontSize: 9, color: "#888" }, children: p.nature })), window.SP_JSX.jsx("div", { style: { flex: 1 } }), window.SP_JSX.jsxs("div", { style: { display: "flex", gap: 3 }, children: [p.type1 && window.SP_JSX.jsx(TypeBadge, { type: p.type1, size: "sm" }), showType2 && window.SP_JSX.jsx(TypeBadge, { type: p.type2, size: "sm" })] })] }), window.SP_JSX.jsx(HealthBar, { hp: p.hp, maxHp: p.max_hp, statusName: p.status_name, showLabel: false }), window.SP_JSX.jsxs("div", { style: {
+                            display: "flex",
+                            gap: 8,
+                            fontSize: 10,
+                            color: "#888",
+                            marginTop: 3,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                        }, children: [window.SP_JSX.jsxs("span", { children: [p.hp, "/", p.max_hp] }), window.SP_JSX.jsx("span", { style: { color: statusColor, fontWeight: 600 }, children: p.status_name }), p.ability && (window.SP_JSX.jsxs("span", { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), " ", p.ability] })), p.item && (window.SP_JSX.jsxs("span", { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), " ", p.item] })), features?.happiness && p.happiness != null && (window.SP_JSX.jsxs("span", { style: { color: "#e87ba3" }, children: ["\u2665", p.happiness] })), showStats && p.speed != null && (window.SP_JSX.jsxs("span", { style: { color: "#666" }, children: ["SPE:", p.speed] }))] }), showMoves && (window.SP_JSX.jsx("div", { style: {
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 4,
+                            marginTop: 5,
+                        }, children: p.moves.map((m, i) => {
+                            const type = movesDb?.moves?.[normalizeKey(m)]?.type;
+                            return (window.SP_JSX.jsxs("span", { style: {
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 3,
+                                    padding: "1px 5px",
+                                    background: "rgba(255,255,255,0.05)",
+                                    borderRadius: 3,
+                                    fontSize: 10,
+                                    color: "#ccc",
+                                }, children: [type && window.SP_JSX.jsx(TypeBadge, { type: type, size: "sm" }), m] }, i));
+                        }) }))] })] }));
+}
+function EmptySlot({ index }) {
+    return (window.SP_JSX.jsxs("div", { style: {
+            padding: 8,
+            background: "rgba(255,255,255,0.02)",
+            borderRadius: 4,
+            border: "1px dashed #333",
+            textAlign: "center",
+            fontSize: 11,
+            color: "#555",
+            fontStyle: "italic",
+        }, children: ["Slot ", index + 1, " \u2014 empty"] }));
+}
+function EmptyState({ children }) {
+    return (window.SP_JSX.jsx("div", { style: {
+            padding: 24,
+            textAlign: "center",
+            color: "#888",
+            fontSize: 13,
+            lineHeight: 1.5,
+        }, children: children }));
+}
+
+const BUCKETS = [
+    {
+        key: "super_effective",
+        label: "Super effective (2×)",
+        color: "#ff8a3d",
+    },
+    {
+        key: "not_very_effective",
+        label: "Not very effective (½×)",
+        color: "#5eba7d",
+    },
+    {
+        key: "no_effect",
+        label: "No effect (0×)",
+        color: "#888",
+    },
+];
+function TypeLookupTouchMenu() {
+    const typeChart = useStore((s) => s.typeChart);
+    const [attacker, setAttacker] = window.SP_REACT.useState("Fire");
+    const [summary, setSummary] = window.SP_REACT.useState(null);
+    const [error, setError] = window.SP_REACT.useState(null);
+    window.SP_REACT.useEffect(() => {
+        if (!attacker)
+            return;
+        setSummary(null);
+        setError(null);
+        api
+            .getOffenseSummary(attacker)
+            .then((s) => {
+            if ("error" in s && s.error) {
+                setError(s.error);
+            }
+            else {
+                setSummary(s);
+            }
+        })
+            .catch((e) => setError(e.message));
+    }, [attacker]);
+    if (!typeChart) {
+        return (window.SP_JSX.jsx("div", { style: {
+                padding: 24,
+                textAlign: "center",
+                color: "#888",
+                fontSize: 13,
+            }, children: "Loading type chart\u2026" }));
+    }
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [window.SP_JSX.jsxs("div", { style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 12,
+                    color: "#aaa",
+                }, children: [window.SP_JSX.jsx("span", { children: "Attacker:" }), window.SP_JSX.jsx("select", { value: attacker, onChange: (e) => setAttacker(e.target.value), style: {
+                            flex: 1,
+                            padding: "6px 8px",
+                            background: "#1a1a1a",
+                            color: "#fff",
+                            border: "1px solid #444",
+                            borderRadius: 4,
+                            fontSize: 13,
+                            outline: "none",
+                        }, children: typeChart.types.map((t) => (window.SP_JSX.jsx("option", { value: t, children: t }, t))) }), window.SP_JSX.jsx(TypeBadge, { type: attacker, size: "md" })] }), error && (window.SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: 12, padding: "4px 0" }, children: error })), summary?.summary && (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: [BUCKETS.map((bucket) => {
+                        const types = summary.summary?.[bucket.key] ?? [];
+                        if (types.length === 0)
+                            return null;
+                        return (window.SP_JSX.jsxs("div", { style: {
+                                padding: "6px 8px",
+                                background: "rgba(255,255,255,0.03)",
+                                borderRadius: 4,
+                                borderLeft: `3px solid ${bucket.color}`,
+                            }, children: [window.SP_JSX.jsxs("div", { style: {
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: bucket.color,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 0.4,
+                                        marginBottom: 4,
+                                    }, children: [bucket.label, " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4 }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
+                    }), window.SP_JSX.jsxs("div", { style: {
+                            fontSize: 10,
+                            color: "#555",
+                            textAlign: "right",
+                            marginTop: 2,
+                        }, children: ["Generation ", typeChart.generation, " type chart"] })] }))] }));
+}
+
+const TABS$1 = [
+    { id: "party", label: "Party" },
+    { id: "types", label: "Type Lookup" },
+    { id: "moves", label: "Move Lookup" },
+];
+function TouchMenuContent() {
+    const [tab, setTab] = window.SP_REACT.useState("party");
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            padding: "10px 12px 14px 12px",
+            minWidth: 360,
+            maxWidth: 720,
+        }, children: [window.SP_JSX.jsx("div", { style: {
+                    display: "flex",
+                    gap: 6,
+                    paddingBottom: 4,
+                    borderBottom: "1px solid #2a2a2a",
+                }, children: TABS$1.map((t) => (window.SP_JSX.jsx(TabButton, { active: tab === t.id, onClick: () => setTab(t.id), children: t.label }, t.id))) }), tab === "party" && window.SP_JSX.jsx(PartyTouchMenu, {}), tab === "types" && window.SP_JSX.jsx(TypeLookupTouchMenu, {}), tab === "moves" && window.SP_JSX.jsx(MoveLookupTouchMenu, {})] }));
+}
+function TabButton({ active, onClick, children, }) {
+    return (window.SP_JSX.jsx("button", { onClick: onClick, style: {
+            flex: 1,
+            padding: "6px 10px",
+            background: active ? "rgba(94,186,125,0.15)" : "rgba(255,255,255,0.04)",
+            color: active ? "#5eba7d" : "#aaa",
+            border: active ? "1px solid #5eba7d" : "1px solid transparent",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: active ? 600 : 500,
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+        }, children: children }));
+}
+
+let unpatch = null;
+function registerTouchMenu() {
+    if (unpatch)
+        return;
+    unpatch = window.DFL.PatchTouchMenu({
+        menuLabel: "Pokémon Essentials",
+        icon: window.SP_JSX.jsx(PokeballIcon, {}),
+        content: window.SP_JSX.jsx(TouchMenuContent, {}),
+        onMenuClose: () => {
+            console.log("[pokemon-overlay] touch menu closed");
+        },
+    });
+    console.log("[pokemon-overlay] touch menu registered");
+}
+function unregisterTouchMenu() {
+    if (unpatch) {
+        try {
+            unpatch();
+        }
+        catch (e) {
+            console.error("[pokemon-overlay] unpatch error", e);
+        }
+        unpatch = null;
+        console.log("[pokemon-overlay] touch menu unregistered");
+    }
+}
+
+const STATUS_COLORS = {
+    OK: "#5eba7d",
+    PSN: "#a33ea1",
+    PAR: "#e0a458",
+    BRN: "#c22e28",
+    SLP: "#969696",
+    FRZ: "#96d9d6",
+    FNT: "#888",
+};
+const GENDER_SYMBOLS = {
+    M: "♂",
+    F: "♀",
+    "—": "○",
+};
+const DEFAULT_DISPLAY = {
+    stats: true,
+    ivs: true,
+    evs: true,
+    nature: true,
+    ability: true,
+    item: true,
+    happiness: true,
+    gender: true,
+    moves: true,
+    type2: true,
+};
+function statColor(v, max) {
+    const pct = v / max;
+    if (pct >= 0.9)
+        return "#5eba7d";
+    if (pct >= 0.5)
+        return "#e0a458";
+    if (pct >= 0.25)
+        return "#e87b7b";
+    return "#777";
+}
+function resolveDisplay(p, features, forced) {
+    const f = features;
+    return {
+        stats: (forced?.stats ?? true) &&
+            (p.has_stats || (f?.stats ?? false)),
+        ivs: (forced?.ivs ?? true) && (p.has_ivs || (f?.ivs ?? false)),
+        evs: (forced?.evs ?? true) &&
+            (p.has_evs || (f?.evs ?? false)) &&
+            (p.has_ivs || (f?.ivs ?? false)),
+        nature: (forced?.nature ?? true) && (p.has_nature || (f?.natures ?? false)),
+        ability: (forced?.ability ?? true) && (p.has_ability || (f?.abilities ?? false)),
+        item: (forced?.item ?? true) && (p.has_item || (f?.items ?? false)),
+        happiness: (forced?.happiness ?? true) &&
+            (p.has_happiness || (f?.happiness ?? false)),
+        gender: (forced?.gender ?? true) &&
+            (p.has_gender_data || (f?.gender ?? false)),
+        moves: (forced?.moves ?? true) && (p.has_moves || (f?.moves ?? false)),
+        type2: (forced?.type2 ?? true) && (p.has_type2 ?? false),
+    };
+}
+function PokemonCard({ pokemon: p, features, forced }) {
+    const display = resolveDisplay(p, features, forced);
+    const displayName = p.nickname || p.species;
+    const statusColor = STATUS_COLORS[p.status_name] ?? "#888";
+    const fainted = p.is_fainted;
+    const compactInfo = [];
+    if (display.ability && p.ability) {
+        compactInfo.push({ label: "Ability", value: p.ability });
+    }
+    if (display.item && p.item) {
+        compactInfo.push({ label: "Item", value: p.item });
+    }
+    if (display.nature && p.nature) {
+        compactInfo.push({ label: "Nature", value: p.nature });
+    }
+    if (display.happiness && p.happiness != null) {
+        compactInfo.push({ label: "♥", value: String(p.happiness) });
+    }
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            padding: 10,
+            background: "rgba(255,255,255,0.03)",
+            borderRadius: 6,
+            borderLeft: `3px solid ${statusColor}`,
+            opacity: fainted ? 0.6 : 1,
+        }, children: [window.SP_JSX.jsxs("div", { style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                }, children: [p.shiny && (window.SP_JSX.jsx("span", { style: {
+                            color: "#f7d02c",
+                            fontSize: 14,
+                            textShadow: "0 0 4px rgba(247, 208, 44, 0.5)",
+                        }, title: "Shiny", children: "\u2605" })), window.SP_JSX.jsx("span", { style: {
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: "#fff",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                        }, children: displayName }), window.SP_JSX.jsxs("span", { style: { fontSize: 11, color: "#888" }, children: ["Lv.", p.level] }), display.gender && (window.SP_JSX.jsx("span", { style: {
+                            fontSize: 12,
+                            color: p.gender_name === "F"
+                                ? "#e87ba3"
+                                : p.gender_name === "M"
+                                    ? "#7ba3e8"
+                                    : "#888",
+                            fontWeight: 700,
+                            marginLeft: "auto",
+                        }, title: p.gender_name === "—"
+                            ? "Genderless"
+                            : p.gender_name === "M"
+                                ? "Male"
+                                : "Female", children: GENDER_SYMBOLS[p.gender_name] ?? "?" }))] }), p.nickname && p.nickname !== p.species && (window.SP_JSX.jsx("div", { style: {
+                    fontSize: 11,
+                    color: "#888",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                }, children: p.species })), window.SP_JSX.jsxs("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: [p.type1 && window.SP_JSX.jsx(TypeBadge, { type: p.type1, size: "sm" }), display.type2 && p.has_type2 && p.type2 && (window.SP_JSX.jsx(TypeBadge, { type: p.type2, size: "sm" }))] }), window.SP_JSX.jsx(HealthBar, { hp: p.hp, maxHp: p.max_hp, statusName: p.status_name }), window.SP_JSX.jsxs("div", { style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    fontSize: 11,
+                    color: "#aaa",
+                    flexWrap: "wrap",
+                }, children: [window.SP_JSX.jsx("span", { children: window.SP_JSX.jsx("span", { style: { color: statusColor, fontWeight: 600 }, children: p.status_name }) }), compactInfo.map((c) => (window.SP_JSX.jsxs("span", { children: [window.SP_JSX.jsxs("span", { style: { color: "#777" }, children: [c.label, ":"] }), " ", c.value] }, c.label)))] }), display.moves && p.moves.length > 0 && (window.SP_JSX.jsx("div", { style: {
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 4,
+                    marginTop: 2,
+                }, children: Array.from({ length: 4 }).map((_, i) => {
+                    const move = p.moves[i];
+                    return (window.SP_JSX.jsx("div", { style: {
+                            fontSize: 11,
+                            padding: "3px 6px",
+                            background: move ? "rgba(255,255,255,0.05)" : "transparent",
+                            borderRadius: 3,
+                            color: move ? "#ddd" : "#555",
+                            fontStyle: move ? "normal" : "italic",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                        }, children: move ?? "—" }, i));
+                }) })), display.stats && p.has_stats && (window.SP_JSX.jsxs("div", { style: {
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+                    gap: 4,
+                    padding: "6px 0",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                    fontSize: 10,
+                }, children: [window.SP_JSX.jsx(StatBox, { label: "ATK", value: p.attack }), window.SP_JSX.jsx(StatBox, { label: "DEF", value: p.defense }), window.SP_JSX.jsx(StatBox, { label: "SpA", value: p.spatk }), window.SP_JSX.jsx(StatBox, { label: "SpD", value: p.spdef }), window.SP_JSX.jsx(StatBox, { label: "SPE", value: p.speed })] })), display.ivs && p.has_ivs && p.iv_total != null && (window.SP_JSX.jsxs("div", { style: {
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    padding: "6px 0",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                    fontSize: 10,
+                }, children: [window.SP_JSX.jsxs("div", { style: {
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                            gap: 4,
+                        }, children: [window.SP_JSX.jsx(IVStat, { label: "HP", value: p.iv_hp }), window.SP_JSX.jsx(IVStat, { label: "ATK", value: p.iv_attack }), window.SP_JSX.jsx(IVStat, { label: "DEF", value: p.iv_defense }), window.SP_JSX.jsx(IVStat, { label: "SpA", value: p.iv_spatk }), window.SP_JSX.jsx(IVStat, { label: "SpD", value: p.iv_spdef }), window.SP_JSX.jsx(IVStat, { label: "SPE", value: p.iv_speed })] }), display.evs && p.has_evs && p.ev_total != null && (window.SP_JSX.jsxs("div", { style: {
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                            gap: 4,
+                            color: "#666",
+                        }, children: [window.SP_JSX.jsx(EVStat, { label: "HP", value: p.ev_hp }), window.SP_JSX.jsx(EVStat, { label: "ATK", value: p.ev_attack }), window.SP_JSX.jsx(EVStat, { label: "DEF", value: p.ev_defense }), window.SP_JSX.jsx(EVStat, { label: "SpA", value: p.ev_spatk }), window.SP_JSX.jsx(EVStat, { label: "SpD", value: p.ev_spdef }), window.SP_JSX.jsx(EVStat, { label: "SPE", value: p.ev_speed })] })), window.SP_JSX.jsxs("div", { style: {
+                            fontSize: 10,
+                            color: "#888",
+                            display: "flex",
+                            gap: 8,
+                            marginTop: 2,
+                        }, children: [window.SP_JSX.jsxs("span", { children: ["IV: ", p.iv_total, "/186", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.iv_total, 186) }, children: "\u25CF" })] }), display.evs && p.has_evs && p.ev_total != null && (window.SP_JSX.jsxs("span", { children: ["EV: ", p.ev_total, "/510", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.ev_total, 510) }, children: "\u25CF" })] }))] })] }))] }));
+}
+function StatBox({ label, value }) {
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
+        }, children: [window.SP_JSX.jsx("div", { style: {
+                    fontSize: 9,
+                    color: "#777",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                }, children: label }), window.SP_JSX.jsx("div", { style: {
+                    fontSize: 12,
+                    color: "#ddd",
+                    fontVariantNumeric: "tabular-nums",
+                }, children: value ?? "—" })] }));
+}
+function IVStat({ label, value, }) {
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
+        }, title: value == null ? "?" : `${value}/31`, children: [window.SP_JSX.jsx("div", { style: {
+                    fontSize: 9,
+                    color: "#5eba7d",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                }, children: label }), window.SP_JSX.jsx("div", { style: {
+                    fontSize: 11,
+                    color: value == null ? "#555" : statColor(value, 31),
+                    fontVariantNumeric: "tabular-nums",
+                }, children: value ?? "—" })] }));
+}
+function EVStat({ label, value, }) {
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
+        }, title: value == null ? "?" : `${value} EVs`, children: [window.SP_JSX.jsx("div", { style: {
+                    fontSize: 9,
+                    color: "#7ba3e8",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                }, children: label }), window.SP_JSX.jsx("div", { style: {
+                    fontSize: 10,
+                    color: value == null ? "#555" : "#aaa",
+                    fontVariantNumeric: "tabular-nums",
+                }, children: value ?? "—" })] }));
+}
+function CapabilitiesSummary({ features }) {
+    if (!features)
+        return null;
+    const items = [];
+    if (features.ivs)
+        items.push(["IVs", "Available"]);
+    if (features.evs)
+        items.push(["EVs", "Available"]);
+    if (features.happiness)
+        items.push(["Friendship", "Available"]);
+    if (features.shiny)
+        items.push(["Shiny", "Supported"]);
+    if (features.stats)
+        items.push(["Stats", "Available"]);
+    if (features.natures)
+        items.push(["Natures", "Available"]);
+    if (features.abilities)
+        items.push(["Abilities", "Available"]);
+    if (features.items)
+        items.push(["Held items", "Available"]);
+    if (features.type2)
+        items.push(["Dual-types", "Available"]);
+    if (features.moves)
+        items.push(["Moves", "Available"]);
+    if (items.length === 0)
+        return null;
+    return (window.SP_JSX.jsx("div", { style: {
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            fontSize: 10,
+            color: "#888",
+        }, children: items.map(([label, value]) => (window.SP_JSX.jsx("span", { style: {
+                background: "rgba(94,186,125,0.1)",
+                color: "#5eba7d",
+                padding: "2px 6px",
+                borderRadius: 3,
+                border: "1px solid rgba(94,186,125,0.2)",
+            }, children: label }, label))) }));
+}
+
+function StatusDot({ ok }) {
+    return (window.SP_JSX.jsx("span", { style: {
+            display: "inline-block",
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            marginRight: 8,
+            backgroundColor: ok ? "#5eba7d" : "#e0a458",
+            boxShadow: ok
+                ? "0 0 4px rgba(94, 186, 125, 0.6)"
+                : "0 0 4px rgba(224, 164, 88, 0.6)",
+        } }));
+}
+function timeAgo$1(epoch) {
+    if (!epoch)
+        return "never";
+    const delta = Date.now() / 1000 - epoch;
+    if (delta < 5)
+        return "just now";
+    if (delta < 60)
+        return `${Math.floor(delta)}s ago`;
+    if (delta < 3600)
+        return `${Math.floor(delta / 60)}m ago`;
+    return `${Math.floor(delta / 3600)}h ago`;
+}
+function HomeView() {
+    const info = useStore((s) => s.info);
+    const saveData = useStore((s) => s.saveData);
+    const movesDb = useStore((s) => s.movesDatabase);
+    const live = useStore((s) => s.liveState);
+    if (!info) {
+        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Pok\u00E9mon Essentials Overlay", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 0",
+                    }, children: window.SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading\u2026" }) }) }) }));
+    }
+    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSection, { title: "About", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                            padding: "4px 0",
+                        }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: 14, fontWeight: 600 }, children: [info.name, " ", window.SP_JSX.jsxs("span", { style: { color: "#969696", fontWeight: 400 }, children: ["v", info.version] })] }), window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 12,
+                                    color: "#969696",
+                                    lineHeight: 1.4,
+                                }, children: info.description })] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Status", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            fontSize: 12,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                            padding: "4px 0",
+                        }, children: [window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: info.initialized }), info.initialized ? "Backend ready" : "Backend not initialized"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: info.type_chart_loaded }), info.type_chart_loaded
+                                        ? `Type chart loaded (${info.type_chart_types} types)`
+                                        : "Type chart not loaded"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: movesDb?.loaded ?? false }), movesDb?.loaded
+                                        ? movesDb.pbs_source
+                                            ? `Moves DB: ${movesDb.merged_count} (PBS loaded)`
+                                            : `Moves DB: ${movesDb.static_count} static only`
+                                        : "Moves DB not loaded"] }), live && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.game_running }), live.game_running
+                                                ? `Game running: ${live.active_process?.name ?? "unknown"} (pid ${live.active_process?.pid ?? "?"})`
+                                                : "No game process detected"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.watcher_active }), live.watcher_active
+                                                ? `Save watcher active${live.last_live_event?.at
+                                                    ? ` · last event ${timeAgo$1(live.last_live_event.at)}`
+                                                    : ""}`
+                                                : "Save watcher inactive"] })] })), saveData && !saveData.error && saveData.features && (window.SP_JSX.jsxs("div", { style: {
+                                    marginTop: 4,
+                                    paddingTop: 6,
+                                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                                }, children: [window.SP_JSX.jsxs("div", { style: {
+                                            fontSize: 10,
+                                            color: "#777",
+                                            textTransform: "uppercase",
+                                            letterSpacing: 0.4,
+                                            marginBottom: 4,
+                                        }, children: ["Save features (", saveData.version, ")"] }), window.SP_JSX.jsx(CapabilitiesSummary, { features: saveData.features })] }))] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Roadmap", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            fontSize: 12,
+                            color: "#969696",
+                            lineHeight: 1.6,
+                        }, children: [window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 1 \u2014 Foundation"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 2 \u2014 Interactive type chart"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 3 \u2014 Save-file parser & party status"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 4 \u2014 In-game TouchMenu overlay"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 5 \u2014 Live PBS, IV/EV, dynamic UI, themes, watcher"] })] }) }) })] }));
+}
+
+function formatMoney(n) {
+    return `₽${n.toLocaleString("en-US")}`;
+}
+function formatPlayTime(seconds) {
+    if (!seconds || seconds < 0)
+        return "—";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0)
+        return `${h}h ${m}m`;
+    if (m > 0)
+        return `${m}m ${s}s`;
+    return `${s}s`;
+}
+function timeAgo(epochSeconds) {
+    if (!epochSeconds)
+        return "never";
+    const delta = Date.now() / 1000 - epochSeconds;
+    if (delta < 5)
+        return "just now";
+    if (delta < 60)
+        return `${Math.floor(delta)}s ago`;
+    if (delta < 3600)
+        return `${Math.floor(delta / 60)}m ago`;
+    if (delta < 86400)
+        return `${Math.floor(delta / 3600)}h ago`;
+    return `${Math.floor(delta / 86400)}d ago`;
+}
+const MAX_PARTY_SLOTS = 6;
+function PartyView() {
+    const data = useStore((s) => s.saveData);
+    const settings = useStore((s) => s.settings);
+    const [reloading, setReloading] = window.SP_REACT.useState(false);
+    const reload = window.SP_REACT.useCallback(async () => {
+        setReloading(true);
+        try {
+            await refreshSave(true);
+        }
+        finally {
+            setReloading(false);
+        }
+    }, []);
+    if (!data) {
+        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Party", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "12px 0",
+                    }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading save data\u2026" })] }) }) }));
+    }
+    if (data.error === "no_save_file_found") {
+        return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Party", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { fontSize: 13, color: "#969696", lineHeight: 1.5 }, children: ["No save file found. Start the game and save once, or set a manual path in ", window.SP_JSX.jsx("strong", { children: "Settings" }), "."] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: reloading ? "Scanning…" : "Scan again" })] }));
+    }
+    if (data.error === "parse_failed") {
+        return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Party", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsxs("div", { style: { color: "#e87b7b", fontSize: 13 }, children: ["Parse error: ", data.message] }), window.SP_JSX.jsx("div", { style: {
+                                fontSize: 11,
+                                color: "#777",
+                                marginTop: 6,
+                                wordBreak: "break-all",
+                            }, children: data.path })] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: "Try again" })] }));
+    }
+    const compactMode = settings?.compact_mode ?? true;
+    return (window.SP_JSX.jsx(PartyContent, { data: data, reloading: reloading, onReload: reload, autoRefreshSeconds: settings?.scan_interval_seconds ?? 30, forced: compactMode ? undefined : DEFAULT_DISPLAY }));
+}
+function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }) {
+    const party = data.party || [];
+    const slots = Array.from({ length: MAX_PARTY_SLOTS }).map((_, i) => party[i] || null);
+    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs(window.DFL.PanelSection, { title: data.trainer_name || "Trainer", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr",
+                                gap: 4,
+                                fontSize: 12,
+                            }, children: [window.SP_JSX.jsx(Stat, { label: "Money", value: formatMoney(data.money) }), window.SP_JSX.jsx(Stat, { label: "Badges", value: String(data.badges) }), window.SP_JSX.jsx(Stat, { label: "Location", value: data.location_name || `Map #${data.map_id ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Position", value: `${data.x ?? "?"}, ${data.y ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Play time", value: formatPlayTime(data.play_time_seconds) }), window.SP_JSX.jsx(Stat, { label: "Version", value: data.version })] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { fontSize: 11, color: "#777" }, children: ["Updated ", timeAgo(data.parsed_at), " \u00B7 auto-refresh every", " ", Math.max(5, autoRefreshSeconds), "s"] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: onReload, disabled: reloading, children: reloading ? "Reloading…" : "Reload from disk" })] }), data.features && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Detected features", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(CapabilitiesSummary, { features: data.features }) }) })), window.SP_JSX.jsx(window.DFL.PanelSection, { title: `Party (${party.length}/${MAX_PARTY_SLOTS})`, children: slots.map((p, i) => p ? (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(PokemonCard, { pokemon: p, features: data.features, forced: forced }) }, `slot-${i}`)) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            padding: 10,
+                            background: "rgba(255,255,255,0.02)",
+                            borderRadius: 6,
+                            border: "1px dashed #333",
+                            textAlign: "center",
+                            fontSize: 11,
+                            color: "#555",
+                            fontStyle: "italic",
+                        }, children: ["Slot ", i + 1, " \u2014 empty"] }) }, `slot-${i}`))) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Source", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                            fontSize: 10,
+                            color: "#666",
+                            wordBreak: "break-all",
+                            lineHeight: 1.4,
+                        }, children: data.source_path }) }) })] }));
+}
+function Stat({ label, value }) {
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [window.SP_JSX.jsx("div", { style: {
+                    fontSize: 10,
+                    color: "#777",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                }, children: label }), window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#ddd" }, children: value })] }));
+}
+
+function fmtTime(epoch) {
+    if (!epoch)
+        return "—";
+    return new Date(epoch * 1000).toLocaleString();
+}
+function fmtSize(bytes) {
+    if (bytes < 1024)
+        return `${bytes} B`;
+    if (bytes < 1024 * 1024)
+        return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+function shortenPath(p, max = 60) {
+    if (p.length <= max)
+        return p;
+    const parts = p.split("/");
+    if (parts.length <= 3)
+        return "…" + p.slice(-max + 1);
+    return parts.slice(0, 2).join("/") + "/…/" + parts.slice(-2).join("/");
+}
+function SettingsView() {
+    const settings = useStore((s) => s.settings);
+    const movesDb = useStore((s) => s.movesDatabase);
+    const theme = useStore((s) => s.theme);
+    const [resolved, setResolved] = window.SP_REACT.useState(null);
+    const [candidates, setCandidates] = window.SP_REACT.useState([]);
+    const [overrideInput, setOverrideInput] = window.SP_REACT.useState("");
+    const [pbsInput, setPbsInput] = window.SP_REACT.useState("");
+    const [busy, setBusy] = window.SP_REACT.useState(false);
+    const [pbsBusy, setPbsBusy] = window.SP_REACT.useState(false);
+    const [statusMsg, setStatusMsg] = window.SP_REACT.useState(null);
+    const [statusError, setStatusError] = window.SP_REACT.useState(null);
+    const [themes, setThemes] = window.SP_REACT.useState([]);
+    const refresh = window.SP_REACT.useCallback(async () => {
+        setBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            const [r, c] = await Promise.all([api.findSavePath(), api.listSaveFiles()]);
+            setResolved(r);
+            setCandidates(c);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBusy(false);
+        }
+    }, []);
+    window.SP_REACT.useEffect(() => {
+        refresh();
+    }, [refresh]);
+    window.SP_REACT.useEffect(() => {
+        api
+            .getThemes()
+            .then((r) => setThemes(r.themes))
+            .catch((e) => console.error("themes", e));
+    }, [theme?.id]);
+    window.SP_REACT.useEffect(() => {
+        if (settings)
+            setOverrideInput(settings.save_path_override ?? "");
+    }, [settings?.save_path_override]);
+    window.SP_REACT.useEffect(() => {
+        if (movesDb)
+            setPbsInput(movesDb.pbs_source ?? "");
+    }, [movesDb?.pbs_source]);
+    const reloadPbsAuto = window.SP_REACT.useCallback(async () => {
+        setPbsBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            const r = await api.autoLoadPbs();
+            await refreshMoves();
+            if (r.loaded) {
+                setStatusMsg(`Auto-loaded ${r.database.pbs_count} moves from PBS: ${shortenPath(r.source ?? "")}`);
+            }
+            else {
+                setStatusMsg("No PBS/moves.txt found in common locations.");
+            }
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setPbsBusy(false);
+        }
+    }, []);
+    const applyPbsPath = window.SP_REACT.useCallback(async () => {
+        if (!pbsInput.trim())
+            return;
+        setPbsBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            const r = await api.loadPbsMoves(pbsInput.trim());
+            await refreshMoves();
+            if (r.loaded) {
+                setStatusMsg(`Loaded ${r.count} moves from PBS file.`);
+            }
+            else {
+                setStatusError("Failed to load PBS file (file not readable or malformed).");
+            }
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setPbsBusy(false);
+        }
+    }, [pbsInput]);
+    const clearPbs = window.SP_REACT.useCallback(async () => {
+        setPbsInput("");
+        setPbsBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            await api.clearPbs();
+            await refreshMoves();
+            setStatusMsg("PBS override cleared. Static moves database only.");
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setPbsBusy(false);
+        }
+    }, []);
+    const applyOverride = window.SP_REACT.useCallback(async () => {
+        setBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            const next = overrideInput.trim() === "" ? null : overrideInput.trim();
+            await applySettingsPatch({ save_path_override: next });
+            setStatusMsg(next ? "Override saved." : "Override cleared.");
+            const r = await api.findSavePath();
+            setResolved(r);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBusy(false);
+        }
+    }, [overrideInput]);
+    const clearOverride = window.SP_REACT.useCallback(async () => {
+        setOverrideInput("");
+        setBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            await applySettingsPatch({ save_path_override: null });
+            setStatusMsg("Override cleared.");
+            const r = await api.findSavePath();
+            setResolved(r);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBusy(false);
+        }
+    }, []);
+    const useCandidate = window.SP_REACT.useCallback(async (path) => {
+        setOverrideInput(path);
+        setBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            await applySettingsPatch({ save_path_override: path });
+            setStatusMsg(`Override set: ${path}`);
+            const r = await api.findSavePath();
+            setResolved(r);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBusy(false);
+        }
+    }, []);
+    const setAutoScan = window.SP_REACT.useCallback(async (v) => {
+        try {
+            await applySettingsPatch({ auto_scan_enabled: v });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+    }, []);
+    const setTouchmenu = window.SP_REACT.useCallback(async (v) => {
+        try {
+            await applySettingsPatch({ touchmenu_enabled: v });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+    }, []);
+    const setScanInterval = window.SP_REACT.useCallback(async (v) => {
+        try {
+            await applySettingsPatch({ scan_interval_seconds: Math.max(5, v) });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+    }, []);
+    const setCompactMode = window.SP_REACT.useCallback(async (v) => {
+        try {
+            await applySettingsPatch({ compact_mode: v });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+    }, []);
+    const setTheme = window.SP_REACT.useCallback(async (v) => {
+        try {
+            await applySettingsPatch({ theme: v });
+            await refreshTheme();
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+    }, []);
+    const setWatcherEnabled = window.SP_REACT.useCallback(async (v) => {
+        try {
+            await applySettingsPatch({ watcher_enabled: v });
+            setStatusMsg(v ? "Live save watcher enabled." : "Live save watcher disabled.");
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+    }, []);
+    if (!settings) {
+        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Settings", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#969696" }, children: "Loading\u2026" }) }) }));
+    }
+    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Save resolution", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 11,
+                                    color: "#969696",
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.4,
+                                }, children: "Active save" }), window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 12,
+                                    color: resolved?.path ? "#5eba7d" : "#e0a458",
+                                    wordBreak: "break-all",
+                                    marginTop: 4,
+                                }, children: resolved?.path || "— no save found —" }), resolved?.using_override && (window.SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777", marginTop: 2 }, children: "(using manual override)" }))] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Manual override", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                fontSize: 11,
+                                color: "#888",
+                                lineHeight: 1.4,
+                                marginBottom: 4,
+                            }, children: ["If auto-detection fails, paste the full path to", " ", window.SP_JSX.jsx("code", { style: { color: "#ccc" }, children: "Game.rxdata" }), " here. Leave blank to use auto-detection."] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Path to Game.rxdata", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }), settings.save_path_override && (window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Auto-detect options", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.auto_scan_enabled, onChange: setAutoScan, children: "Auto-scan running processes and Wine prefixes" }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Display", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.compact_mode, onChange: setCompactMode, children: "Compact mode (auto-hide empty sections)" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                                fontSize: 11,
+                                color: "#888",
+                                lineHeight: 1.4,
+                            }, children: "When enabled, the UI only shows sections that have actual data from the save (e.g. IVs/EVs only on Essentials v17+, gender only when the game stores it). Disable to always show all sections with placeholder dashes." }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Theme", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 11,
+                                    color: "#969696",
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.4,
+                                }, children: "Active theme" }), window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 12,
+                                    color: theme ? theme.palette.accent : "#888",
+                                    marginTop: 4,
+                                }, children: theme ? theme.name : "Loading…" }), theme && (window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 10,
+                                    color: "#777",
+                                    marginTop: 2,
+                                }, children: theme.description }))] }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), options: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) }), theme && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 4,
+                                marginTop: 4,
+                            }, children: Object.keys(theme.palette)
+                                .filter((k) => [
+                                "accent",
+                                "hpGood",
+                                "hpWarn",
+                                "hpBad",
+                                "shiny",
+                                "female",
+                                "male",
+                            ].includes(k))
+                                .map((k) => (window.SP_JSX.jsx("div", { style: {
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: 4,
+                                    background: theme.palette[k],
+                                    border: "1px solid rgba(255,255,255,0.15)",
+                                }, title: `${k}: ${theme.palette[k]}` }, k))) }) }))] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PBS moves database", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 11,
+                                    color: "#969696",
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.4,
+                                }, children: "Active PBS source" }), window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 11,
+                                    color: movesDb?.pbs_source ? "#5eba7d" : "#888",
+                                    wordBreak: "break-all",
+                                    marginTop: 4,
+                                }, children: movesDb?.pbs_source
+                                    ? shortenPath(movesDb.pbs_source, 80)
+                                    : "— not loaded (using static DB) —" }), window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 10,
+                                    color: "#777",
+                                    marginTop: 4,
+                                }, children: movesDb
+                                    ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS`
+                                    : "Loading…" })] }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                fontSize: 11,
+                                color: "#888",
+                                lineHeight: 1.4,
+                            }, children: ["PBS files from your game are auto-discovered from the save folder. Loading them adds ", window.SP_JSX.jsx("em", { children: "custom moves" }), " (fan-game specials) on top of the static Gen 1-6 database."] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }), movesDb?.pbs_source && (window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }))] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "TouchMenu overlay", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.touchmenu_enabled, onChange: setTouchmenu, children: "Enable in-game touch menu" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                                fontSize: 11,
+                                color: "#888",
+                                lineHeight: 1.4,
+                            }, children: "When enabled, a touch menu appears over the game. Tap with two fingers on the screen to open it. Disable if it interferes with gameplay." }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Polling", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                fontSize: 11,
+                                color: "#888",
+                                marginBottom: 4,
+                            }, children: ["Backend live watcher checks the disk every", " ", window.SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units (roughly ", (Math.max(5, settings.scan_interval_seconds) / 10).toFixed(1), "s). The UI will always update instantly when changes occur."] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Interval (seconds)", value: String(settings.scan_interval_seconds), onChange: (e) => {
+                                const n = parseInt(e.target.value, 10);
+                                if (!isNaN(n))
+                                    setScanInterval(n);
+                            } }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.watcher_enabled ?? true, onChange: setWatcherEnabled, children: "Live save watcher (sub-second updates)" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                                fontSize: 11,
+                                color: "#888",
+                                lineHeight: 1.4,
+                            }, children: "Watches the save file mtime via a background thread and re-parses on every change. ~1s latency, near-zero CPU. Recommended when in-game; disable for battery savings." }) })] }), candidates.length > 0 && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: candidates.map((c) => (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                        }, children: [window.SP_JSX.jsx("div", { style: {
+                                    fontSize: 11,
+                                    color: "#ddd",
+                                    wordBreak: "break-all",
+                                }, children: c.path }), window.SP_JSX.jsxs("div", { style: { fontSize: 10, color: "#777" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }) }, c.path))) })), (statusMsg || statusError) && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Status", children: window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [statusMsg && (window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#5eba7d" }, children: statusMsg })), statusError && (window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#e87b7b" }, children: statusError }))] }) }))] }));
+}
+
+const BUCKET_LABELS = {
+    quadruple: "4× damage",
+    double: "2× damage",
+    neutral: "Normal",
+    half: "½× damage",
+    quarter: "¼× damage",
+    immune: "No effect",
+};
+const BUCKET_ORDER = [
+    "quadruple",
+    "double",
+    "neutral",
+    "half",
+    "quarter",
+    "immune",
+];
+const BUCKET_COLORS = {
+    quadruple: "#ff4d4d",
+    double: "#ff8a3d",
+    neutral: "#888",
+    half: "#5eba7d",
+    quarter: "#2f8a55",
+    immune: "#444",
+};
+function DefenseGrid({ defenders, summary }) {
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Defender:", " ", defenders.map((d, i) => (window.SP_JSX.jsxs("span", { style: { marginRight: "4px" }, children: [window.SP_JSX.jsx(TypeBadge, { type: d, size: "sm" }), i < defenders.length - 1 ? " /" : ""] }, d)))] }), BUCKET_ORDER.filter((b) => (summary[b] || []).length > 0).map((bucket) => {
+                const types = summary[bucket] || [];
+                return (window.SP_JSX.jsxs("div", { style: {
+                        padding: "6px 8px",
+                        background: "rgba(255,255,255,0.03)",
+                        borderRadius: "4px",
+                        borderLeft: `3px solid ${BUCKET_COLORS[bucket]}`,
+                    }, children: [window.SP_JSX.jsxs("div", { style: {
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                color: BUCKET_COLORS[bucket],
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                marginBottom: "4px",
+                            }, children: [BUCKET_LABELS[bucket], " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px" }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket));
+            })] }));
+}
+const OFFENSE_BUCKETS = [
+    { key: "super_effective", label: "Super effective", color: "#ff8a3d" },
+    { key: "not_very_effective", label: "Not very effective", color: "#5eba7d" },
+    { key: "no_effect", label: "No effect", color: "#444" },
+    { key: "neutral", label: "Normal damage", color: "#888" },
+];
+function OffenseGrid({ attacker, summary }) {
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Attacker: ", window.SP_JSX.jsx(TypeBadge, { type: attacker, size: "sm" })] }), OFFENSE_BUCKETS.filter((b) => (summary[b.key] || []).length > 0).map((bucket) => {
+                const types = summary[bucket.key] || [];
+                return (window.SP_JSX.jsxs("div", { style: {
+                        padding: "6px 8px",
+                        background: "rgba(255,255,255,0.03)",
+                        borderRadius: "4px",
+                        borderLeft: `3px solid ${bucket.color}`,
+                    }, children: [window.SP_JSX.jsxs("div", { style: {
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                color: bucket.color,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                marginBottom: "4px",
+                            }, children: [bucket.label, " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px" }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
+            })] }));
+}
+
+const NO_TYPE = "(none)";
+function TypeChartView() {
+    const chart = useStore((s) => s.typeChart);
+    const [error, setError] = window.SP_REACT.useState(null);
+    const [mode, setMode] = window.SP_REACT.useState("defense");
+    const [attacker, setAttacker] = window.SP_REACT.useState("Fire");
+    const [def1, setDef1] = window.SP_REACT.useState("Fire");
+    const [def2, setDef2] = window.SP_REACT.useState(NO_TYPE);
+    const [defense, setDefense] = window.SP_REACT.useState(null);
+    const [offense, setOffense] = window.SP_REACT.useState(null);
+    const [loading, setLoading] = window.SP_REACT.useState(false);
+    const types = chart?.types ?? [];
+    const typeOptions = window.SP_REACT.useMemo(() => [
+        { data: NO_TYPE, label: NO_TYPE },
+        ...types.map((t) => ({ data: t, label: t })),
+    ], [types]);
+    const attackerOptions = window.SP_REACT.useMemo(() => types.map((t) => ({ data: t, label: t })), [types]);
+    const defenderPair = window.SP_REACT.useMemo(() => (def2 === NO_TYPE ? [def1] : [def1, def2]), [def1, def2]);
+    window.SP_REACT.useEffect(() => {
+        if (!chart)
+            return;
+        setLoading(true);
+        setError(null);
+        const promise = mode === "defense"
+            ? api.getDefenseSummary(defenderPair)
+            : api.getOffenseSummary(attacker);
+        promise
+            .then((res) => {
+            if ("error" in res && res.error) {
+                setError(res.error);
+                setDefense(null);
+                setOffense(null);
+            }
+            else {
+                if (mode === "defense") {
+                    setDefense(res);
+                    setOffense(null);
+                }
+                else {
+                    setOffense(res);
+                    setDefense(null);
+                }
+            }
+        })
+            .catch((e) => setError(e.message))
+            .finally(() => setLoading(false));
+    }, [chart, mode, attacker, defenderPair]);
+    if (!chart) {
+        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Type Chart", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 0",
+                    }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading type chart\u2026" })] }) }) }));
+    }
+    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Mode", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { display: "flex", gap: "8px", padding: "4px 0" }, children: [window.SP_JSX.jsx(ModeButton, { label: "Defender", active: mode === "defense", onClick: () => setMode("defense") }), window.SP_JSX.jsx(ModeButton, { label: "Attacker", active: mode === "offense", onClick: () => setMode("offense") })] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), options: attackerOptions }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), options: typeOptions }) })] })) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), options: attackerOptions }) })) }), loading && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "4px 0",
+                        }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: "12px", color: "#969696" }, children: "Updating\u2026" })] }) }) })), error && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: "12px" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What does it hit?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) })), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Reference", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            fontSize: "11px",
+                            color: "#777",
+                            lineHeight: "1.5",
+                        }, children: ["Gen ", chart.generation, " type chart. STAB (Same-Type Attack Bonus) is applied by the game engine, not by this calculator. Values are the standard multipliers for a single-typed attack."] }) }) })] }));
+}
+function ModeButton({ label, active, onClick }) {
+    return (window.SP_JSX.jsx("button", { onClick: onClick, style: {
+            flex: 1,
+            padding: "8px 12px",
+            background: active ? "rgba(94,186,125,0.15)" : "rgba(255,255,255,0.04)",
+            color: active ? "#5eba7d" : "#969696",
+            border: active ? "1px solid #5eba7d" : "1px solid transparent",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontSize: "12px",
+            fontWeight: active ? 600 : 500,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+        }, children: label }));
+}
+
+const TABS = [
+    { id: "status", label: "Status" },
+    { id: "typechart", label: "Type Chart" },
+    { id: "party", label: "Party" },
+    { id: "settings", label: "Settings" },
+];
+function PluginContent() {
+    const [active, setActive] = window.SP_REACT.useState("status");
+    const settings = useStore((s) => s.settings);
+    const theme = useStore((s) => s.theme);
+    const interval = settings?.scan_interval_seconds ?? 30;
+    window.SP_REACT.useEffect(() => {
+        refreshStatic();
+    }, []);
+    window.SP_REACT.useEffect(() => {
+        startPolling();
+        return () => stopPolling();
+    }, [interval]);
+    window.SP_REACT.useEffect(() => {
+        registerTouchMenu();
+        return () => unregisterTouchMenu();
+    }, []);
+    const palette = theme?.palette ?? DEFAULT_PALETTE;
+    const themeStyle = window.SP_REACT.useMemo(() => paletteToCssVars(palette), [palette]);
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", ...themeStyle }, children: [window.SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), window.SP_JSX.jsx("div", { style: { display: active === "status" ? "block" : "none" }, children: window.SP_JSX.jsx(HomeView, {}) }), window.SP_JSX.jsx("div", { style: { display: active === "typechart" ? "block" : "none" }, children: window.SP_JSX.jsx(TypeChartView, {}) }), window.SP_JSX.jsx("div", { style: { display: active === "party" ? "block" : "none" }, children: window.SP_JSX.jsx(PartyView, {}) }), window.SP_JSX.jsx("div", { style: { display: active === "settings" ? "block" : "none" }, children: window.SP_JSX.jsx(SettingsView, {}) })] }));
+}
+var index = definePlugin(() => {
+    return {
+        name: "Pokémon Essentials Overlay",
+        titleView: (window.SP_JSX.jsxs("div", { style: {
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                paddingLeft: "4px",
+            }, children: [window.SP_JSX.jsx(PokeballIcon, { size: 18 }), window.SP_JSX.jsx("span", { children: "Pok\u00E9mon Essentials Overlay" })] })),
+        content: window.SP_JSX.jsx(PluginContent, {}),
+        icon: window.SP_JSX.jsx(PokeballIcon, {}),
+        onDismount() {
+            unregisterTouchMenu();
+            stopPolling();
+            console.log("[pokemon-overlay] dismounted");
+        },
+    };
+});
+
+export { index as default };
+//# sourceMappingURL=index.js.map
