@@ -1,0 +1,5 @@
+Name         = PokeStatStream
+Essentials   = 20.1
+Version      = 0.1.0
+Website      = https://github.com/inf1nit3/sd-poke-stat-tracker
+Credits      = inf1nit3

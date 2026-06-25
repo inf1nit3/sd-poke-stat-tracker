@@ -32,6 +32,7 @@ sys.path.append(str(PLUGIN_DIR))
 
 from livewatch import (
     LiveMemoryReader,
+    LiveStreamServer,
     SaveFileWatcher,
     find_game_processes,
     find_process_by_save_path,
@@ -96,8 +97,11 @@ class Plugin:
         # Phase 6: live memory reading
         self._memory_reader: Optional[LiveMemoryReader] = None
         self._memory_pid: Optional[int] = None
-        self._live_source: str = "disk"  # "memory" | "disk"
+        self._live_source: str = "disk"  # "memory" | "disk" | "stream"
         self._memory_failure_log: list[str] = []
+        # Game-mod TCP stream (most reliable live source when the
+        # game's Plugins/ folder has our stream.rb hook installed).
+        self._stream_server: Optional[LiveStreamServer] = None
 
     async def _main(self) -> None:
         """Called once when the plugin is loaded."""
@@ -132,6 +136,9 @@ class Plugin:
         if self._memory_reader is not None:
             self._memory_reader.stop()
             self._memory_reader = None
+        if self._stream_server is not None:
+            self._stream_server.stop()
+            self._stream_server = None
         self._settings = dict(DEFAULT_SETTINGS)
         self._save_cache = None
         self._save_cache_path = None
@@ -466,21 +473,31 @@ class Plugin:
     # --- Phase 6: live memory reading ---------------------------------
 
     def _start_memory_reader(self) -> None:
-        """Start scanning the running game process's heap for live saves.
+        """Start the live-data stack: TCP stream server + memory reader.
 
         Falls back gracefully if no game is running: the disk watcher
-        continues to provide data on save events.
+        continues to provide data on save events. The stream server
+        binds once and accepts connections from the game mod (which
+        reconnects automatically after restart). The memory reader
+        is best-effort and may find nothing — see livewatch.py.
         """
+        # 1) TCP stream server — most reliable source when the
+        #    game-mod is installed.
+        if self._stream_server is None:
+            self._stream_server = LiveStreamServer(
+                on_state=self._on_stream_state,
+            )
+            if not self._stream_server.start():
+                log.warning("Live stream server failed to bind, falling back to disk only")
+                self._stream_server = None
+        # 2) Memory reader — experimental, usually finds nothing.
         if self._memory_reader is not None:
             return
         procs = find_game_processes()
         if not procs:
             log.info("Live memory reader: no game process found, "
-                     "disk watcher remains active")
+                     "stream server + disk watcher remain active")
             return
-        # Filter out our own helper processes (already done by
-        # find_game_processes via EXCLUDE_PATH_HINTS) but pick the
-        # newest non-plugin process first.
         game_proc = procs[0]
         pid = int(game_proc.get("pid") or 0)
         if pid <= 0:
@@ -491,7 +508,7 @@ class Plugin:
             pid=pid,
             on_update=self._on_memory_update,
             on_failure=self._on_memory_failure,
-            interval=1.0,
+            interval=3.0,
         )
         self._memory_reader.start()
 
@@ -500,6 +517,9 @@ class Plugin:
             self._memory_reader.stop()
             self._memory_reader = None
         self._memory_pid = None
+        if self._stream_server is not None:
+            self._stream_server.stop()
+            self._stream_server = None
 
     def _on_memory_update(self, payload: dict[str, Any]) -> None:
         """A live memory scan produced a fresh save. Update the cache
@@ -507,9 +527,9 @@ class Plugin:
         """
         import time as _time
         now = _time.time()
-        # Monotonic guard: disk-watcher entries carry the file's
-        # mtime, memory entries carry wall-clock. We compare against
-        # the most recent update timestamp we accepted.
+        # Stream updates are fresher than memory updates.
+        if self._live_source == "stream":
+            return
         if now <= self._save_cache_at:
             return
         self._save_cache = payload
@@ -526,6 +546,32 @@ class Plugin:
         log.debug(
             f"Live memory update: trainer={payload.get('trainer_name')} "
             f"party={len(payload.get('party', []))}"
+        )
+
+    def _on_stream_state(self, payload: dict[str, Any]) -> None:
+        """Game-mod TCP stream produced a fresh state update. Stream
+        takes priority over memory and disk since it has the lowest
+        latency.
+        """
+        import time as _time
+        now = _time.time()
+        # Stream always wins over memory/disk if a fresh-enough
+        # timestamp arrives.
+        self._save_cache = payload
+        self._save_cache_path = f"<stream:9988>"
+        self._save_cache_at = now
+        self._live_source = "stream"
+        self._last_live_event = {
+            "kind": "stream_update",
+            "at": now,
+            "trainer": payload.get("trainer_name"),
+            "party_count": payload.get("party_count", 0),
+            "in_menu": payload.get("in_menu", False),
+        }
+        log.debug(
+            f"Live stream update: trainer={payload.get('trainer_name')} "
+            f"party={payload.get('party_count')} "
+            f"menu={payload.get('in_menu')}"
         )
 
     def _on_memory_failure(self, reason: str) -> None:

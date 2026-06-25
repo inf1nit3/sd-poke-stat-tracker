@@ -289,6 +289,215 @@ class SaveFileWatcher:
 
 
 # ---------------------------------------------------------------------------
+# Phase 6: Game-mod TCP stream server
+# ---------------------------------------------------------------------------
+#
+# The ``game-mod/stream.rb`` plugin (installed alongside the game in
+# its ``Plugins/`` directory) hooks Scene_Map#update and forwards
+# player/party state as JSON to ``127.0.0.1:9988`` every ~0.5s.
+#
+# This server accepts that stream, normalizes the payload into a
+# SaveData-like dict, and hands it to the on_state callback. Much
+# more reliable than scanning /proc/<pid>/mem because we get the
+# data straight from the Ruby runtime.
+
+import json as _json
+import socket as _socket
+
+
+_STREAM_HOST = "127.0.0.1"
+_STREAM_PORT = 9988
+_RECV_CHUNK = 65536
+_MAX_LINE_BYTES = 256 * 1024
+
+
+class LiveStreamServer:
+    """TCP server that receives live state from the game mod plugin.
+
+    Single-client: when the game connects, the previous client is
+    closed. Stays running across game restarts — the Ruby side will
+    reconnect on its own ``update`` frames.
+    """
+
+    def __init__(
+        self,
+        on_state: Callable[[dict[str, Any]], None],
+        host: str = _STREAM_HOST,
+        port: int = _STREAM_PORT,
+    ) -> None:
+        self._on_state = on_state
+        self._host = host
+        self._port = port
+        self._server: Optional[_socket.socket] = None
+        self._accept_thread: Optional[threading.Thread] = None
+        self._client_thread: Optional[threading.Thread] = None
+        self._client: Optional[_socket.socket] = None
+        self._stop = threading.Event()
+
+    @property
+    def is_listening(self) -> bool:
+        return self._server is not None
+
+    def start(self) -> bool:
+        """Bind the listener. Returns False on address-in-use."""
+        if self._server is not None:
+            return True
+        try:
+            sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEADDR, 1)
+            sock.bind((self._host, self._port))
+            sock.listen(1)
+            sock.settimeout(1.0)
+            self._server = sock
+        except OSError as exc:
+            log.error(f"Live stream server: cannot bind {self._host}:{self._port}: {exc}")
+            return False
+        self._stop.clear()
+        self._accept_thread = threading.Thread(
+            target=self._accept_loop, name="LiveStreamAccept", daemon=True
+        )
+        self._accept_thread.start()
+        log.info(f"Live stream server listening on {self._host}:{self._port}")
+        return True
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._close_client()
+        if self._server is not None:
+            try:
+                self._server.close()
+            except OSError:
+                pass
+            self._server = None
+        if self._accept_thread is not None:
+            self._accept_thread.join(timeout=2.0)
+            self._accept_thread = None
+        log.info("Live stream server stopped")
+
+    def _accept_loop(self) -> None:
+        while not self._stop.is_set():
+            if self._server is None:
+                return
+            try:
+                client, addr = self._server.accept()
+            except _socket.timeout:
+                continue
+            except OSError:
+                return
+            self._close_client()
+            self._client = client
+            log.info(f"Live stream client connected: {addr}")
+            self._client_thread = threading.Thread(
+                target=self._client_loop, args=(client,), daemon=True,
+                name="LiveStreamClient",
+            )
+            self._client_thread.start()
+
+    def _close_client(self) -> None:
+        if self._client is not None:
+            try:
+                self._client.shutdown(_socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
+                self._client.close()
+            except OSError:
+                pass
+            self._client = None
+        if self._client_thread is not None:
+            self._client_thread.join(timeout=2.0)
+            self._client_thread = None
+
+    def _client_loop(self, client: _socket.socket) -> None:
+        buf = b""
+        try:
+            while not self._stop.is_set():
+                try:
+                    data = client.recv(_RECV_CHUNK)
+                except OSError:
+                    return
+                if not data:
+                    return
+                buf += data
+                if len(buf) > _MAX_LINE_BYTES:
+                    buf = b""  # discard runaway payload
+                    continue
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    if not line.strip():
+                        continue
+                    try:
+                        payload = _json.loads(line)
+                    except _json.JSONDecodeError:
+                        continue
+                    self._dispatch(payload)
+        finally:
+            log.info("Live stream client disconnected")
+
+    def _dispatch(self, payload: dict[str, Any]) -> None:
+        """Normalize the JSON payload and call the on_state callback."""
+        if payload.get("kind") != "live_state":
+            return
+        party = payload.get("party") or []
+        normalized = {
+            "trainer_name": payload.get("trainer") or "",
+            "money": int(payload.get("money") or 0),
+            "badges": int(payload.get("badges") or 0),
+            "location_name": payload.get("map_name") or "",
+            "map_id": payload.get("map_id"),
+            "x": payload.get("x"),
+            "y": payload.get("y"),
+            "play_time_seconds": int(payload.get("play_time") or 0),
+            "party": [
+                {
+                    "species": p.get("species"),
+                    "level": p.get("level"),
+                    "hp": p.get("hp"),
+                    "max_hp": p.get("max_hp"),
+                    "status": p.get("status"),
+                    "moves": p.get("moves") or [],
+                    "type1": p.get("type1"),
+                    "type2": p.get("type2"),
+                    "nickname": None,
+                    "ability": None,
+                    "item": None,
+                    "gender": 0,
+                    "gender_name": "?",
+                    "shiny": False,
+                    "nature": None,
+                    "attack": None,
+                    "defense": None,
+                    "spatk": None,
+                    "spdef": None,
+                    "speed": None,
+                    "iv_hp": None, "iv_attack": None, "iv_defense": None,
+                    "iv_spatk": None, "iv_spdef": None, "iv_speed": None,
+                    "ev_hp": None, "ev_attack": None, "ev_defense": None,
+                    "ev_spatk": None, "ev_spdef": None, "ev_speed": None,
+                    "happiness": None,
+                }
+                for p in party
+            ],
+            "version": "live",
+            "essentials_version": None,
+            "party_count": len(party),
+            "parsed_at": payload.get("at"),
+            "source_path": f"<stream:{self._port}>",
+            "features": {
+                "ivs": False, "evs": False, "happiness": False,
+                "stats": True, "moves": True, "natures": False,
+                "abilities": False, "items": False, "type2": True,
+                "shiny": False, "gender": False,
+            },
+            "_live_source": "stream",
+        }
+        try:
+            self._on_state(normalized)
+        except Exception as exc:
+            log.error(f"Live stream on_state callback failed: {exc}", exc_info=True)
+
+
+# ---------------------------------------------------------------------------
 # Phase 6: Live memory reading — experimental
 # ---------------------------------------------------------------------------
 #
