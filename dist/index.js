@@ -1,4 +1,4 @@
-const manifest = {name: 'SD Poké Stat Tracker'};
+const manifest = {"name":"SD Poké Stat Tracker"};
 const API_VERSION = 2;
 const internalAPIConnection = window.__DECKY_SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED_deckyLoaderAPIInit;
 if (!internalAPIConnection) {
@@ -16,18 +16,6 @@ if (api$1._version != API_VERSION) {
     console.warn(`[@decky/api] Requested API version ${API_VERSION} but the running loader only supports version ${api$1._version}. Some features may not work.`);
 }
 const call = api$1.call;
-api$1.callable;
-api$1.addEventListener;
-api$1.removeEventListener;
-api$1.routerHook;
-api$1.toaster;
-api$1.openFilePicker;
-api$1.executeInTab;
-api$1.injectCssIntoTab;
-api$1.removeCssFromTab;
-api$1.fetchNoCors;
-api$1.getExternalResourceURL;
-api$1.useQuickAccessVisible;
 const definePlugin = (fn) => {
     return (...args) => {
         return fn(...args);
@@ -36,11 +24,11 @@ const definePlugin = (fn) => {
 
 function PokeballIcon({ size = 18, style }) {
     const s = size;
-    return (window.SP_JSX.jsxs("svg", { width: s, height: s, viewBox: "0 0 24 24", style: style, xmlns: "http://www.w3.org/2000/svg", "aria-label": "Pokeball", children: [window.SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "11", fill: "#fff", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("path", { d: "M 1 12 A 11 11 0 0 1 23 12 Z", fill: "#dc2626", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("line", { x1: "1", y1: "12", x2: "23", y2: "12", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "4", fill: "#fff", stroke: "#222", strokeWidth: "1.5" }), window.SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "1.5", fill: "#222" })] }));
+    return (SP_JSX.jsxs("svg", { width: s, height: s, viewBox: "0 0 24 24", style: style, xmlns: "http://www.w3.org/2000/svg", "aria-label": "Pokeball", children: [SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "11", fill: "#fff", stroke: "#222", strokeWidth: "1.5" }), SP_JSX.jsx("path", { d: "M 1 12 A 11 11 0 0 1 23 12 Z", fill: "#dc2626", stroke: "#222", strokeWidth: "1.5" }), SP_JSX.jsx("line", { x1: "1", y1: "12", x2: "23", y2: "12", stroke: "#222", strokeWidth: "1.5" }), SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "4", fill: "#fff", stroke: "#222", strokeWidth: "1.5" }), SP_JSX.jsx("circle", { cx: "12", cy: "12", r: "1.5", fill: "#222" })] }));
 }
 
 function TabBar({ tabs, activeId, onChange }) {
-    return (window.SP_JSX.jsx(window.DFL.Focusable, { focusWithinClassName: "gp-tabs-active", style: {
+    return (SP_JSX.jsx(DFL.Focusable, { focusWithinClassName: "gp-tabs-active", style: {
             display: "flex",
             flexDirection: "row",
             gap: "4px",
@@ -49,7 +37,7 @@ function TabBar({ tabs, activeId, onChange }) {
             marginBottom: "4px",
         }, children: tabs.map((tab) => {
             const active = tab.id === activeId;
-            return (window.SP_JSX.jsx(window.DFL.Focusable, { onClick: () => !tab.disabled && onChange(tab.id), style: {
+            return (SP_JSX.jsx(DFL.Focusable, { onClick: () => !tab.disabled && onChange(tab.id), style: {
                     padding: "6px 10px",
                     background: active ? "rgba(255,255,255,0.08)" : "transparent",
                     color: tab.disabled ? "#555" : active ? "#fff" : "#969696",
@@ -139,7 +127,7 @@ function getServerSnapshot() {
     return initialState;
 }
 function useStore(selector) {
-    return window.SP_REACT.useSyncExternalStore(subscribe, () => selector(getSnapshot()), () => selector(getServerSnapshot()));
+    return SP_REACT.useSyncExternalStore(subscribe, () => selector(getSnapshot()), () => selector(getServerSnapshot()));
 }
 async function refreshStatic() {
     try {
@@ -294,7 +282,7 @@ const SIZES = {
 };
 function TypeBadge({ type, size = "md", style, dimmed = false }) {
     const color = TYPE_COLORS[type] ?? "#777";
-    return (window.SP_JSX.jsx("span", { style: {
+    return (SP_JSX.jsx("span", { style: {
             display: "inline-block",
             background: color,
             color: "#fff",
@@ -330,11 +318,11 @@ const BUCKETS$1 = [
 function MoveLookupTouchMenu() {
     const saveData = useStore((s) => s.saveData);
     const movesDb = useStore((s) => s.movesDatabase);
-    const [selectedMove, setSelectedMove] = window.SP_REACT.useState(null);
-    const [moveInfo, setMoveInfo] = window.SP_REACT.useState(null);
-    const [offense, setOffense] = window.SP_REACT.useState(null);
-    const [loading, setLoading] = window.SP_REACT.useState(false);
-    window.SP_REACT.useEffect(() => {
+    const [selectedMove, setSelectedMove] = SP_REACT.useState(null);
+    const [moveInfo, setMoveInfo] = SP_REACT.useState(null);
+    const [offense, setOffense] = SP_REACT.useState(null);
+    const [loading, setLoading] = SP_REACT.useState(false);
+    SP_REACT.useEffect(() => {
         if (!selectedMove) {
             setMoveInfo(null);
             setOffense(null);
@@ -355,7 +343,7 @@ function MoveLookupTouchMenu() {
             .finally(() => setLoading(false));
     }, [selectedMove]);
     if (!saveData || saveData.error) {
-        return (window.SP_JSX.jsx("div", { style: {
+        return (SP_JSX.jsx("div", { style: {
                 padding: 24,
                 textAlign: "center",
                 color: "#888",
@@ -370,17 +358,17 @@ function MoveLookupTouchMenu() {
                 partyMoves.push({ move: m, owner: p.nickname || p.species });
         }
     }
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [SP_JSX.jsxs("div", { style: {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
                     flexWrap: "wrap",
                     paddingBottom: 4,
                     borderBottom: "1px solid #2a2a2a",
-                }, children: [window.SP_JSX.jsx("span", { style: { fontSize: 11, color: "#888", fontWeight: 600 }, children: "PARTY MOVES:" }), partyMoves.map((pm, i) => {
+                }, children: [SP_JSX.jsx("span", { style: { fontSize: 11, color: "#888", fontWeight: 600 }, children: "PARTY MOVES:" }), partyMoves.map((pm, i) => {
                         const info = movesDb?.moves?.[normalizeKey$1(pm.move)];
                         const type = info?.type;
-                        return (window.SP_JSX.jsxs("button", { onClick: () => setSelectedMove(pm.move), style: {
+                        return (SP_JSX.jsxs("button", { onClick: () => setSelectedMove(pm.move), style: {
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: 4,
@@ -396,75 +384,75 @@ function MoveLookupTouchMenu() {
                                 cursor: "pointer",
                                 fontSize: 11,
                                 fontWeight: 500,
-                            }, children: [type && window.SP_JSX.jsx(TypeBadge, { type: type, size: "sm" }), window.SP_JSX.jsx("span", { children: pm.move })] }, `${pm.owner}-${pm.move}-${i}`));
-                    })] }), !selectedMove && (window.SP_JSX.jsx("div", { style: {
+                            }, children: [type && SP_JSX.jsx(TypeBadge, { type: type, size: "sm" }), SP_JSX.jsx("span", { children: pm.move })] }, `${pm.owner}-${pm.move}-${i}`));
+                    })] }), !selectedMove && (SP_JSX.jsx("div", { style: {
                     padding: 20,
                     textAlign: "center",
                     color: "#888",
                     fontSize: 12,
                     fontStyle: "italic",
-                }, children: "Tap a move to see its type and effectiveness" })), selectedMove && loading && (window.SP_JSX.jsx("div", { style: { padding: 16, textAlign: "center", color: "#aaa" }, children: "Loading\u2026" })), selectedMove && !loading && (window.SP_JSX.jsx(MoveDetail, { move: selectedMove, info: moveInfo, offense: offense })), movesDb && (window.SP_JSX.jsxs("div", { style: {
+                }, children: "Tap a move to see its type and effectiveness" })), selectedMove && loading && (SP_JSX.jsx("div", { style: { padding: 16, textAlign: "center", color: "#aaa" }, children: "Loading\u2026" })), selectedMove && !loading && (SP_JSX.jsx(MoveDetail, { move: selectedMove, info: moveInfo, offense: offense })), movesDb && (SP_JSX.jsxs("div", { style: {
                     fontSize: 10,
                     color: "#555",
                     textAlign: "right",
                     marginTop: 2,
-                }, children: [movesDb.merged_count, " moves available", movesDb.pbs_source && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [" ", "\u00B7 PBS: ", movesDb.pbs_source.split("/").slice(-2).join("/")] }))] }))] }));
+                }, children: [movesDb.merged_count, " moves available", movesDb.pbs_source && (SP_JSX.jsxs(SP_JSX.Fragment, { children: [" ", "\u00B7 PBS: ", movesDb.pbs_source.split("/").slice(-2).join("/")] }))] }))] }));
 }
 function MoveDetail({ move, info, offense, }) {
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             flexDirection: "column",
             gap: 8,
             padding: 10,
             background: "rgba(255,255,255,0.04)",
             borderRadius: 6,
-        }, children: [window.SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [window.SP_JSX.jsx("span", { style: {
+        }, children: [SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [SP_JSX.jsx("span", { style: {
                             fontSize: 16,
                             fontWeight: 600,
                             color: "#fff",
                             textTransform: "uppercase",
-                        }, children: info?.name || move }), info?.type && window.SP_JSX.jsx(TypeBadge, { type: info.type, size: "md" }), window.SP_JSX.jsx("div", { style: { flex: 1 } }), info?.source && (window.SP_JSX.jsxs("span", { style: {
+                        }, children: info?.name || move }), info?.type && SP_JSX.jsx(TypeBadge, { type: info.type, size: "md" }), SP_JSX.jsx("div", { style: { flex: 1 } }), info?.source && (SP_JSX.jsxs("span", { style: {
                             fontSize: 9,
                             color: "#666",
                             textTransform: "uppercase",
                             letterSpacing: 0.5,
-                        }, children: [info.source, info.guessed && " (heuristic)"] }))] }), info && (window.SP_JSX.jsxs("div", { style: {
+                        }, children: [info.source, info.guessed && " (heuristic)"] }))] }), info && (SP_JSX.jsxs("div", { style: {
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr 1fr",
                     gap: 8,
                     fontSize: 11,
                     color: "#ccc",
-                }, children: [window.SP_JSX.jsx(Detail, { label: "Category", value: info.category }), window.SP_JSX.jsx(Detail, { label: "Power", value: info.power ? String(info.power) : "—" }), window.SP_JSX.jsx(Detail, { label: "Accuracy", value: info.accuracy ? `${info.accuracy}%` : "—" })] })), info?.description && (window.SP_JSX.jsx("div", { style: {
+                }, children: [SP_JSX.jsx(Detail, { label: "Category", value: info.category }), SP_JSX.jsx(Detail, { label: "Power", value: info.power ? String(info.power) : "—" }), SP_JSX.jsx(Detail, { label: "Accuracy", value: info.accuracy ? `${info.accuracy}%` : "—" })] })), info?.description && (SP_JSX.jsx("div", { style: {
                     fontSize: 11,
                     color: "#888",
                     fontStyle: "italic",
                     lineHeight: 1.4,
-                }, children: info.description })), offense?.summary && (window.SP_JSX.jsx("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: BUCKETS$1.map((bucket) => {
+                }, children: info.description })), offense?.summary && (SP_JSX.jsx("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: BUCKETS$1.map((bucket) => {
                     const types = offense.summary?.[bucket.key] ?? [];
                     if (types.length === 0)
                         return null;
-                    return (window.SP_JSX.jsxs("div", { style: {
+                    return (SP_JSX.jsxs("div", { style: {
                             padding: "5px 7px",
                             background: "rgba(255,255,255,0.02)",
                             borderRadius: 4,
                             borderLeft: `3px solid ${bucket.color}`,
-                        }, children: [window.SP_JSX.jsxs("div", { style: {
+                        }, children: [SP_JSX.jsxs("div", { style: {
                                     fontSize: 10,
                                     fontWeight: 600,
                                     color: bucket.color,
                                     textTransform: "uppercase",
                                     letterSpacing: 0.4,
                                     marginBottom: 3,
-                                }, children: [bucket.label, " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 3 }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
+                                }, children: [bucket.label, " (", types.length, ")"] }), SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 3 }, children: types.map((t) => (SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
                 }) }))] }));
 }
 function Detail({ label, value }) {
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [window.SP_JSX.jsx("div", { style: {
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [SP_JSX.jsx("div", { style: {
                     fontSize: 9,
                     color: "#777",
                     textTransform: "uppercase",
                     letterSpacing: 0.4,
-                }, children: label }), window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#ddd" }, children: value })] }));
+                }, children: label }), SP_JSX.jsx("div", { style: { fontSize: 12, color: "#ddd" }, children: value })] }));
 }
 function normalizeKey$1(name) {
     return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -522,7 +510,7 @@ function HealthBar({ hp, maxHp, statusName, width = "100%", showLabel = true, })
             pointerEvents: "none",
         }
         : undefined;
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6, width: "100%" }, children: [window.SP_JSX.jsxs("div", { style: wrapperStyle, children: [window.SP_JSX.jsx("div", { style: fillStyle }), statusOverlayStyle && window.SP_JSX.jsx("div", { style: statusOverlayStyle })] }), showLabel && (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6, width: "100%" }, children: [SP_JSX.jsxs("div", { style: wrapperStyle, children: [SP_JSX.jsx("div", { style: fillStyle }), statusOverlayStyle && SP_JSX.jsx("div", { style: statusOverlayStyle })] }), showLabel && (SP_JSX.jsxs("div", { style: {
                     fontSize: 11,
                     color: "#bbb",
                     minWidth: 56,
@@ -554,21 +542,21 @@ function PartyTouchMenu() {
     const saveData = useStore((s) => s.saveData);
     const movesDb = useStore((s) => s.movesDatabase);
     if (!saveData) {
-        return window.SP_JSX.jsx(EmptyState, { children: "Loading save data\u2026" });
+        return SP_JSX.jsx(EmptyState, { children: "Loading save data\u2026" });
     }
     if (saveData.error === "no_save_file_found") {
-        return (window.SP_JSX.jsxs(EmptyState, { children: ["No save file found.", window.SP_JSX.jsx("br", {}), "Configure a path in ", window.SP_JSX.jsx("strong", { children: "Settings" }), "."] }));
+        return (SP_JSX.jsxs(EmptyState, { children: ["No save file found.", SP_JSX.jsx("br", {}), "Configure a path in ", SP_JSX.jsx("strong", { children: "Settings" }), "."] }));
     }
     if (saveData.error === "parse_failed") {
-        return (window.SP_JSX.jsxs(EmptyState, { children: ["Parse error: ", saveData.message ?? "unknown"] }));
+        return (SP_JSX.jsxs(EmptyState, { children: ["Parse error: ", saveData.message ?? "unknown"] }));
     }
     const party = saveData.party || [];
     const slots = Array.from({ length: MAX_SLOTS }).map((_, i) => party[i] || null);
     const features = saveData.features;
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: [window.SP_JSX.jsx(Header, { trainer: saveData.trainer_name, count: party.length, max: MAX_SLOTS, money: features?.items ? saveData.money : 0, badges: saveData.badges, location: saveData.location_name || (saveData.map_id != null ? `Map #${saveData.map_id}` : ""), pbsSource: movesDb?.pbs_source ?? null, features: features }), slots.map((p, i) => p ? (window.SP_JSX.jsx(PartyRow, { pokemon: p, movesDb: movesDb, features: features }, `slot-${i}`)) : (window.SP_JSX.jsx(EmptySlot, { index: i }, `slot-${i}`)))] }));
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: [SP_JSX.jsx(Header, { trainer: saveData.trainer_name, count: party.length, max: MAX_SLOTS, money: features?.items ? saveData.money : 0, badges: saveData.badges, location: saveData.location_name || (saveData.map_id != null ? `Map #${saveData.map_id}` : ""), pbsSource: movesDb?.pbs_source ?? null, features: features }), slots.map((p, i) => p ? (SP_JSX.jsx(PartyRow, { pokemon: p, movesDb: movesDb, features: features }, `slot-${i}`)) : (SP_JSX.jsx(EmptySlot, { index: i }, `slot-${i}`)))] }));
 }
 function Header({ trainer, count, max, money, badges, location, pbsSource, features, }) {
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             alignItems: "center",
             gap: 10,
@@ -578,7 +566,7 @@ function Header({ trainer, count, max, money, badges, location, pbsSource, featu
             fontSize: 12,
             color: "#ccc",
             flexWrap: "wrap",
-        }, children: [window.SP_JSX.jsx("span", { style: { fontWeight: 600, color: "#fff" }, children: trainer || "Trainer" }), window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsxs("span", { children: ["Party ", count, "/", max] }), features?.items && money > 0 && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsxs("span", { children: ["\u20BD", money.toLocaleString("en-US")] })] })), badges > 0 && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsxs("span", { style: { color: "#f7d02c" }, children: [badges, " \uD83C\uDFC6"] })] })), location && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), window.SP_JSX.jsx("span", { style: { color: "#888" }, children: location })] })), pbsSource && (window.SP_JSX.jsx("span", { style: {
+        }, children: [SP_JSX.jsx("span", { style: { fontWeight: 600, color: "#fff" }, children: trainer || "Trainer" }), SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), SP_JSX.jsxs("span", { children: ["Party ", count, "/", max] }), features?.items && money > 0 && (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), SP_JSX.jsxs("span", { children: ["\u20BD", money.toLocaleString("en-US")] })] })), badges > 0 && (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), SP_JSX.jsxs("span", { style: { color: "#f7d02c" }, children: [badges, " \uD83C\uDFC6"] })] })), location && (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), SP_JSX.jsx("span", { style: { color: "#888" }, children: location })] })), pbsSource && (SP_JSX.jsx("span", { style: {
                     marginLeft: "auto",
                     fontSize: 9,
                     color: "#5eba7d",
@@ -593,7 +581,7 @@ function PartyRow({ pokemon: p, movesDb, features, }) {
     const showGender = p.has_gender_data;
     const showType2 = p.has_type2 && p.type2;
     const showMoves = p.has_moves && p.moves.length > 0;
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             alignItems: "center",
             gap: 10,
@@ -602,13 +590,13 @@ function PartyRow({ pokemon: p, movesDb, features, }) {
             borderRadius: 5,
             borderLeft: `3px solid ${statusColor}`,
             opacity: p.is_fainted ? 0.55 : 1,
-        }, children: [window.SP_JSX.jsxs("div", { style: {
+        }, children: [SP_JSX.jsxs("div", { style: {
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     minWidth: 24,
                     gap: 1,
-                }, children: [p.shiny && (window.SP_JSX.jsx("span", { style: { color: "#f7d02c", fontSize: 11, lineHeight: 1 }, children: "\u2605" })), showGender && (window.SP_JSX.jsx("span", { style: {
+                }, children: [p.shiny && (SP_JSX.jsx("span", { style: { color: "#f7d02c", fontSize: 11, lineHeight: 1 }, children: "\u2605" })), showGender && (SP_JSX.jsx("span", { style: {
                             color: p.gender_name === "F"
                                 ? "#e87ba3"
                                 : p.gender_name === "M"
@@ -617,13 +605,13 @@ function PartyRow({ pokemon: p, movesDb, features, }) {
                             fontSize: 12,
                             fontWeight: 700,
                             lineHeight: 1,
-                        }, children: GENDER_SYMBOLS$1[p.gender_name] ?? "?" }))] }), window.SP_JSX.jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [window.SP_JSX.jsxs("div", { style: {
+                        }, children: GENDER_SYMBOLS$1[p.gender_name] ?? "?" }))] }), SP_JSX.jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [SP_JSX.jsxs("div", { style: {
                             display: "flex",
                             alignItems: "baseline",
                             gap: 8,
                             marginBottom: 4,
                             flexWrap: "wrap",
-                        }, children: [window.SP_JSX.jsx("span", { style: {
+                        }, children: [SP_JSX.jsx("span", { style: {
                                     fontSize: 13,
                                     fontWeight: 600,
                                     color: "#fff",
@@ -631,7 +619,7 @@ function PartyRow({ pokemon: p, movesDb, features, }) {
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                     maxWidth: 180,
-                                }, children: p.nickname || p.species }), window.SP_JSX.jsxs("span", { style: { fontSize: 10, color: "#888" }, children: ["Lv.", p.level] }), p.nature && (window.SP_JSX.jsx("span", { style: { fontSize: 9, color: "#888" }, children: p.nature })), window.SP_JSX.jsx("div", { style: { flex: 1 } }), window.SP_JSX.jsxs("div", { style: { display: "flex", gap: 3 }, children: [p.type1 && window.SP_JSX.jsx(TypeBadge, { type: p.type1, size: "sm" }), showType2 && window.SP_JSX.jsx(TypeBadge, { type: p.type2, size: "sm" })] })] }), window.SP_JSX.jsx(HealthBar, { hp: p.hp, maxHp: p.max_hp, statusName: p.status_name, showLabel: false }), window.SP_JSX.jsxs("div", { style: {
+                                }, children: p.nickname || p.species }), SP_JSX.jsxs("span", { style: { fontSize: 10, color: "#888" }, children: ["Lv.", p.level] }), p.nature && (SP_JSX.jsx("span", { style: { fontSize: 9, color: "#888" }, children: p.nature })), SP_JSX.jsx("div", { style: { flex: 1 } }), SP_JSX.jsxs("div", { style: { display: "flex", gap: 3 }, children: [p.type1 && SP_JSX.jsx(TypeBadge, { type: p.type1, size: "sm" }), showType2 && SP_JSX.jsx(TypeBadge, { type: p.type2, size: "sm" })] })] }), SP_JSX.jsx(HealthBar, { hp: p.hp, maxHp: p.max_hp, statusName: p.status_name, showLabel: false }), SP_JSX.jsxs("div", { style: {
                             display: "flex",
                             gap: 8,
                             fontSize: 10,
@@ -639,14 +627,14 @@ function PartyRow({ pokemon: p, movesDb, features, }) {
                             marginTop: 3,
                             alignItems: "center",
                             flexWrap: "wrap",
-                        }, children: [window.SP_JSX.jsxs("span", { children: [p.hp, "/", p.max_hp] }), window.SP_JSX.jsx("span", { style: { color: statusColor, fontWeight: 600 }, children: p.status_name }), p.ability && (window.SP_JSX.jsxs("span", { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), " ", p.ability] })), p.item && (window.SP_JSX.jsxs("span", { children: [window.SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), " ", p.item] })), features?.happiness && p.happiness != null && (window.SP_JSX.jsxs("span", { style: { color: "#e87ba3" }, children: ["\u2665", p.happiness] })), showStats && p.speed != null && (window.SP_JSX.jsxs("span", { style: { color: "#666" }, children: ["SPE:", p.speed] }))] }), showMoves && (window.SP_JSX.jsx("div", { style: {
+                        }, children: [SP_JSX.jsxs("span", { children: [p.hp, "/", p.max_hp] }), SP_JSX.jsx("span", { style: { color: statusColor, fontWeight: 600 }, children: p.status_name }), p.ability && (SP_JSX.jsxs("span", { children: [SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), " ", p.ability] })), p.item && (SP_JSX.jsxs("span", { children: [SP_JSX.jsx("span", { style: { color: "#666" }, children: "\u00B7" }), " ", p.item] })), features?.happiness && p.happiness != null && (SP_JSX.jsxs("span", { style: { color: "#e87ba3" }, children: ["\u2665", p.happiness] })), showStats && p.speed != null && (SP_JSX.jsxs("span", { style: { color: "#666" }, children: ["SPE:", p.speed] }))] }), showMoves && (SP_JSX.jsx("div", { style: {
                             display: "flex",
                             flexWrap: "wrap",
                             gap: 4,
                             marginTop: 5,
                         }, children: p.moves.map((m, i) => {
                             const type = movesDb?.moves?.[normalizeKey(m)]?.type;
-                            return (window.SP_JSX.jsxs("span", { style: {
+                            return (SP_JSX.jsxs("span", { style: {
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: 3,
@@ -655,11 +643,11 @@ function PartyRow({ pokemon: p, movesDb, features, }) {
                                     borderRadius: 3,
                                     fontSize: 10,
                                     color: "#ccc",
-                                }, children: [type && window.SP_JSX.jsx(TypeBadge, { type: type, size: "sm" }), m] }, i));
+                                }, children: [type && SP_JSX.jsx(TypeBadge, { type: type, size: "sm" }), m] }, i));
                         }) }))] })] }));
 }
 function EmptySlot({ index }) {
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             padding: 8,
             background: "rgba(255,255,255,0.02)",
             borderRadius: 4,
@@ -671,7 +659,7 @@ function EmptySlot({ index }) {
         }, children: ["Slot ", index + 1, " \u2014 empty"] }));
 }
 function EmptyState({ children }) {
-    return (window.SP_JSX.jsx("div", { style: {
+    return (SP_JSX.jsx("div", { style: {
             padding: 24,
             textAlign: "center",
             color: "#888",
@@ -699,10 +687,10 @@ const BUCKETS = [
 ];
 function TypeLookupTouchMenu() {
     const typeChart = useStore((s) => s.typeChart);
-    const [attacker, setAttacker] = window.SP_REACT.useState("Fire");
-    const [summary, setSummary] = window.SP_REACT.useState(null);
-    const [error, setError] = window.SP_REACT.useState(null);
-    window.SP_REACT.useEffect(() => {
+    const [attacker, setAttacker] = SP_REACT.useState("Fire");
+    const [summary, setSummary] = SP_REACT.useState(null);
+    const [error, setError] = SP_REACT.useState(null);
+    SP_REACT.useEffect(() => {
         if (!attacker)
             return;
         setSummary(null);
@@ -720,20 +708,20 @@ function TypeLookupTouchMenu() {
             .catch((e) => setError(e.message));
     }, [attacker]);
     if (!typeChart) {
-        return (window.SP_JSX.jsx("div", { style: {
+        return (SP_JSX.jsx("div", { style: {
                 padding: 24,
                 textAlign: "center",
                 color: "#888",
                 fontSize: 13,
             }, children: "Loading type chart\u2026" }));
     }
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [SP_JSX.jsxs("div", { style: {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
                     fontSize: 12,
                     color: "#aaa",
-                }, children: [window.SP_JSX.jsx("span", { children: "Attacker:" }), window.SP_JSX.jsx("select", { value: attacker, onChange: (e) => setAttacker(e.target.value), style: {
+                }, children: [SP_JSX.jsx("span", { children: "Attacker:" }), SP_JSX.jsx("select", { value: attacker, onChange: (e) => setAttacker(e.target.value), style: {
                             flex: 1,
                             padding: "6px 8px",
                             background: "#1a1a1a",
@@ -742,24 +730,24 @@ function TypeLookupTouchMenu() {
                             borderRadius: 4,
                             fontSize: 13,
                             outline: "none",
-                        }, children: typeChart.types.map((t) => (window.SP_JSX.jsx("option", { value: t, children: t }, t))) }), window.SP_JSX.jsx(TypeBadge, { type: attacker, size: "md" })] }), error && (window.SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: 12, padding: "4px 0" }, children: error })), summary?.summary && (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: [BUCKETS.map((bucket) => {
+                        }, children: typeChart.types.map((t) => (SP_JSX.jsx("option", { value: t, children: t }, t))) }), SP_JSX.jsx(TypeBadge, { type: attacker, size: "md" })] }), error && (SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: 12, padding: "4px 0" }, children: error })), summary?.summary && (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: [BUCKETS.map((bucket) => {
                         const types = summary.summary?.[bucket.key] ?? [];
                         if (types.length === 0)
                             return null;
-                        return (window.SP_JSX.jsxs("div", { style: {
+                        return (SP_JSX.jsxs("div", { style: {
                                 padding: "6px 8px",
                                 background: "rgba(255,255,255,0.03)",
                                 borderRadius: 4,
                                 borderLeft: `3px solid ${bucket.color}`,
-                            }, children: [window.SP_JSX.jsxs("div", { style: {
+                            }, children: [SP_JSX.jsxs("div", { style: {
                                         fontSize: 10,
                                         fontWeight: 600,
                                         color: bucket.color,
                                         textTransform: "uppercase",
                                         letterSpacing: 0.4,
                                         marginBottom: 4,
-                                    }, children: [bucket.label, " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4 }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
-                    }), window.SP_JSX.jsxs("div", { style: {
+                                    }, children: [bucket.label, " (", types.length, ")"] }), SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4 }, children: types.map((t) => (SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
+                    }), SP_JSX.jsxs("div", { style: {
                             fontSize: 10,
                             color: "#555",
                             textAlign: "right",
@@ -773,23 +761,23 @@ const TABS$1 = [
     { id: "moves", label: "Move Lookup" },
 ];
 function TouchMenuContent() {
-    const [tab, setTab] = window.SP_REACT.useState("party");
-    return (window.SP_JSX.jsxs("div", { style: {
+    const [tab, setTab] = SP_REACT.useState("party");
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             flexDirection: "column",
             gap: 10,
             padding: "10px 12px 14px 12px",
             minWidth: 360,
             maxWidth: 720,
-        }, children: [window.SP_JSX.jsx("div", { style: {
+        }, children: [SP_JSX.jsx("div", { style: {
                     display: "flex",
                     gap: 6,
                     paddingBottom: 4,
                     borderBottom: "1px solid #2a2a2a",
-                }, children: TABS$1.map((t) => (window.SP_JSX.jsx(TabButton, { active: tab === t.id, onClick: () => setTab(t.id), children: t.label }, t.id))) }), tab === "party" && window.SP_JSX.jsx(PartyTouchMenu, {}), tab === "types" && window.SP_JSX.jsx(TypeLookupTouchMenu, {}), tab === "moves" && window.SP_JSX.jsx(MoveLookupTouchMenu, {})] }));
+                }, children: TABS$1.map((t) => (SP_JSX.jsx(TabButton, { active: tab === t.id, onClick: () => setTab(t.id), children: t.label }, t.id))) }), tab === "party" && SP_JSX.jsx(PartyTouchMenu, {}), tab === "types" && SP_JSX.jsx(TypeLookupTouchMenu, {}), tab === "moves" && SP_JSX.jsx(MoveLookupTouchMenu, {})] }));
 }
 function TabButton({ active, onClick, children, }) {
-    return (window.SP_JSX.jsx("button", { onClick: onClick, style: {
+    return (SP_JSX.jsx("button", { onClick: onClick, style: {
             flex: 1,
             padding: "6px 10px",
             background: active ? "rgba(94,186,125,0.15)" : "rgba(255,255,255,0.04)",
@@ -808,15 +796,24 @@ let unpatch = null;
 function registerTouchMenu() {
     if (unpatch)
         return;
-    unpatch = window.DFL.PatchTouchMenu({
-        menuLabel: "Pokémon Essentials",
-        icon: window.SP_JSX.jsx(PokeballIcon, {}),
-        content: window.SP_JSX.jsx(TouchMenuContent, {}),
-        onMenuClose: () => {
-            console.log("[pokemon-overlay] touch menu closed");
-        },
-    });
-    console.log("[pokemon-overlay] touch menu registered");
+    if (typeof DFL.PatchTouchMenu !== "function") {
+        console.warn("[pokemon-overlay] PatchTouchMenu not available in this Decky version, skipping touch menu");
+        return;
+    }
+    try {
+        unpatch = DFL.PatchTouchMenu({
+            menuLabel: "Pokémon Essentials",
+            icon: SP_JSX.jsx(PokeballIcon, {}),
+            content: SP_JSX.jsx(TouchMenuContent, {}),
+            onMenuClose: () => {
+                console.log("[pokemon-overlay] touch menu closed");
+            },
+        });
+        console.log("[pokemon-overlay] touch menu registered");
+    }
+    catch (e) {
+        console.warn("[pokemon-overlay] touch menu registration failed", e);
+    }
 }
 function unregisterTouchMenu() {
     if (unpatch) {
@@ -905,7 +902,7 @@ function PokemonCard({ pokemon: p, features, forced }) {
     if (display.happiness && p.happiness != null) {
         compactInfo.push({ label: "♥", value: String(p.happiness) });
     }
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             flexDirection: "column",
             gap: 6,
@@ -914,22 +911,22 @@ function PokemonCard({ pokemon: p, features, forced }) {
             borderRadius: 6,
             borderLeft: `3px solid ${statusColor}`,
             opacity: fainted ? 0.6 : 1,
-        }, children: [window.SP_JSX.jsxs("div", { style: {
+        }, children: [SP_JSX.jsxs("div", { style: {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                }, children: [p.shiny && (window.SP_JSX.jsx("span", { style: {
+                }, children: [p.shiny && (SP_JSX.jsx("span", { style: {
                             color: "#f7d02c",
                             fontSize: 14,
                             textShadow: "0 0 4px rgba(247, 208, 44, 0.5)",
-                        }, title: "Shiny", children: "\u2605" })), window.SP_JSX.jsx("span", { style: {
+                        }, title: "Shiny", children: "\u2605" })), SP_JSX.jsx("span", { style: {
                             fontSize: 14,
                             fontWeight: 600,
                             color: "#fff",
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
-                        }, children: displayName }), window.SP_JSX.jsxs("span", { style: { fontSize: 11, color: "#888" }, children: ["Lv.", p.level] }), display.gender && (window.SP_JSX.jsx("span", { style: {
+                        }, children: displayName }), SP_JSX.jsxs("span", { style: { fontSize: 11, color: "#888" }, children: ["Lv.", p.level] }), display.gender && (SP_JSX.jsx("span", { style: {
                             fontSize: 12,
                             color: p.gender_name === "F"
                                 ? "#e87ba3"
@@ -942,26 +939,26 @@ function PokemonCard({ pokemon: p, features, forced }) {
                             ? "Genderless"
                             : p.gender_name === "M"
                                 ? "Male"
-                                : "Female", children: GENDER_SYMBOLS[p.gender_name] ?? "?" }))] }), p.nickname && p.nickname !== p.species && (window.SP_JSX.jsx("div", { style: {
+                                : "Female", children: GENDER_SYMBOLS[p.gender_name] ?? "?" }))] }), p.nickname && p.nickname !== p.species && (SP_JSX.jsx("div", { style: {
                     fontSize: 11,
                     color: "#888",
                     textTransform: "uppercase",
                     letterSpacing: 0.5,
-                }, children: p.species })), window.SP_JSX.jsxs("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: [p.type1 && window.SP_JSX.jsx(TypeBadge, { type: p.type1, size: "sm" }), display.type2 && p.has_type2 && p.type2 && (window.SP_JSX.jsx(TypeBadge, { type: p.type2, size: "sm" }))] }), window.SP_JSX.jsx(HealthBar, { hp: p.hp, maxHp: p.max_hp, statusName: p.status_name }), window.SP_JSX.jsxs("div", { style: {
+                }, children: p.species })), SP_JSX.jsxs("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: [p.type1 && SP_JSX.jsx(TypeBadge, { type: p.type1, size: "sm" }), display.type2 && p.has_type2 && p.type2 && (SP_JSX.jsx(TypeBadge, { type: p.type2, size: "sm" }))] }), SP_JSX.jsx(HealthBar, { hp: p.hp, maxHp: p.max_hp, statusName: p.status_name }), SP_JSX.jsxs("div", { style: {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
                     fontSize: 11,
                     color: "#aaa",
                     flexWrap: "wrap",
-                }, children: [window.SP_JSX.jsx("span", { children: window.SP_JSX.jsx("span", { style: { color: statusColor, fontWeight: 600 }, children: p.status_name }) }), compactInfo.map((c) => (window.SP_JSX.jsxs("span", { children: [window.SP_JSX.jsxs("span", { style: { color: "#777" }, children: [c.label, ":"] }), " ", c.value] }, c.label)))] }), display.moves && p.moves.length > 0 && (window.SP_JSX.jsx("div", { style: {
+                }, children: [SP_JSX.jsx("span", { children: SP_JSX.jsx("span", { style: { color: statusColor, fontWeight: 600 }, children: p.status_name }) }), compactInfo.map((c) => (SP_JSX.jsxs("span", { children: [SP_JSX.jsxs("span", { style: { color: "#777" }, children: [c.label, ":"] }), " ", c.value] }, c.label)))] }), display.moves && p.moves.length > 0 && (SP_JSX.jsx("div", { style: {
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
                     gap: 4,
                     marginTop: 2,
                 }, children: Array.from({ length: 4 }).map((_, i) => {
                     const move = p.moves[i];
-                    return (window.SP_JSX.jsx("div", { style: {
+                    return (SP_JSX.jsx("div", { style: {
                             fontSize: 11,
                             padding: "3px 6px",
                             background: move ? "rgba(255,255,255,0.05)" : "transparent",
@@ -972,83 +969,83 @@ function PokemonCard({ pokemon: p, features, forced }) {
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                         }, children: move ?? "—" }, i));
-                }) })), display.stats && p.has_stats && (window.SP_JSX.jsxs("div", { style: {
+                }) })), display.stats && p.has_stats && (SP_JSX.jsxs("div", { style: {
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
                     gap: 4,
                     padding: "6px 0",
                     borderTop: "1px solid rgba(255,255,255,0.05)",
                     fontSize: 10,
-                }, children: [window.SP_JSX.jsx(StatBox, { label: "ATK", value: p.attack }), window.SP_JSX.jsx(StatBox, { label: "DEF", value: p.defense }), window.SP_JSX.jsx(StatBox, { label: "SpA", value: p.spatk }), window.SP_JSX.jsx(StatBox, { label: "SpD", value: p.spdef }), window.SP_JSX.jsx(StatBox, { label: "SPE", value: p.speed })] })), display.ivs && p.has_ivs && p.iv_total != null && (window.SP_JSX.jsxs("div", { style: {
+                }, children: [SP_JSX.jsx(StatBox, { label: "ATK", value: p.attack }), SP_JSX.jsx(StatBox, { label: "DEF", value: p.defense }), SP_JSX.jsx(StatBox, { label: "SpA", value: p.spatk }), SP_JSX.jsx(StatBox, { label: "SpD", value: p.spdef }), SP_JSX.jsx(StatBox, { label: "SPE", value: p.speed })] })), display.ivs && p.has_ivs && p.iv_total != null && (SP_JSX.jsxs("div", { style: {
                     display: "flex",
                     flexDirection: "column",
                     gap: 4,
                     padding: "6px 0",
                     borderTop: "1px solid rgba(255,255,255,0.05)",
                     fontSize: 10,
-                }, children: [window.SP_JSX.jsxs("div", { style: {
+                }, children: [SP_JSX.jsxs("div", { style: {
                             display: "grid",
                             gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
                             gap: 4,
-                        }, children: [window.SP_JSX.jsx(IVStat, { label: "HP", value: p.iv_hp }), window.SP_JSX.jsx(IVStat, { label: "ATK", value: p.iv_attack }), window.SP_JSX.jsx(IVStat, { label: "DEF", value: p.iv_defense }), window.SP_JSX.jsx(IVStat, { label: "SpA", value: p.iv_spatk }), window.SP_JSX.jsx(IVStat, { label: "SpD", value: p.iv_spdef }), window.SP_JSX.jsx(IVStat, { label: "SPE", value: p.iv_speed })] }), display.evs && p.has_evs && p.ev_total != null && (window.SP_JSX.jsxs("div", { style: {
+                        }, children: [SP_JSX.jsx(IVStat, { label: "HP", value: p.iv_hp }), SP_JSX.jsx(IVStat, { label: "ATK", value: p.iv_attack }), SP_JSX.jsx(IVStat, { label: "DEF", value: p.iv_defense }), SP_JSX.jsx(IVStat, { label: "SpA", value: p.iv_spatk }), SP_JSX.jsx(IVStat, { label: "SpD", value: p.iv_spdef }), SP_JSX.jsx(IVStat, { label: "SPE", value: p.iv_speed })] }), display.evs && p.has_evs && p.ev_total != null && (SP_JSX.jsxs("div", { style: {
                             display: "grid",
                             gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
                             gap: 4,
                             color: "#666",
-                        }, children: [window.SP_JSX.jsx(EVStat, { label: "HP", value: p.ev_hp }), window.SP_JSX.jsx(EVStat, { label: "ATK", value: p.ev_attack }), window.SP_JSX.jsx(EVStat, { label: "DEF", value: p.ev_defense }), window.SP_JSX.jsx(EVStat, { label: "SpA", value: p.ev_spatk }), window.SP_JSX.jsx(EVStat, { label: "SpD", value: p.ev_spdef }), window.SP_JSX.jsx(EVStat, { label: "SPE", value: p.ev_speed })] })), window.SP_JSX.jsxs("div", { style: {
+                        }, children: [SP_JSX.jsx(EVStat, { label: "HP", value: p.ev_hp }), SP_JSX.jsx(EVStat, { label: "ATK", value: p.ev_attack }), SP_JSX.jsx(EVStat, { label: "DEF", value: p.ev_defense }), SP_JSX.jsx(EVStat, { label: "SpA", value: p.ev_spatk }), SP_JSX.jsx(EVStat, { label: "SpD", value: p.ev_spdef }), SP_JSX.jsx(EVStat, { label: "SPE", value: p.ev_speed })] })), SP_JSX.jsxs("div", { style: {
                             fontSize: 10,
                             color: "#888",
                             display: "flex",
                             gap: 8,
                             marginTop: 2,
-                        }, children: [window.SP_JSX.jsxs("span", { children: ["IV: ", p.iv_total, "/186", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.iv_total, 186) }, children: "\u25CF" })] }), display.evs && p.has_evs && p.ev_total != null && (window.SP_JSX.jsxs("span", { children: ["EV: ", p.ev_total, "/510", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.ev_total, 510) }, children: "\u25CF" })] }))] })] }))] }));
+                        }, children: [SP_JSX.jsxs("span", { children: ["IV: ", p.iv_total, "/186", " ", SP_JSX.jsx("span", { style: { color: statColor(p.iv_total, 186) }, children: "\u25CF" })] }), display.evs && p.has_evs && p.ev_total != null && (SP_JSX.jsxs("span", { children: ["EV: ", p.ev_total, "/510", " ", SP_JSX.jsx("span", { style: { color: statColor(p.ev_total, 510) }, children: "\u25CF" })] }))] })] }))] }));
 }
 function StatBox({ label, value }) {
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 1,
-        }, children: [window.SP_JSX.jsx("div", { style: {
+        }, children: [SP_JSX.jsx("div", { style: {
                     fontSize: 9,
                     color: "#777",
                     textTransform: "uppercase",
                     letterSpacing: 0.3,
-                }, children: label }), window.SP_JSX.jsx("div", { style: {
+                }, children: label }), SP_JSX.jsx("div", { style: {
                     fontSize: 12,
                     color: "#ddd",
                     fontVariantNumeric: "tabular-nums",
                 }, children: value ?? "—" })] }));
 }
 function IVStat({ label, value, }) {
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 1,
-        }, title: value == null ? "?" : `${value}/31`, children: [window.SP_JSX.jsx("div", { style: {
+        }, title: value == null ? "?" : `${value}/31`, children: [SP_JSX.jsx("div", { style: {
                     fontSize: 9,
                     color: "#5eba7d",
                     textTransform: "uppercase",
                     letterSpacing: 0.3,
-                }, children: label }), window.SP_JSX.jsx("div", { style: {
+                }, children: label }), SP_JSX.jsx("div", { style: {
                     fontSize: 11,
                     color: value == null ? "#555" : statColor(value, 31),
                     fontVariantNumeric: "tabular-nums",
                 }, children: value ?? "—" })] }));
 }
 function EVStat({ label, value, }) {
-    return (window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs("div", { style: {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 1,
-        }, title: value == null ? "?" : `${value} EVs`, children: [window.SP_JSX.jsx("div", { style: {
+        }, title: value == null ? "?" : `${value} EVs`, children: [SP_JSX.jsx("div", { style: {
                     fontSize: 9,
                     color: "#7ba3e8",
                     textTransform: "uppercase",
                     letterSpacing: 0.3,
-                }, children: label }), window.SP_JSX.jsx("div", { style: {
+                }, children: label }), SP_JSX.jsx("div", { style: {
                     fontSize: 10,
                     color: value == null ? "#555" : "#aaa",
                     fontVariantNumeric: "tabular-nums",
@@ -1080,13 +1077,13 @@ function CapabilitiesSummary({ features }) {
         items.push(["Moves", "Available"]);
     if (items.length === 0)
         return null;
-    return (window.SP_JSX.jsx("div", { style: {
+    return (SP_JSX.jsx("div", { style: {
             display: "flex",
             flexWrap: "wrap",
             gap: 4,
             fontSize: 10,
             color: "#888",
-        }, children: items.map(([label, value]) => (window.SP_JSX.jsx("span", { style: {
+        }, children: items.map(([label, value]) => (SP_JSX.jsx("span", { style: {
                 background: "rgba(94,186,125,0.1)",
                 color: "#5eba7d",
                 padding: "2px 6px",
@@ -1096,7 +1093,7 @@ function CapabilitiesSummary({ features }) {
 }
 
 function StatusDot({ ok }) {
-    return (window.SP_JSX.jsx("span", { style: {
+    return (SP_JSX.jsx("span", { style: {
             display: "inline-block",
             width: 8,
             height: 8,
@@ -1126,55 +1123,55 @@ function HomeView() {
     const movesDb = useStore((s) => s.movesDatabase);
     const live = useStore((s) => s.liveState);
     if (!info) {
-        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Pok\u00E9mon Essentials Overlay", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+        return (SP_JSX.jsx(DFL.PanelSection, { title: "Pok\u00E9mon Essentials Overlay", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
                         display: "flex",
                         alignItems: "center",
                         gap: 8,
                         padding: "8px 0",
-                    }, children: window.SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading\u2026" }) }) }) }));
+                    }, children: SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading\u2026" }) }) }) }));
     }
-    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSection, { title: "About", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "About", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                             display: "flex",
                             flexDirection: "column",
                             gap: 4,
                             padding: "4px 0",
-                        }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: 14, fontWeight: 600 }, children: [info.name, " ", window.SP_JSX.jsxs("span", { style: { color: "#969696", fontWeight: 400 }, children: ["v", info.version] })] }), window.SP_JSX.jsx("div", { style: {
+                        }, children: [SP_JSX.jsxs("div", { style: { fontSize: 14, fontWeight: 600 }, children: [String(info.name), " ", SP_JSX.jsxs("span", { style: { color: "#969696", fontWeight: 400 }, children: ["v", String(info.version)] })] }), SP_JSX.jsx("div", { style: {
                                     fontSize: 12,
                                     color: "#969696",
                                     lineHeight: 1.4,
-                                }, children: info.description })] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Status", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                }, children: String(info.description) })] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Status", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                             fontSize: 12,
                             display: "flex",
                             flexDirection: "column",
                             gap: 6,
                             padding: "4px 0",
-                        }, children: [window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: info.initialized }), info.initialized ? "Backend ready" : "Backend not initialized"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: info.type_chart_loaded }), info.type_chart_loaded
+                        }, children: [SP_JSX.jsxs("div", { children: [SP_JSX.jsx(StatusDot, { ok: info.initialized }), info.initialized ? "Backend ready" : "Backend not initialized"] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx(StatusDot, { ok: info.type_chart_loaded }), info.type_chart_loaded
                                         ? `Type chart loaded (${info.type_chart_types} types)`
-                                        : "Type chart not loaded"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: movesDb?.loaded ?? false }), movesDb?.loaded
+                                        : "Type chart not loaded"] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx(StatusDot, { ok: movesDb?.loaded ?? false }), movesDb?.loaded
                                         ? movesDb.pbs_source
                                             ? `Moves DB: ${movesDb.merged_count} (PBS loaded)`
                                             : `Moves DB: ${movesDb.static_count} static only`
-                                        : "Moves DB not loaded"] }), live && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.game_running }), live.game_running
-                                                ? `Game running: ${live.active_process?.name ?? "unknown"} (pid ${live.active_process?.pid ?? "?"})`
-                                                : "No game process detected"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.watcher_active }), live.watcher_active
+                                        : "Moves DB not loaded"] }), live && (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("div", { children: [SP_JSX.jsx(StatusDot, { ok: live.game_running }), live.game_running
+                                                ? `Game running: ${String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
+                                                : "No game process detected"] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx(StatusDot, { ok: live.watcher_active }), live.watcher_active
                                                 ? `Save watcher active${live.last_live_event?.at
                                                     ? ` · last event ${timeAgo$1(live.last_live_event.at)}`
                                                     : ""}`
-                                                : "Save watcher inactive"] })] })), saveData && !saveData.error && saveData.features && (window.SP_JSX.jsxs("div", { style: {
+                                                : "Save watcher inactive"] })] })), saveData && !saveData.error && saveData.features && (SP_JSX.jsxs("div", { style: {
                                     marginTop: 4,
                                     paddingTop: 6,
                                     borderTop: "1px solid rgba(255,255,255,0.05)",
-                                }, children: [window.SP_JSX.jsxs("div", { style: {
+                                }, children: [SP_JSX.jsxs("div", { style: {
                                             fontSize: 10,
                                             color: "#777",
                                             textTransform: "uppercase",
                                             letterSpacing: 0.4,
                                             marginBottom: 4,
-                                        }, children: ["Save features (", saveData.version, ")"] }), window.SP_JSX.jsx(CapabilitiesSummary, { features: saveData.features })] }))] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Roadmap", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                        }, children: ["Save features (", saveData.version, ")"] }), SP_JSX.jsx(CapabilitiesSummary, { features: saveData.features })] }))] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Roadmap", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                             fontSize: 12,
                             color: "#969696",
                             lineHeight: 1.6,
-                        }, children: [window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 1 \u2014 Foundation"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 2 \u2014 Interactive type chart"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 3 \u2014 Save-file parser & party status"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 4 \u2014 In-game TouchMenu overlay"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 5 \u2014 Live PBS, IV/EV, dynamic UI, themes, watcher"] })] }) }) })] }));
+                        }, children: [SP_JSX.jsxs("div", { children: [SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 1 \u2014 Foundation"] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 2 \u2014 Interactive type chart"] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 3 \u2014 Save-file parser & party status"] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 4 \u2014 In-game TouchMenu overlay"] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx("span", { style: { color: "#5eba7d" }, children: "\u25CF" }), " Phase 5 \u2014 Live PBS, IV/EV, dynamic UI, themes, watcher"] })] }) }) })] }));
 }
 
 function formatMoney(n) {
@@ -1210,8 +1207,8 @@ const MAX_PARTY_SLOTS = 6;
 function PartyView() {
     const data = useStore((s) => s.saveData);
     const settings = useStore((s) => s.settings);
-    const [reloading, setReloading] = window.SP_REACT.useState(false);
-    const reload = window.SP_REACT.useCallback(async () => {
+    const [reloading, setReloading] = SP_REACT.useState(false);
+    const reload = SP_REACT.useCallback(async () => {
         setReloading(true);
         try {
             await refreshSave(true);
@@ -1221,36 +1218,36 @@ function PartyView() {
         }
     }, []);
     if (!data) {
-        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Party", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+        return (SP_JSX.jsx(DFL.PanelSection, { title: "Party", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                         display: "flex",
                         alignItems: "center",
                         gap: 8,
                         padding: "12px 0",
-                    }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading save data\u2026" })] }) }) }));
+                    }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading save data\u2026" })] }) }) }));
     }
     if (data.error === "no_save_file_found") {
-        return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Party", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { fontSize: 13, color: "#969696", lineHeight: 1.5 }, children: ["No save file found. Start the game and save once, or set a manual path in ", window.SP_JSX.jsx("strong", { children: "Settings" }), "."] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: reloading ? "Scanning…" : "Scan again" })] }));
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Party", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: 13, color: "#969696", lineHeight: 1.5 }, children: ["No save file found. Start the game and save once, or set a manual path in ", SP_JSX.jsx("strong", { children: "Settings" }), "."] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: reloading ? "Scanning…" : "Scan again" })] }));
     }
     if (data.error === "parse_failed") {
-        return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Party", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsxs("div", { style: { color: "#e87b7b", fontSize: 13 }, children: ["Parse error: ", data.message] }), window.SP_JSX.jsx("div", { style: {
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Party", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsxs("div", { style: { color: "#e87b7b", fontSize: 13 }, children: ["Parse error: ", data.message] }), SP_JSX.jsx("div", { style: {
                                 fontSize: 11,
                                 color: "#777",
                                 marginTop: 6,
                                 wordBreak: "break-all",
-                            }, children: data.path })] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: "Try again" })] }));
+                            }, children: data.path })] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: "Try again" })] }));
     }
     const compactMode = settings?.compact_mode ?? true;
-    return (window.SP_JSX.jsx(PartyContent, { data: data, reloading: reloading, onReload: reload, autoRefreshSeconds: settings?.scan_interval_seconds ?? 30, forced: compactMode ? undefined : DEFAULT_DISPLAY }));
+    return (SP_JSX.jsx(PartyContent, { data: data, reloading: reloading, onReload: reload, autoRefreshSeconds: settings?.scan_interval_seconds ?? 30, forced: compactMode ? undefined : DEFAULT_DISPLAY }));
 }
 function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }) {
     const party = data.party || [];
     const slots = Array.from({ length: MAX_PARTY_SLOTS }).map((_, i) => party[i] || null);
-    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs(window.DFL.PanelSection, { title: data.trainer_name || "Trainer", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: data.trainer_name || "Trainer", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                                 display: "grid",
                                 gridTemplateColumns: "1fr 1fr",
                                 gap: 4,
                                 fontSize: 12,
-                            }, children: [window.SP_JSX.jsx(Stat, { label: "Money", value: formatMoney(data.money) }), window.SP_JSX.jsx(Stat, { label: "Badges", value: String(data.badges) }), window.SP_JSX.jsx(Stat, { label: "Location", value: data.location_name || `Map #${data.map_id ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Position", value: `${data.x ?? "?"}, ${data.y ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Play time", value: formatPlayTime(data.play_time_seconds) }), window.SP_JSX.jsx(Stat, { label: "Version", value: data.version })] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { fontSize: 11, color: "#777" }, children: ["Updated ", timeAgo(data.parsed_at), " \u00B7 auto-refresh every", " ", Math.max(5, autoRefreshSeconds), "s"] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: onReload, disabled: reloading, children: reloading ? "Reloading…" : "Reload from disk" })] }), data.features && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Detected features", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(CapabilitiesSummary, { features: data.features }) }) })), window.SP_JSX.jsx(window.DFL.PanelSection, { title: `Party (${party.length}/${MAX_PARTY_SLOTS})`, children: slots.map((p, i) => p ? (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(PokemonCard, { pokemon: p, features: data.features, forced: forced }) }, `slot-${i}`)) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            }, children: [SP_JSX.jsx(Stat, { label: "Money", value: formatMoney(data.money) }), SP_JSX.jsx(Stat, { label: "Badges", value: String(data.badges) }), SP_JSX.jsx(Stat, { label: "Location", value: data.location_name || `Map #${data.map_id ?? "?"}` }), SP_JSX.jsx(Stat, { label: "Position", value: `${data.x ?? "?"}, ${data.y ?? "?"}` }), SP_JSX.jsx(Stat, { label: "Play time", value: formatPlayTime(data.play_time_seconds) }), SP_JSX.jsx(Stat, { label: "Version", value: data.version })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: 11, color: "#777" }, children: ["Updated ", timeAgo(data.parsed_at), " \u00B7 auto-refresh every", " ", Math.max(5, autoRefreshSeconds), "s"] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: onReload, disabled: reloading, children: reloading ? "Reloading…" : "Reload from disk" })] }), data.features && (SP_JSX.jsx(DFL.PanelSection, { title: "Detected features", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(CapabilitiesSummary, { features: data.features }) }) })), SP_JSX.jsx(DFL.PanelSection, { title: `Party (${party.length}/${MAX_PARTY_SLOTS})`, children: slots.map((p, i) => p ? (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(PokemonCard, { pokemon: p, features: data.features, forced: forced }) }, `slot-${i}`)) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                             padding: 10,
                             background: "rgba(255,255,255,0.02)",
                             borderRadius: 6,
@@ -1259,7 +1256,7 @@ function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }
                             fontSize: 11,
                             color: "#555",
                             fontStyle: "italic",
-                        }, children: ["Slot ", i + 1, " \u2014 empty"] }) }, `slot-${i}`))) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Source", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                        }, children: ["Slot ", i + 1, " \u2014 empty"] }) }, `slot-${i}`))) }), SP_JSX.jsx(DFL.PanelSection, { title: "Source", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
                             fontSize: 10,
                             color: "#666",
                             wordBreak: "break-all",
@@ -1267,12 +1264,12 @@ function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }
                         }, children: data.source_path }) }) })] }));
 }
 function Stat({ label, value }) {
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [window.SP_JSX.jsx("div", { style: {
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [SP_JSX.jsx("div", { style: {
                     fontSize: 10,
                     color: "#777",
                     textTransform: "uppercase",
                     letterSpacing: 0.4,
-                }, children: label }), window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#ddd" }, children: value })] }));
+                }, children: label }), SP_JSX.jsx("div", { style: { fontSize: 12, color: "#ddd" }, children: value })] }));
 }
 
 function fmtTime(epoch) {
@@ -1299,16 +1296,16 @@ function SettingsView() {
     const settings = useStore((s) => s.settings);
     const movesDb = useStore((s) => s.movesDatabase);
     const theme = useStore((s) => s.theme);
-    const [resolved, setResolved] = window.SP_REACT.useState(null);
-    const [candidates, setCandidates] = window.SP_REACT.useState([]);
-    const [overrideInput, setOverrideInput] = window.SP_REACT.useState("");
-    const [pbsInput, setPbsInput] = window.SP_REACT.useState("");
-    const [busy, setBusy] = window.SP_REACT.useState(false);
-    const [pbsBusy, setPbsBusy] = window.SP_REACT.useState(false);
-    const [statusMsg, setStatusMsg] = window.SP_REACT.useState(null);
-    const [statusError, setStatusError] = window.SP_REACT.useState(null);
-    const [themes, setThemes] = window.SP_REACT.useState([]);
-    const refresh = window.SP_REACT.useCallback(async () => {
+    const [resolved, setResolved] = SP_REACT.useState(null);
+    const [candidates, setCandidates] = SP_REACT.useState([]);
+    const [overrideInput, setOverrideInput] = SP_REACT.useState("");
+    const [pbsInput, setPbsInput] = SP_REACT.useState("");
+    const [busy, setBusy] = SP_REACT.useState(false);
+    const [pbsBusy, setPbsBusy] = SP_REACT.useState(false);
+    const [statusMsg, setStatusMsg] = SP_REACT.useState(null);
+    const [statusError, setStatusError] = SP_REACT.useState(null);
+    const [themes, setThemes] = SP_REACT.useState([]);
+    const refresh = SP_REACT.useCallback(async () => {
         setBusy(true);
         setStatusMsg(null);
         setStatusError(null);
@@ -1325,24 +1322,24 @@ function SettingsView() {
             setBusy(false);
         }
     }, []);
-    window.SP_REACT.useEffect(() => {
+    SP_REACT.useEffect(() => {
         refresh();
     }, [refresh]);
-    window.SP_REACT.useEffect(() => {
+    SP_REACT.useEffect(() => {
         api
             .getThemes()
             .then((r) => setThemes(r.themes))
             .catch((e) => console.error("themes", e));
     }, [theme?.id]);
-    window.SP_REACT.useEffect(() => {
+    SP_REACT.useEffect(() => {
         if (settings)
             setOverrideInput(settings.save_path_override ?? "");
     }, [settings?.save_path_override]);
-    window.SP_REACT.useEffect(() => {
+    SP_REACT.useEffect(() => {
         if (movesDb)
             setPbsInput(movesDb.pbs_source ?? "");
     }, [movesDb?.pbs_source]);
-    const reloadPbsAuto = window.SP_REACT.useCallback(async () => {
+    const reloadPbsAuto = SP_REACT.useCallback(async () => {
         setPbsBusy(true);
         setStatusMsg(null);
         setStatusError(null);
@@ -1364,7 +1361,7 @@ function SettingsView() {
             setPbsBusy(false);
         }
     }, []);
-    const applyPbsPath = window.SP_REACT.useCallback(async () => {
+    const applyPbsPath = SP_REACT.useCallback(async () => {
         if (!pbsInput.trim())
             return;
         setPbsBusy(true);
@@ -1388,7 +1385,7 @@ function SettingsView() {
             setPbsBusy(false);
         }
     }, [pbsInput]);
-    const clearPbs = window.SP_REACT.useCallback(async () => {
+    const clearPbs = SP_REACT.useCallback(async () => {
         setPbsInput("");
         setPbsBusy(true);
         setStatusMsg(null);
@@ -1406,7 +1403,7 @@ function SettingsView() {
             setPbsBusy(false);
         }
     }, []);
-    const applyOverride = window.SP_REACT.useCallback(async () => {
+    const applyOverride = SP_REACT.useCallback(async () => {
         setBusy(true);
         setStatusMsg(null);
         setStatusError(null);
@@ -1425,7 +1422,7 @@ function SettingsView() {
             setBusy(false);
         }
     }, [overrideInput]);
-    const clearOverride = window.SP_REACT.useCallback(async () => {
+    const clearOverride = SP_REACT.useCallback(async () => {
         setOverrideInput("");
         setBusy(true);
         setStatusMsg(null);
@@ -1444,7 +1441,7 @@ function SettingsView() {
             setBusy(false);
         }
     }, []);
-    const useCandidate = window.SP_REACT.useCallback(async (path) => {
+    const useCandidate = SP_REACT.useCallback(async (path) => {
         setOverrideInput(path);
         setBusy(true);
         setStatusMsg(null);
@@ -1463,7 +1460,7 @@ function SettingsView() {
             setBusy(false);
         }
     }, []);
-    const setAutoScan = window.SP_REACT.useCallback(async (v) => {
+    const setAutoScan = SP_REACT.useCallback(async (v) => {
         try {
             await applySettingsPatch({ auto_scan_enabled: v });
         }
@@ -1472,7 +1469,7 @@ function SettingsView() {
             setStatusError(msg);
         }
     }, []);
-    const setTouchmenu = window.SP_REACT.useCallback(async (v) => {
+    const setTouchmenu = SP_REACT.useCallback(async (v) => {
         try {
             await applySettingsPatch({ touchmenu_enabled: v });
         }
@@ -1481,7 +1478,7 @@ function SettingsView() {
             setStatusError(msg);
         }
     }, []);
-    const setScanInterval = window.SP_REACT.useCallback(async (v) => {
+    const setScanInterval = SP_REACT.useCallback(async (v) => {
         try {
             await applySettingsPatch({ scan_interval_seconds: Math.max(5, v) });
         }
@@ -1490,7 +1487,7 @@ function SettingsView() {
             setStatusError(msg);
         }
     }, []);
-    const setCompactMode = window.SP_REACT.useCallback(async (v) => {
+    const setCompactMode = SP_REACT.useCallback(async (v) => {
         try {
             await applySettingsPatch({ compact_mode: v });
         }
@@ -1499,7 +1496,7 @@ function SettingsView() {
             setStatusError(msg);
         }
     }, []);
-    const setTheme = window.SP_REACT.useCallback(async (v) => {
+    const setTheme = SP_REACT.useCallback(async (v) => {
         try {
             await applySettingsPatch({ theme: v });
             await refreshTheme();
@@ -1509,7 +1506,7 @@ function SettingsView() {
             setStatusError(msg);
         }
     }, []);
-    const setWatcherEnabled = window.SP_REACT.useCallback(async (v) => {
+    const setWatcherEnabled = SP_REACT.useCallback(async (v) => {
         try {
             await applySettingsPatch({ watcher_enabled: v });
             setStatusMsg(v ? "Live save watcher enabled." : "Live save watcher disabled.");
@@ -1520,41 +1517,41 @@ function SettingsView() {
         }
     }, []);
     if (!settings) {
-        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Settings", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#969696" }, children: "Loading\u2026" }) }) }));
+        return (SP_JSX.jsx(DFL.PanelSection, { title: "Settings", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 12, color: "#969696" }, children: "Loading\u2026" }) }) }));
     }
-    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Save resolution", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsx("div", { style: {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "Save resolution", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: {
                                     fontSize: 11,
                                     color: "#969696",
                                     textTransform: "uppercase",
                                     letterSpacing: 0.4,
-                                }, children: "Active save" }), window.SP_JSX.jsx("div", { style: {
+                                }, children: "Active save" }), SP_JSX.jsx("div", { style: {
                                     fontSize: 12,
                                     color: resolved?.path ? "#5eba7d" : "#e0a458",
                                     wordBreak: "break-all",
                                     marginTop: 4,
-                                }, children: resolved?.path || "— no save found —" }), resolved?.using_override && (window.SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777", marginTop: 2 }, children: "(using manual override)" }))] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Manual override", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                }, children: resolved?.path || "— no save found —" }), resolved?.using_override && (SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777", marginTop: 2 }, children: "(using manual override)" }))] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Manual override", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                                 fontSize: 11,
                                 color: "#888",
                                 lineHeight: 1.4,
                                 marginBottom: 4,
-                            }, children: ["If auto-detection fails, paste the full path to", " ", window.SP_JSX.jsx("code", { style: { color: "#ccc" }, children: "Game.rxdata" }), " here. Leave blank to use auto-detection."] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Path to Game.rxdata", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }), settings.save_path_override && (window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Auto-detect options", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.auto_scan_enabled, onChange: setAutoScan, children: "Auto-scan running processes and Wine prefixes" }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Display", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.compact_mode, onChange: setCompactMode, children: "Compact mode (auto-hide empty sections)" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                            }, children: ["If auto-detection fails, paste the full path to", " ", SP_JSX.jsx("code", { style: { color: "#ccc" }, children: "Game.rxdata" }), " here. Leave blank to use auto-detection."] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Path to Game.rxdata", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }), settings.save_path_override && (SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "Auto-detect options", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.auto_scan_enabled, onChange: setAutoScan, children: "Auto-scan running processes and Wine prefixes" }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Display", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.compact_mode, onChange: setCompactMode, children: "Compact mode (auto-hide empty sections)" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
                                 fontSize: 11,
                                 color: "#888",
                                 lineHeight: 1.4,
-                            }, children: "When enabled, the UI only shows sections that have actual data from the save (e.g. IVs/EVs only on Essentials v17+, gender only when the game stores it). Disable to always show all sections with placeholder dashes." }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Theme", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsx("div", { style: {
+                            }, children: "When enabled, the UI only shows sections that have actual data from the save (e.g. IVs/EVs only on Essentials v17+, gender only when the game stores it). Disable to always show all sections with placeholder dashes." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Theme", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: {
                                     fontSize: 11,
                                     color: "#969696",
                                     textTransform: "uppercase",
                                     letterSpacing: 0.4,
-                                }, children: "Active theme" }), window.SP_JSX.jsx("div", { style: {
+                                }, children: "Active theme" }), SP_JSX.jsx("div", { style: {
                                     fontSize: 12,
                                     color: theme ? theme.palette.accent : "#888",
                                     marginTop: 4,
-                                }, children: theme ? theme.name : "Loading…" }), theme && (window.SP_JSX.jsx("div", { style: {
+                                }, children: theme ? theme.name : "Loading…" }), theme && (SP_JSX.jsx("div", { style: {
                                     fontSize: 10,
                                     color: "#777",
                                     marginTop: 2,
-                                }, children: theme.description }))] }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), options: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) }), theme && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                                }, children: theme.description }))] }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), options: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) }), theme && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
                                 display: "flex",
                                 flexWrap: "wrap",
                                 gap: 4,
@@ -1569,59 +1566,59 @@ function SettingsView() {
                                 "female",
                                 "male",
                             ].includes(k))
-                                .map((k) => (window.SP_JSX.jsx("div", { style: {
+                                .map((k) => (SP_JSX.jsx("div", { style: {
                                     width: 22,
                                     height: 22,
                                     borderRadius: 4,
                                     background: theme.palette[k],
                                     border: "1px solid rgba(255,255,255,0.15)",
-                                }, title: `${k}: ${theme.palette[k]}` }, k))) }) }))] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PBS moves database", children: [window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsx("div", { style: {
+                                }, title: `${k}: ${theme.palette[k]}` }, k))) }) }))] }), SP_JSX.jsxs(DFL.PanelSection, { title: "PBS moves database", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: {
                                     fontSize: 11,
                                     color: "#969696",
                                     textTransform: "uppercase",
                                     letterSpacing: 0.4,
-                                }, children: "Active PBS source" }), window.SP_JSX.jsx("div", { style: {
+                                }, children: "Active PBS source" }), SP_JSX.jsx("div", { style: {
                                     fontSize: 11,
                                     color: movesDb?.pbs_source ? "#5eba7d" : "#888",
                                     wordBreak: "break-all",
                                     marginTop: 4,
                                 }, children: movesDb?.pbs_source
                                     ? shortenPath(movesDb.pbs_source, 80)
-                                    : "— not loaded (using static DB) —" }), window.SP_JSX.jsx("div", { style: {
+                                    : "— not loaded (using static DB) —" }), SP_JSX.jsx("div", { style: {
                                     fontSize: 10,
                                     color: "#777",
                                     marginTop: 4,
                                 }, children: movesDb
                                     ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS`
-                                    : "Loading…" })] }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                                    : "Loading…" })] }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                                 fontSize: 11,
                                 color: "#888",
                                 lineHeight: 1.4,
-                            }, children: ["PBS files from your game are auto-discovered from the save folder. Loading them adds ", window.SP_JSX.jsx("em", { children: "custom moves" }), " (fan-game specials) on top of the static Gen 1-6 database."] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }), movesDb?.pbs_source && (window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }))] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "TouchMenu overlay", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.touchmenu_enabled, onChange: setTouchmenu, children: "Enable in-game touch menu" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                            }, children: ["PBS files from your game are auto-discovered from the save folder. Loading them adds ", SP_JSX.jsx("em", { children: "custom moves" }), " (fan-game specials) on top of the static Gen 1-6 database."] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }), movesDb?.pbs_source && (SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }))] }), SP_JSX.jsxs(DFL.PanelSection, { title: "TouchMenu overlay", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.touchmenu_enabled, onChange: setTouchmenu, children: "Enable in-game touch menu" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
                                 fontSize: 11,
                                 color: "#888",
                                 lineHeight: 1.4,
-                            }, children: "When enabled, a touch menu appears over the game. Tap with two fingers on the screen to open it. Disable if it interferes with gameplay." }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Polling", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            }, children: "When enabled, a touch menu appears over the game. Tap with two fingers on the screen to open it. Disable if it interferes with gameplay." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Polling", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                                 fontSize: 11,
                                 color: "#888",
                                 marginBottom: 4,
-                            }, children: ["Backend live watcher checks the disk every", " ", window.SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units (roughly ", (Math.max(5, settings.scan_interval_seconds) / 10).toFixed(1), "s). The UI will always update instantly when changes occur."] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Interval (seconds)", value: String(settings.scan_interval_seconds), onChange: (e) => {
+                            }, children: ["Backend live watcher checks the disk every", " ", SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units (roughly ", (Math.max(5, settings.scan_interval_seconds) / 10).toFixed(1), "s). The UI will always update instantly when changes occur."] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Interval (seconds)", value: String(settings.scan_interval_seconds), onChange: (e) => {
                                 const n = parseInt(e.target.value, 10);
                                 if (!isNaN(n))
                                     setScanInterval(n);
-                            } }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Toggle, { value: settings.watcher_enabled ?? true, onChange: setWatcherEnabled, children: "Live save watcher (sub-second updates)" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
+                            } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.watcher_enabled ?? true, onChange: setWatcherEnabled, children: "Live save watcher (sub-second updates)" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
                                 fontSize: 11,
                                 color: "#888",
                                 lineHeight: 1.4,
-                            }, children: "Watches the save file mtime via a background thread and re-parses on every change. ~1s latency, near-zero CPU. Recommended when in-game; disable for battery savings." }) })] }), candidates.length > 0 && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: candidates.map((c) => (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                            }, children: "Watches the save file mtime via a background thread and re-parses on every change. ~1s latency, near-zero CPU. Recommended when in-game; disable for battery savings." }) })] }), candidates.length > 0 && (SP_JSX.jsx(DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: candidates.map((c) => (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                             display: "flex",
                             flexDirection: "column",
                             gap: 4,
-                        }, children: [window.SP_JSX.jsx("div", { style: {
+                        }, children: [SP_JSX.jsx("div", { style: {
                                     fontSize: 11,
                                     color: "#ddd",
                                     wordBreak: "break-all",
-                                }, children: c.path }), window.SP_JSX.jsxs("div", { style: { fontSize: 10, color: "#777" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }) }, c.path))) })), (statusMsg || statusError) && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Status", children: window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [statusMsg && (window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#5eba7d" }, children: statusMsg })), statusError && (window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "#e87b7b" }, children: statusError }))] }) }))] }));
+                                }, children: c.path }), SP_JSX.jsxs("div", { style: { fontSize: 10, color: "#777" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }) }, c.path))) })), (statusMsg || statusError) && (SP_JSX.jsx(DFL.PanelSection, { title: "Status", children: SP_JSX.jsxs(DFL.PanelSectionRow, { children: [statusMsg && (SP_JSX.jsx("div", { style: { fontSize: 12, color: "#5eba7d" }, children: statusMsg })), statusError && (SP_JSX.jsx("div", { style: { fontSize: 12, color: "#e87b7b" }, children: statusError }))] }) }))] }));
 }
 
 const BUCKET_LABELS = {
@@ -1649,21 +1646,21 @@ const BUCKET_COLORS = {
     immune: "#444",
 };
 function DefenseGrid({ defenders, summary }) {
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Defender:", " ", defenders.map((d, i) => (window.SP_JSX.jsxs("span", { style: { marginRight: "4px" }, children: [window.SP_JSX.jsx(TypeBadge, { type: d, size: "sm" }), i < defenders.length - 1 ? " /" : ""] }, d)))] }), BUCKET_ORDER.filter((b) => (summary[b] || []).length > 0).map((bucket) => {
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Defender:", " ", defenders.map((d, i) => (SP_JSX.jsxs("span", { style: { marginRight: "4px" }, children: [SP_JSX.jsx(TypeBadge, { type: d, size: "sm" }), i < defenders.length - 1 ? " /" : ""] }, d)))] }), BUCKET_ORDER.filter((b) => (summary[b] || []).length > 0).map((bucket) => {
                 const types = summary[bucket] || [];
-                return (window.SP_JSX.jsxs("div", { style: {
+                return (SP_JSX.jsxs("div", { style: {
                         padding: "6px 8px",
                         background: "rgba(255,255,255,0.03)",
                         borderRadius: "4px",
                         borderLeft: `3px solid ${BUCKET_COLORS[bucket]}`,
-                    }, children: [window.SP_JSX.jsxs("div", { style: {
+                    }, children: [SP_JSX.jsxs("div", { style: {
                                 fontSize: "11px",
                                 fontWeight: 600,
                                 color: BUCKET_COLORS[bucket],
                                 textTransform: "uppercase",
                                 letterSpacing: "0.5px",
                                 marginBottom: "4px",
-                            }, children: [BUCKET_LABELS[bucket], " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px" }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket));
+                            }, children: [BUCKET_LABELS[bucket], " (", types.length, ")"] }), SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px" }, children: types.map((t) => (SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket));
             })] }));
 }
 const OFFENSE_BUCKETS = [
@@ -1673,43 +1670,43 @@ const OFFENSE_BUCKETS = [
     { key: "neutral", label: "Normal damage", color: "#888" },
 ];
 function OffenseGrid({ attacker, summary }) {
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Attacker: ", window.SP_JSX.jsx(TypeBadge, { type: attacker, size: "sm" })] }), OFFENSE_BUCKETS.filter((b) => (summary[b.key] || []).length > 0).map((bucket) => {
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Attacker: ", SP_JSX.jsx(TypeBadge, { type: attacker, size: "sm" })] }), OFFENSE_BUCKETS.filter((b) => (summary[b.key] || []).length > 0).map((bucket) => {
                 const types = summary[bucket.key] || [];
-                return (window.SP_JSX.jsxs("div", { style: {
+                return (SP_JSX.jsxs("div", { style: {
                         padding: "6px 8px",
                         background: "rgba(255,255,255,0.03)",
                         borderRadius: "4px",
                         borderLeft: `3px solid ${bucket.color}`,
-                    }, children: [window.SP_JSX.jsxs("div", { style: {
+                    }, children: [SP_JSX.jsxs("div", { style: {
                                 fontSize: "11px",
                                 fontWeight: 600,
                                 color: bucket.color,
                                 textTransform: "uppercase",
                                 letterSpacing: "0.5px",
                                 marginBottom: "4px",
-                            }, children: [bucket.label, " (", types.length, ")"] }), window.SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px" }, children: types.map((t) => (window.SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
+                            }, children: [bucket.label, " (", types.length, ")"] }), SP_JSX.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px" }, children: types.map((t) => (SP_JSX.jsx(TypeBadge, { type: t, size: "sm" }, t))) })] }, bucket.key));
             })] }));
 }
 
 const NO_TYPE = "(none)";
 function TypeChartView() {
     const chart = useStore((s) => s.typeChart);
-    const [error, setError] = window.SP_REACT.useState(null);
-    const [mode, setMode] = window.SP_REACT.useState("defense");
-    const [attacker, setAttacker] = window.SP_REACT.useState("Fire");
-    const [def1, setDef1] = window.SP_REACT.useState("Fire");
-    const [def2, setDef2] = window.SP_REACT.useState(NO_TYPE);
-    const [defense, setDefense] = window.SP_REACT.useState(null);
-    const [offense, setOffense] = window.SP_REACT.useState(null);
-    const [loading, setLoading] = window.SP_REACT.useState(false);
+    const [error, setError] = SP_REACT.useState(null);
+    const [mode, setMode] = SP_REACT.useState("defense");
+    const [attacker, setAttacker] = SP_REACT.useState("Fire");
+    const [def1, setDef1] = SP_REACT.useState("Fire");
+    const [def2, setDef2] = SP_REACT.useState(NO_TYPE);
+    const [defense, setDefense] = SP_REACT.useState(null);
+    const [offense, setOffense] = SP_REACT.useState(null);
+    const [loading, setLoading] = SP_REACT.useState(false);
     const types = chart?.types ?? [];
-    const typeOptions = window.SP_REACT.useMemo(() => [
+    const typeOptions = SP_REACT.useMemo(() => [
         { data: NO_TYPE, label: NO_TYPE },
         ...types.map((t) => ({ data: t, label: t })),
     ], [types]);
-    const attackerOptions = window.SP_REACT.useMemo(() => types.map((t) => ({ data: t, label: t })), [types]);
-    const defenderPair = window.SP_REACT.useMemo(() => (def2 === NO_TYPE ? [def1] : [def1, def2]), [def1, def2]);
-    window.SP_REACT.useEffect(() => {
+    const attackerOptions = SP_REACT.useMemo(() => types.map((t) => ({ data: t, label: t })), [types]);
+    const defenderPair = SP_REACT.useMemo(() => (def2 === NO_TYPE ? [def1] : [def1, def2]), [def1, def2]);
+    SP_REACT.useEffect(() => {
         if (!chart)
             return;
         setLoading(true);
@@ -1739,26 +1736,26 @@ function TypeChartView() {
             .finally(() => setLoading(false));
     }, [chart, mode, attacker, defenderPair]);
     if (!chart) {
-        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Type Chart", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+        return (SP_JSX.jsx(DFL.PanelSection, { title: "Type Chart", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                         display: "flex",
                         alignItems: "center",
                         gap: 8,
                         padding: "8px 0",
-                    }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading type chart\u2026" })] }) }) }));
+                    }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading type chart\u2026" })] }) }) }));
     }
-    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Mode", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { display: "flex", gap: "8px", padding: "4px 0" }, children: [window.SP_JSX.jsx(ModeButton, { label: "Defender", active: mode === "defense", onClick: () => setMode("defense") }), window.SP_JSX.jsx(ModeButton, { label: "Attacker", active: mode === "offense", onClick: () => setMode("offense") })] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), options: attackerOptions }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), options: typeOptions }) })] })) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), options: attackerOptions }) })) }), loading && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "Mode", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", gap: "8px", padding: "4px 0" }, children: [SP_JSX.jsx(ModeButton, { label: "Defender", active: mode === "defense", onClick: () => setMode("defense") }), SP_JSX.jsx(ModeButton, { label: "Attacker", active: mode === "offense", onClick: () => setMode("offense") })] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), options: attackerOptions }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), options: typeOptions }) })] })) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), options: attackerOptions }) })) }), loading && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                             display: "flex",
                             alignItems: "center",
                             gap: "8px",
                             padding: "4px 0",
-                        }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: "12px", color: "#969696" }, children: "Updating\u2026" })] }) }) })), error && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: "12px" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What does it hit?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) })), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Reference", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: {
+                        }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: "12px", color: "#969696" }, children: "Updating\u2026" })] }) }) })), error && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: "12px" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What does it hit?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) })), SP_JSX.jsx(DFL.PanelSection, { title: "Reference", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
                             fontSize: "11px",
                             color: "#777",
                             lineHeight: "1.5",
                         }, children: ["Gen ", chart.generation, " type chart. STAB (Same-Type Attack Bonus) is applied by the game engine, not by this calculator. Values are the standard multipliers for a single-typed attack."] }) }) })] }));
 }
 function ModeButton({ label, active, onClick }) {
-    return (window.SP_JSX.jsx("button", { onClick: onClick, style: {
+    return (SP_JSX.jsx("button", { onClick: onClick, style: {
             flex: 1,
             padding: "8px 12px",
             background: active ? "rgba(94,186,125,0.15)" : "rgba(255,255,255,0.04)",
@@ -1780,36 +1777,36 @@ const TABS = [
     { id: "settings", label: "Settings" },
 ];
 function PluginContent() {
-    const [active, setActive] = window.SP_REACT.useState("status");
+    const [active, setActive] = SP_REACT.useState("status");
     const settings = useStore((s) => s.settings);
     const theme = useStore((s) => s.theme);
     const interval = settings?.scan_interval_seconds ?? 30;
-    window.SP_REACT.useEffect(() => {
+    SP_REACT.useEffect(() => {
         refreshStatic();
     }, []);
-    window.SP_REACT.useEffect(() => {
+    SP_REACT.useEffect(() => {
         startPolling();
         return () => stopPolling();
     }, [interval]);
-    window.SP_REACT.useEffect(() => {
+    SP_REACT.useEffect(() => {
         registerTouchMenu();
         return () => unregisterTouchMenu();
     }, []);
     const palette = theme?.palette ?? DEFAULT_PALETTE;
-    const themeStyle = window.SP_REACT.useMemo(() => paletteToCssVars(palette), [palette]);
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", ...themeStyle }, children: [window.SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), window.SP_JSX.jsx("div", { style: { display: active === "status" ? "block" : "none" }, children: window.SP_JSX.jsx(HomeView, {}) }), window.SP_JSX.jsx("div", { style: { display: active === "typechart" ? "block" : "none" }, children: window.SP_JSX.jsx(TypeChartView, {}) }), window.SP_JSX.jsx("div", { style: { display: active === "party" ? "block" : "none" }, children: window.SP_JSX.jsx(PartyView, {}) }), window.SP_JSX.jsx("div", { style: { display: active === "settings" ? "block" : "none" }, children: window.SP_JSX.jsx(SettingsView, {}) })] }));
+    const themeStyle = SP_REACT.useMemo(() => paletteToCssVars(palette), [palette]);
+    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", ...themeStyle }, children: [SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), SP_JSX.jsx("div", { style: { display: active === "status" ? "block" : "none" }, children: SP_JSX.jsx(HomeView, {}) }), SP_JSX.jsx("div", { style: { display: active === "typechart" ? "block" : "none" }, children: SP_JSX.jsx(TypeChartView, {}) }), SP_JSX.jsx("div", { style: { display: active === "party" ? "block" : "none" }, children: SP_JSX.jsx(PartyView, {}) }), SP_JSX.jsx("div", { style: { display: active === "settings" ? "block" : "none" }, children: SP_JSX.jsx(SettingsView, {}) })] }));
 }
 var index = definePlugin(() => {
     return {
         name: "Pokémon Essentials Overlay",
-        titleView: (window.SP_JSX.jsxs("div", { style: {
+        titleView: (SP_JSX.jsxs("div", { style: {
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
                 paddingLeft: "4px",
-            }, children: [window.SP_JSX.jsx(PokeballIcon, { size: 18 }), window.SP_JSX.jsx("span", { children: "Pok\u00E9mon Essentials Overlay" })] })),
-        content: window.SP_JSX.jsx(PluginContent, {}),
-        icon: window.SP_JSX.jsx(PokeballIcon, {}),
+            }, children: [SP_JSX.jsx(PokeballIcon, { size: 18 }), SP_JSX.jsx("span", { children: "Pok\u00E9mon Essentials Overlay" })] })),
+        content: SP_JSX.jsx(PluginContent, {}),
+        icon: SP_JSX.jsx(PokeballIcon, {}),
         onDismount() {
             unregisterTouchMenu();
             stopPolling();
