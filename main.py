@@ -26,9 +26,12 @@ from typing import Any, Callable, Optional
 
 import decky
 
-# Fix for Decky Loader: add plugin directory to sys.path so local imports work
+# Fix for Decky Loader: add plugin directory to sys.path so local imports
+# work. Use INSERT (not append) so the plugin's modules shadow any older
+# copies of livewatch/savepath/steampaths that may live in
+# site-packages from a previous install of this plugin.
 PLUGIN_DIR: Path = Path(__file__).resolve().parent
-sys.path.append(str(PLUGIN_DIR))
+sys.path.insert(0, str(PLUGIN_DIR))
 
 from livewatch import (
     LiveMemoryReader,
