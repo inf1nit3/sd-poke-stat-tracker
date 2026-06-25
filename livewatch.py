@@ -34,16 +34,28 @@ LIKELY_GAME_PROCESS_HINTS: tuple[str, ...] = (
     "rgss",
     "ruby",
     "essentials",
-    "pokemon",
-    "game",
     "rpg",
 )
 
+# Terms that indicate a Pokémon fan game process.
+# NOTE: "poke" and "pokemon" are NOT included here because they match
+# our own plugin process (sd-poke-stat-tracker). We only match on
+# terms that would appear in an actual game's process cmdline.
 POKEMON_TERMS: tuple[str, ...] = (
-    "pokemon",
     "essentials",
     "fan game",
-    "poke",
+    "rgss",
+    "rpg maker",
+)
+
+# Paths that indicate the process is our plugin or Decky itself,
+# not a game. Used to exclude false positives.
+EXCLUDE_PATH_HINTS: tuple[str, ...] = (
+    "sd-poke-stat-tracker",
+    "homebrew",
+    "decky",
+    "plugin_loader",
+    "pluginloader",
 )
 
 
@@ -69,6 +81,9 @@ def find_game_processes() -> list[dict[str, object]]:
         )
         is_pokemon = any(t in cmdline_str for t in POKEMON_TERMS)
         if not (is_likely or is_pokemon):
+            continue
+        # Exclude our own plugin process and Decky internals
+        if any(ex in cmdline_str for ex in EXCLUDE_PATH_HINTS):
             continue
         out.append(
             {

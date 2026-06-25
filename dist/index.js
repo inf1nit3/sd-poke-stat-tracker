@@ -37,7 +37,7 @@ function TabBar({ tabs, activeId, onChange }) {
             marginBottom: "4px",
         }, children: tabs.map((tab) => {
             const active = tab.id === activeId;
-            return (SP_JSX.jsx(DFL.Focusable, { onClick: () => !tab.disabled && onChange(tab.id), style: {
+            return (SP_JSX.jsx(DFL.Focusable, { onOKActionDescription: tab.label, onOKButton: () => !tab.disabled && onChange(tab.id), style: {
                     padding: "6px 10px",
                     background: active ? "rgba(255,255,255,0.08)" : "transparent",
                     color: tab.disabled ? "#555" : active ? "#fff" : "#969696",

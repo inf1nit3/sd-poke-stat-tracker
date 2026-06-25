@@ -1,4 +1,4 @@
-import { Focusable } from "../decky-frontend-lib-shim";
+import { Focusable } from "@decky/ui";
 
 export interface TabDef {
   id: string;
@@ -30,7 +30,8 @@ export function TabBar({ tabs, activeId, onChange }: TabBarProps) {
         return (
           <Focusable
             key={tab.id}
-            onClick={() => !tab.disabled && onChange(tab.id)}
+            onOKActionDescription={tab.label}
+            onOKButton={() => !tab.disabled && onChange(tab.id)}
             style={{
               padding: "6px 10px",
               background: active ? "rgba(255,255,255,0.08)" : "transparent",
