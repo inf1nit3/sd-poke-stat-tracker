@@ -11,6 +11,7 @@ The parser is *read-only* and never modifies the file.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -299,7 +300,225 @@ def _top_key(parsed: Any, *names: str) -> Any:
     return None
 
 
-def _parse_pokemon(obj: Any) -> Optional[PokemonSummary]:
+# ---------------------------------------------------------------------------
+# Species → types lookup via the game's PBS/pokemon.txt
+# ---------------------------------------------------------------------------
+#
+# Pokémon Essentials v21+ (and forks like Pokémon Vanguard) no longer
+# store ``@type1`` / ``@type2`` on individual Pokémon objects — the
+# types live only in the species PBS file. We parse that file once and
+# cache the (type1, type2) mapping.
+#
+# PBS sections can contain multiple forms (a single ``[N]`` block may
+# hold a base form followed by ``Name = AltForm`` lines or
+# ``InternalName = ALTFOM`` sub-blocks). Each form inherits the type
+# information from the enclosing section unless it overrides it.
+
+_SPECIES_TYPES_CACHE: dict[str, tuple[Optional[str], Optional[str]]] | None = None
+_SPECIES_TYPES_SOURCE: Optional[Path] = None
+_SPECIES_TYPES_LOCK = False
+
+
+def _read_pbs_multiform(path: Path) -> dict[str, dict[str, str]]:
+    """Parse ``PBS/pokemon.txt`` and return ``{internal_name: {attrs}}``.
+
+    Handles multi-form sections by splitting on each ``Name =`` or
+    ``InternalName =`` line that introduces a new form within a ``[N]``
+    block. Sub-form ``InternalName =`` lines inherit all preceding
+    attributes from the enclosing section.
+    """
+    import re
+
+    out: dict[str, dict[str, str]] = {}
+    section_attrs: dict[str, str] = {}
+    current_form: Optional[dict[str, str]] = None
+    current_internal: Optional[str] = None
+    in_section = False
+
+    def flush() -> None:
+        nonlocal current_form, current_internal
+        if current_internal and current_form is not None:
+            out[current_internal] = current_form
+        current_form = None
+        current_internal = None
+
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        log.warning(f"Cannot read PBS file {path}: {exc}")
+        return out
+
+    for raw_line in text.splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        if stripped.startswith("[") and stripped.endswith("]"):
+            flush()
+            section_attrs = {}
+            in_section = True
+            continue
+
+        if not in_section or "=" not in stripped:
+            continue
+
+        key, _, value = stripped.partition("=")
+        key = key.strip()
+        value = value.strip()
+
+        if key == "Name":
+            # New form within the section. Flush previous form, start fresh
+            # form that inherits the section's attributes.
+            flush()
+            section_attrs["Name"] = value
+            current_form = dict(section_attrs)
+            # We do NOT set current_internal here — InternalName may follow.
+            continue
+
+        if key == "InternalName":
+            # Either a top-level internal name for the section's main form,
+            # or a sub-form (Vanguard "form" entry). Flush prior sub-form
+            # first.
+            if current_internal and current_form is not None:
+                out[current_internal] = current_form
+            current_internal = value
+            if current_form is None:
+                # First InternalName in this section: main form.
+                current_form = dict(section_attrs)
+            current_form["InternalName"] = value
+            out.setdefault(value, current_form)
+            continue
+
+        # Any other attribute belongs to the current form (or the section
+        # attributes shared by all forms in this [N]).
+        if current_form is not None:
+            current_form[key] = value
+        section_attrs[key] = value
+
+    flush()
+    return out
+
+
+def _load_species_types_from_pbs(save_path: Optional[Path]) -> dict[str, tuple[Optional[str], Optional[str]]]:
+    """Discover ``pokemon.txt`` near ``save_path`` and build the cache.
+
+    Returns ``{INTERNAL_NAME: (Type1, Type2)}``. Missing types are
+    returned as ``None``. Returns an empty dict if no PBS file is found.
+    """
+    mapping: dict[str, tuple[Optional[str], Optional[str]]] = {}
+
+    pbs_path: Optional[Path] = None
+    candidates: list[Path] = []
+
+    if save_path is not None:
+        p = Path(save_path)
+        # Look in the Wine prefix / native install under common PBS paths
+        for parent in [p.parent, *p.parents]:
+            candidates.append(parent / "PBS" / "pokemon.txt")
+            candidates.append(parent / "Data" / "pokemon.txt")
+            candidates.append(parent / "data" / "pokemon.txt")
+            candidates.append(parent / "pokemon.txt")
+            # Walk up to the Wine prefix root and try common sub-paths.
+            if "AppData" in parent.parts:
+                try:
+                    wine_root_idx = parent.parts.index("drive_c") + 1
+                    wine_root = Path(*parent.parts[:wine_root_idx])
+                    candidates.append(wine_root / "users" / "steamuser" / "Documents" / "Pokemon Vanguard" / "PBS" / "pokemon.txt")
+                    candidates.append(wine_root / "Program Files" / "Pokemon Vanguard" / "PBS" / "pokemon.txt")
+                except (ValueError, IndexError):
+                    pass
+
+    try:
+        from pbsfinder import find_pbs_files
+        found = find_pbs_files(save_path=save_path)
+        if "pokemon" in found:
+            candidates.insert(0, found["pokemon"])
+    except Exception as exc:
+        log.debug(f"pbsfinder not available or failed: {exc}")
+
+    # Native Linux installs: search common Downloads/game folders. This is
+    # a slow rglob but only runs once per process (results are cached).
+    for native_root in (
+        Path("/home/deck/Downloads"),
+        Path.home() / "Downloads",
+        Path("/home/deck/Desktop"),
+    ):
+        if not native_root.is_dir():
+            continue
+        try:
+            for cand in native_root.rglob("PBS/pokemon.txt"):
+                if cand.is_file() and os.access(cand, os.R_OK):
+                    candidates.append(cand)
+                    break  # first match per root is good enough
+        except OSError:
+            continue
+
+    seen: set[Path] = set()
+    for cand in candidates:
+        if cand in seen:
+            continue
+        seen.add(cand)
+        if cand.is_file() and os.access(cand, os.R_OK):
+            pbs_path = cand
+            break
+
+    if pbs_path is None:
+        log.info("No PBS/pokemon.txt found for species-type lookup")
+        return mapping
+
+    sections = _read_pbs_multiform(pbs_path)
+    for internal_name, attrs in sections.items():
+        t1 = attrs.get("Type1") or attrs.get("type1")
+        t2 = attrs.get("Type2") or attrs.get("type2")
+        # Normalize: skip if values are the literal string "Type1"
+        if t1 and not t1.startswith("Type"):
+            t1 = t1.title()
+        else:
+            t1 = None
+        if t2 and not t2.startswith("Type"):
+            t2 = t2.title()
+        else:
+            t2 = None
+        mapping[internal_name.upper()] = (t1, t2)
+
+    log.info(
+        f"Loaded types for {len(mapping)} species from PBS: {pbs_path}"
+    )
+    return mapping
+
+
+def _get_species_types(
+    species: str,
+    save_path: Optional[Path] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    """Return ``(type1, type2)`` for a species constant like ``CROCONAWT``.
+
+    Caches the entire PBS mapping for the lifetime of the process.
+    """
+    global _SPECIES_TYPES_CACHE, _SPECIES_TYPES_SOURCE, _SPECIES_TYPES_LOCK
+    if not species:
+        return (None, None)
+    if _SPECIES_TYPES_CACHE is None and not _SPECIES_TYPES_LOCK:
+        _SPECIES_TYPES_LOCK = True
+        try:
+            _SPECIES_TYPES_CACHE = _load_species_types_from_pbs(save_path)
+            _SPECIES_TYPES_SOURCE = save_path
+        finally:
+            _SPECIES_TYPES_LOCK = False
+    if _SPECIES_TYPES_CACHE is None:
+        return (None, None)
+    return _SPECIES_TYPES_CACHE.get(species.upper(), (None, None))
+
+
+def reset_species_cache() -> None:
+    """Clear the cached species→types mapping (test helper)."""
+    global _SPECIES_TYPES_CACHE, _SPECIES_TYPES_SOURCE
+    _SPECIES_TYPES_CACHE = None
+    _SPECIES_TYPES_SOURCE = None
+
+
+def _parse_pokemon(obj: Any, save_path: Optional[Path] = None) -> Optional[PokemonSummary]:
     if not isinstance(obj, RubyObject):
         return None
     attrs = obj.attributes or {}
@@ -332,6 +551,14 @@ def _parse_pokemon(obj: Any) -> Optional[PokemonSummary]:
     status = _int(_attr(obj, "@status", "status"), 0)
     shiny_raw = _attr(obj, "@shiny", "shiny")
 
+    # Types: try per-instance first (v17), fall back to PBS lookup (v21+).
+    type1 = _symbol_name(_attr(obj, "@type1", "type1"))
+    type2 = _symbol_name(_attr(obj, "@type2", "type2"))
+    if not type1 and not type2:
+        pbs_type1, pbs_type2 = _get_species_types(species, save_path=save_path)
+        type1 = pbs_type1
+        type2 = pbs_type2
+
     return PokemonSummary(
         species=species,
         nickname=_plain_str(_attr(obj, "@name", "name")),
@@ -340,8 +567,8 @@ def _parse_pokemon(obj: Any) -> Optional[PokemonSummary]:
         max_hp=_int(_attr(obj, "@totalhp", "@totalHP", "totalhp", "totalHP"), 1),
         status=status,
         status_name=STATUS_NAMES.get(status, "?"),
-        type1=_symbol_name(_attr(obj, "@type1", "type1")),
-        type2=_symbol_name(_attr(obj, "@type2", "type2")),
+        type1=type1,
+        type2=type2,
         moves=moves[:4],
         ability=_symbol_name(_attr(obj, "@ability", "ability")),
         item=_symbol_name(_attr(obj, "@item", "item")),
@@ -516,7 +743,7 @@ def parse_save_file(path: str | Path) -> SaveData:
         if not isinstance(p_obj, RubyObject):
             continue
         try:
-            summary = _parse_pokemon(p_obj)
+            summary = _parse_pokemon(p_obj, save_path=p)
         except Exception as exc:
             log.warning(f"Skipping malformed party member: {exc}")
             summary = None
