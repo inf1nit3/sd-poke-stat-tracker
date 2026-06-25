@@ -247,6 +247,20 @@ export function SettingsView() {
     }
   }, []);
 
+  const setLiveMemory = useCallback(async (v: boolean) => {
+    try {
+      await applySettingsPatch({ live_memory_enabled: v });
+      setStatusMsg(
+        v
+          ? "Live memory reading enabled. Updates come from game process memory; the disk watcher is kept as fallback."
+          : "Live memory reading disabled. Updates come from the save file only."
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatusError(msg);
+    }
+  }, []);
+
   if (!settings) {
     return (
       <PanelSection title="Settings">
@@ -395,6 +409,22 @@ export function SettingsView() {
         <PanelSectionRow>
           <Toggle value={settings.touchmenu_enabled} onChange={setTouchmenu}>
             Enable in-game touch menu
+          </Toggle>
+        </PanelSectionRow>
+      </PanelSection>
+
+      <PanelSection title="Live memory reading">
+        <PanelSectionRow>
+          <div style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
+            When the game is running, read party state directly from the
+            game's process memory. Updates arrive every ~1s without waiting
+            for the game to save to disk. Opt-in: the disk watcher still
+            runs as a fallback if memory reading fails.
+          </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Toggle value={settings.live_memory_enabled ?? false} onChange={setLiveMemory}>
+            Read live data from game process memory
           </Toggle>
         </PanelSectionRow>
       </PanelSection>

@@ -696,9 +696,37 @@ def parse_save_file(path: str | Path) -> SaveData:
     except OSError as exc:
         raise SaveParseError(f"Cannot read save file: {exc}") from exc
 
+    return _parse_and_extract(raw, save_path=p, source=str(p))
+
+
+def parse_save_blob(
+    raw: bytes,
+    source: str = "<memory>",
+    save_path: Optional[Path] = None,
+) -> SaveData:
+    """Parse a save blob from raw bytes.
+
+    Used by ``LiveMemoryReader`` which reads the save from the
+    running game process's heap rather than from a file. The
+    ``source`` argument is purely informational and surfaces in
+    error messages / debug logs.
+
+    ``save_path`` is used for PBS lookup (so per-species types
+    can be resolved). For memory reads, pass the on-disk save path
+    so the PBS loader can find ``pokemon.txt`` next to it.
+    """
+    return _parse_and_extract(raw, save_path=save_path, source=source)
+
+
+def _parse_and_extract(
+    raw: bytes,
+    save_path: Optional[Path],
+    source: str,
+) -> SaveData:
     if len(raw) < 2 or raw[:2] != MARSHAL_VERSION:
         raise SaveParseError(
-            f"Not a Ruby Marshal v4.8 file (header={raw[:2].hex() if raw else 'empty'})"
+            f"Not a Ruby Marshal v4.8 file "
+            f"(header={raw[:2].hex() if raw else 'empty'}, source={source})"
         )
 
     try:
@@ -743,7 +771,7 @@ def parse_save_file(path: str | Path) -> SaveData:
         if not isinstance(p_obj, RubyObject):
             continue
         try:
-            summary = _parse_pokemon(p_obj, save_path=p)
+            summary = _parse_pokemon(p_obj, save_path=save_path)
         except Exception as exc:
             log.warning(f"Skipping malformed party member: {exc}")
             summary = None
@@ -826,5 +854,5 @@ def parse_save_file(path: str | Path) -> SaveData:
         y=y,
         play_time_seconds=play_time,
         parsed_at=time.time(),
-        source_path=str(p),
+        source_path=source,
     )

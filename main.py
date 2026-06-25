@@ -4,22 +4,39 @@ Phase 1: Plugin lifecycle, settings persistence, plugin info.
 Phase 2: Type chart lookups (types, colors, multipliers, summaries).
 Phase 3: Save-file path resolution + .rxdata parser (party status).
 Phase 5: Live PBS file loading for move types, custom moves.
+Phase 6: Live memory reading from the running game process.
 """
 
 from __future__ import annotations
 
+# Patch rubymarshal to handle TYPE_LINK forward references.
+# Must be loaded BEFORE any other module in the plugin imports
+# rubymarshal, otherwise the unpatched ``loads`` will be cached
+# in sys.modules and the patch won't apply.
+try:
+    from rubymarshal import _forward_ref_patch  # noqa: F401
+except ImportError:
+    pass
+
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 import decky
 
+# Fix for Decky Loader: add plugin directory to sys.path so local imports work
+PLUGIN_DIR: Path = Path(__file__).resolve().parent
+sys.path.append(str(PLUGIN_DIR))
+
 from livewatch import (
+    LiveMemoryReader,
     SaveFileWatcher,
     find_game_processes,
     find_process_by_save_path,
     get_process_memory_map,
+    read_process_memory,
 )
 from moves import MovesDB
 from pbsfinder import find_pbs_files
@@ -43,6 +60,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "last_save_path": None,
     "theme": "default",
     "compact_mode": True,
+    "watcher_enabled": True,
+    "live_memory_enabled": False,  # Phase 6: opt-in
 }
 
 PLUGIN_INFO: dict[str, str] = {
@@ -74,6 +93,11 @@ class Plugin:
         self._watcher: Optional[SaveFileWatcher] = None
         self._watcher_callback_id: int = 0
         self._last_live_event: dict[str, Any] = {}
+        # Phase 6: live memory reading
+        self._memory_reader: Optional[LiveMemoryReader] = None
+        self._memory_pid: Optional[int] = None
+        self._live_source: str = "disk"  # "memory" | "disk"
+        self._memory_failure_log: list[str] = []
 
     async def _main(self) -> None:
         """Called once when the plugin is loaded."""
@@ -83,13 +107,17 @@ class Plugin:
             self._load_settings()
             self._load_type_chart()
             self._try_auto_load_pbs()
-            self._start_watcher()
+            if self._settings.get("watcher_enabled", True):
+                self._start_watcher()
+            if self._settings.get("live_memory_enabled", False):
+                self._start_memory_reader()
             self._initialized = True
             log.info(
                 f"Plugin ready "
                 f"(type_chart={'yes' if self._type_chart_engine.loaded else 'no'}, "
                 f"moves_db={'yes' if self._moves_db.loaded else 'no'}, "
-                f"settings_keys={len(self._settings)})"
+                f"settings_keys={len(self._settings)}, "
+                f"live_memory={'on' if self._settings.get('live_memory_enabled') else 'off'})"
             )
         except Exception as exc:
             log.error(f"Failed to initialize plugin: {exc}", exc_info=True)
@@ -101,6 +129,9 @@ class Plugin:
         if self._watcher is not None:
             self._watcher.stop()
             self._watcher = None
+        if self._memory_reader is not None:
+            self._memory_reader.stop()
+            self._memory_reader = None
         self._settings = dict(DEFAULT_SETTINGS)
         self._save_cache = None
         self._save_cache_path = None
@@ -216,7 +247,19 @@ class Plugin:
             self._save_cache = None
             self._save_cache_path = None
             self._last_live_event = {}
-            self._start_watcher()
+            self._stop_watcher()
+            if self._settings.get("watcher_enabled", True):
+                self._start_watcher()
+        if "watcher_enabled" in patch:
+            if patch["watcher_enabled"]:
+                self._start_watcher()
+            else:
+                self._stop_watcher()
+        if "live_memory_enabled" in patch:
+            if patch["live_memory_enabled"]:
+                self._start_memory_reader()
+            else:
+                self._stop_memory_reader()
         return dict(self._settings)
 
     async def find_save_path(self) -> dict[str, Any]:
@@ -349,6 +392,11 @@ class Plugin:
             "database": self._moves_db.to_api(),
         }
 
+    async def clear_pbs(self) -> dict[str, Any]:
+        """Clear PBS overlay and revert to static moves database only."""
+        self._moves_db.clear_pbs()
+        return {"database": self._moves_db.to_api()}
+
     async def get_themes(self) -> dict[str, Any]:
         """Return all available themes and the currently active one."""
         active = self._settings.get("theme")
@@ -362,7 +410,10 @@ class Plugin:
     def _start_watcher(self) -> None:
         if self._watcher is not None:
             return
-        interval = max(0.5, min(2.0, self._settings.get("scan_interval_seconds", 30) / 10))
+        # Lower floor than before — 0.3s polling feels live without
+        # burning CPU. Saves happen on every Pokemon Center visit,
+        # battle end, and menu save, so 0.3s gives near-instant updates.
+        interval = max(0.3, min(2.0, self._settings.get("scan_interval_seconds", 30) / 10))
         self._watcher = SaveFileWatcher(
             path_provider=lambda: self._resolve_active_save(),
             on_change=self._on_watcher_change,
@@ -412,6 +463,120 @@ class Plugin:
         except SaveParseError as exc:
             log.warning(f"Live save parse failed: {exc}")
 
+    # --- Phase 6: live memory reading ---------------------------------
+
+    def _start_memory_reader(self) -> None:
+        """Start scanning the running game process's heap for live saves.
+
+        Falls back gracefully if no game is running: the disk watcher
+        continues to provide data on save events.
+        """
+        if self._memory_reader is not None:
+            return
+        procs = find_game_processes()
+        if not procs:
+            log.info("Live memory reader: no game process found, "
+                     "disk watcher remains active")
+            return
+        # Filter out our own helper processes (already done by
+        # find_game_processes via EXCLUDE_PATH_HINTS) but pick the
+        # newest non-plugin process first.
+        game_proc = procs[0]
+        pid = int(game_proc.get("pid") or 0)
+        if pid <= 0:
+            log.warning("Live memory reader: game process has no pid")
+            return
+        self._memory_pid = pid
+        self._memory_reader = LiveMemoryReader(
+            pid=pid,
+            on_update=self._on_memory_update,
+            on_failure=self._on_memory_failure,
+            interval=1.0,
+        )
+        self._memory_reader.start()
+
+    def _stop_memory_reader(self) -> None:
+        if self._memory_reader is not None:
+            self._memory_reader.stop()
+            self._memory_reader = None
+        self._memory_pid = None
+
+    def _on_memory_update(self, payload: dict[str, Any]) -> None:
+        """A live memory scan produced a fresh save. Update the cache
+        if it's newer than whatever the disk watcher last provided.
+        """
+        import time as _time
+        now = _time.time()
+        # Monotonic guard: disk-watcher entries carry the file's
+        # mtime, memory entries carry wall-clock. We compare against
+        # the most recent update timestamp we accepted.
+        if now <= self._save_cache_at:
+            return
+        self._save_cache = payload
+        self._save_cache_path = f"<memory:{self._memory_pid}>"
+        self._save_cache_at = now
+        self._live_source = "memory"
+        self._last_live_event = {
+            "kind": "memory_update",
+            "pid": self._memory_pid,
+            "at": now,
+            "trainer": payload.get("trainer_name"),
+            "party_count": len(payload.get("party", [])),
+        }
+        log.debug(
+            f"Live memory update: trainer={payload.get('trainer_name')} "
+            f"party={len(payload.get('party', []))}"
+        )
+
+    def _on_memory_failure(self, reason: str) -> None:
+        """Memory reader couldn't produce data. Stay quiet — the disk
+        watcher keeps working as fallback. Only log the first few.
+        """
+        self._memory_failure_log.append(reason)
+        # Keep only the last 5 reasons to avoid unbounded growth.
+        self._memory_failure_log = self._memory_failure_log[-5:]
+        # If the game process disappeared, stop the reader. The disk
+        # watcher will still pick up the last save.
+        if reason == "process_gone" and self._memory_reader is not None:
+            log.info("Live memory reader: game process gone, stopping")
+            self._stop_memory_reader()
+            # Try to restart in case the game was just restarted.
+            self._restart_memory_reader_if_game_present()
+        else:
+            log.debug(f"Live memory reader: {reason}")
+
+    def _restart_memory_reader_if_game_present(self) -> None:
+        import threading
+        def _check_and_start():
+            import time as _t
+            _t.sleep(2.0)
+            if self._memory_reader is None and self._settings.get(
+                "live_memory_enabled", False
+            ):
+                procs = find_game_processes()
+                if procs:
+                    self._start_memory_reader()
+        threading.Thread(target=_check_and_start, daemon=True).start()
+
+    def _refresh_memory_reader_pid(self) -> None:
+        """Re-detect the game PID (handles restart) and update the reader."""
+        if not self._settings.get("live_memory_enabled", False):
+            return
+        if self._memory_reader is None:
+            self._start_memory_reader()
+            return
+        procs = find_game_processes()
+        if not procs:
+            return
+        new_pid = int(procs[0].get("pid") or 0)
+        if new_pid > 0 and new_pid != self._memory_pid:
+            log.info(
+                f"Live memory reader: PID changed "
+                f"{self._memory_pid} → {new_pid}"
+            )
+            self._memory_reader.update_pid(new_pid)
+            self._memory_pid = new_pid
+
     async def get_live_state(self) -> dict[str, Any]:
         """Return current game-process + watcher state.
 
@@ -424,6 +589,7 @@ class Plugin:
         if processes:
             active_proc = processes[0]
         watcher_active = self._watcher is not None
+        memory_active = self._memory_reader is not None
         return {
             "game_running": bool(processes),
             "processes": [
@@ -436,6 +602,10 @@ class Plugin:
             ],
             "active_process": active_proc,
             "watcher_active": watcher_active,
+            "live_source": self._live_source,
+            "memory_reader_active": memory_active,
+            "memory_pid": self._memory_pid,
+            "memory_failure_log": list(self._memory_failure_log),
             "last_live_event": self._last_live_event,
             "last_save_data": self._save_cache,
             "last_save_path": self._save_cache_path,

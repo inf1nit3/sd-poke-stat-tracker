@@ -1,6 +1,4 @@
-import { PanelSection, PanelSectionRow, Spinner } from "../decky-frontend-lib-shim";
-import { useEffect, useState } from "react";
-import { api, LiveState } from "../api";
+import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { CapabilitiesSummary } from "../components/PokemonCard";
 import { useStore } from "../store";
 
@@ -35,25 +33,8 @@ export function HomeView() {
   const info = useStore((s) => s.info);
   const saveData = useStore((s) => s.saveData);
   const movesDb = useStore((s) => s.movesDatabase);
-  const [live, setLive] = useState<LiveState | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const s = await api.getLiveState();
-        if (!cancelled) setLive(s);
-      } catch (e) {
-        console.error("[home] live state", e);
-      }
-    };
-    poll();
-    const id = setInterval(poll, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+  const settings = useStore((s) => s.settings);
+  const live = useStore((s) => s.liveState);
 
   if (!info) {
     return (
@@ -67,7 +48,6 @@ export function HomeView() {
               padding: "8px 0",
             }}
           >
-            <Spinner />
             <span style={{ fontSize: 13, color: "#969696" }}>Loading…</span>
           </div>
         </PanelSectionRow>
@@ -88,9 +68,9 @@ export function HomeView() {
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 600 }}>
-              {info.name}{" "}
+              {String(info.name)}{" "}
               <span style={{ color: "#969696", fontWeight: 400 }}>
-                v{info.version}
+                v{String(info.version)}
               </span>
             </div>
             <div
@@ -100,7 +80,7 @@ export function HomeView() {
                 lineHeight: 1.4,
               }}
             >
-              {info.description}
+              {String(info.description)}
             </div>
           </div>
         </PanelSectionRow>
@@ -140,7 +120,7 @@ export function HomeView() {
                 <div>
                   <StatusDot ok={live.game_running} />
                   {live.game_running
-                    ? `Game running: ${live.active_process?.name ?? "unknown"} (pid ${live.active_process?.pid ?? "?"})`
+                    ? `Game running: ${String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
                     : "No game process detected"}
                 </div>
                 <div>
@@ -153,6 +133,14 @@ export function HomeView() {
                       }`
                     : "Save watcher inactive"}
                 </div>
+                {settings?.live_memory_enabled && (
+                  <div>
+                    <StatusDot ok={live.live_source === "memory"} />
+                    {live.live_source === "memory"
+                      ? `Live memory reading active (pid ${live.active_process?.pid ?? "?"})`
+                      : `Live memory idle · ${live.memory_failure_log?.length ? `last: ${live.memory_failure_log[live.memory_failure_log.length - 1]}` : "disk fallback"}`}
+                  </div>
+                )}
               </>
             )}
             {saveData && !saveData.error && saveData.features && (
