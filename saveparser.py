@@ -250,7 +250,15 @@ def _plain_str(value: Any) -> Optional[str]:
 
 
 def _attr(obj: Any, *names: str) -> Any:
-    """Look up an instance variable on a RubyObject or dict, trying multiple key variants."""
+    """Look up an instance variable on a RubyObject or dict.
+
+    Pokémon Essentials v21 forks (e.g. Pokémon Vanguard) store attributes
+    under ``@@``-prefixed class-variable keys rather than ``@``-prefixed
+    instance-variable keys, and Symbol keys don't compare equal to
+    plain strings. We therefore try each candidate name in both string
+    and Symbol forms, and accept the ``@@`` variant when ``@`` is
+    requested.
+    """
     if obj is None:
         return None
     if isinstance(obj, RubyObject):
@@ -259,9 +267,35 @@ def _attr(obj: Any, *names: str) -> Any:
         attrs = obj
     else:
         return None
-    for name in names:
+
+    expanded: list[str] = []
+    for n in names:
+        expanded.append(n)
+        if n.startswith("@") and not n.startswith("@@"):
+            expanded.append("@@" + n[1:])
+
+    for name in expanded:
         if name in attrs:
             return attrs[name]
+        sym = Symbol(name)
+        if sym in attrs:
+            return attrs[sym]
+    return None
+
+
+def _top_key(parsed: Any, *names: str) -> Any:
+    """Look up a top-level key in a parsed save hash, trying both
+    string and Symbol keys (covers vanilla ``$Trainer`` style and
+    Vanguard ``player`` style).
+    """
+    if not isinstance(parsed, dict):
+        return None
+    for name in names:
+        if name in parsed:
+            return parsed[name]
+        sym = Symbol(name)
+        if sym in parsed:
+            return parsed[sym]
     return None
 
 
@@ -278,7 +312,12 @@ def _parse_pokemon(obj: Any) -> Optional[PokemonSummary]:
     moves: list[str] = []
     if isinstance(moves_raw, (list, tuple)):
         for m in moves_raw:
-            n = _symbol_name(m)
+            n: Any = None
+            if isinstance(m, RubyObject):
+                # v21+ stores moves as Pokemon::Move objects with @id.
+                # v17 stored them as Symbols or strings directly.
+                n = _attr(m, "@id", "id")
+            n = _symbol_name(n)
             if n:
                 moves.append(n)
 
@@ -443,24 +482,34 @@ def parse_save_file(path: str | Path) -> SaveData:
     if not isinstance(parsed, dict):
         raise SaveParseError("Top-level structure is not a hash")
 
-    trainer = parsed.get("$Trainer")
+    trainer = _top_key(parsed, "$Trainer", "player", "Trainer")
     trainer_name = ""
     party_objs: list[Any] = []
     money = 0
     badges = 0
 
     if isinstance(trainer, RubyObject):
-        t_attrs = trainer.attributes or {}
-        raw_name = t_attrs.get("@name")
+        raw_name = _attr(trainer, "@name", "name")
         if isinstance(raw_name, str):
             trainer_name = raw_name
         elif raw_name is not None:
             trainer_name = str(raw_name)
-        party_raw = t_attrs.get("@party")
+        party_raw = _attr(trainer, "@party", "party")
         if isinstance(party_raw, list):
             party_objs = party_raw
-        money = int(t_attrs.get("@money", 0) or 0)
-        badges = int(t_attrs.get("@badges", 0) or 0)
+        money_raw = _attr(trainer, "@money", "money")
+        try:
+            money = int(money_raw or 0)
+        except (TypeError, ValueError):
+            money = 0
+        badges_raw = _attr(trainer, "@badges", "badges")
+        if isinstance(badges_raw, list):
+            badges = len([b for b in badges_raw if b])
+        elif badges_raw is not None:
+            try:
+                badges = int(badges_raw)
+            except (TypeError, ValueError):
+                badges = 0
 
     party: list[PokemonSummary] = []
     for p_obj in party_objs:
@@ -474,10 +523,19 @@ def parse_save_file(path: str | Path) -> SaveData:
         if summary is not None:
             party.append(summary)
 
-    game_map = parsed.get("$game_map")
+    game_map = _top_key(parsed, "$game_map", "map_factory", "map_metadata", "game_map")
     location_name = ""
     map_id: Optional[int] = None
-    if isinstance(game_map, dict):
+    if isinstance(game_map, RubyObject):
+        attrs = game_map.attributes or {}
+        location_name = str(_attr(game_map, "@map_name", "display_name", "name", "@name") or "")
+        raw_mid = _attr(game_map, "@map_id", "map_id")
+        if raw_mid is not None:
+            try:
+                map_id = int(raw_mid)
+            except (TypeError, ValueError):
+                map_id = None
+    elif isinstance(game_map, dict):
         location_name = str(game_map.get("display_name", "") or "")
         raw_mid = game_map.get("map_id")
         if raw_mid is not None:
@@ -486,10 +544,22 @@ def parse_save_file(path: str | Path) -> SaveData:
             except (TypeError, ValueError):
                 map_id = None
 
-    game_player = parsed.get("$game_player")
+    game_player = _top_key(parsed, "$game_player", "game_player")
     x: Optional[int] = None
     y: Optional[int] = None
-    if isinstance(game_player, dict):
+    if isinstance(game_player, RubyObject):
+        for attr, target in (("@x", "x"), ("@y", "y"), ("@real_x", "real_x"), ("@real_y", "real_y")):
+            raw = _attr(game_player, attr, target)
+            if raw is None:
+                continue
+            try:
+                if attr in ("@x", "@real_x"):
+                    x = int(raw)
+                else:
+                    y = int(raw)
+            except (TypeError, ValueError):
+                pass
+    elif isinstance(game_player, dict):
         for key, target in (("x", "x"), ("y", "y")):
             raw = game_player.get(target)
             if raw is None:
@@ -502,9 +572,15 @@ def parse_save_file(path: str | Path) -> SaveData:
             except (TypeError, ValueError):
                 pass
 
-    pg = parsed.get("$PokemonGlobal")
+    pg = _top_key(parsed, "$PokemonGlobal", "PokemonGlobal", "global_metadata", "stats")
     play_time = 0
-    if isinstance(pg, dict):
+    if isinstance(pg, RubyObject):
+        raw_pt = _attr(pg, "@play_time", "play_time")
+        try:
+            play_time = int(raw_pt or 0)
+        except (TypeError, ValueError):
+            play_time = 0
+    elif isinstance(pg, dict):
         try:
             play_time = int(pg.get("play_time", 0) or 0)
         except (TypeError, ValueError):
