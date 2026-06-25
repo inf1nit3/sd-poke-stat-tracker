@@ -1794,7 +1794,7 @@ function PluginContent() {
     }, []);
     const palette = theme?.palette ?? DEFAULT_PALETTE;
     const themeStyle = SP_REACT.useMemo(() => paletteToCssVars(palette), [palette]);
-    return (SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", ...themeStyle }, children: [SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), SP_JSX.jsx("div", { style: { display: active === "status" ? "block" : "none" }, children: SP_JSX.jsx(HomeView, {}) }), SP_JSX.jsx("div", { style: { display: active === "typechart" ? "block" : "none" }, children: SP_JSX.jsx(TypeChartView, {}) }), SP_JSX.jsx("div", { style: { display: active === "party" ? "block" : "none" }, children: SP_JSX.jsx(PartyView, {}) }), SP_JSX.jsx("div", { style: { display: active === "settings" ? "block" : "none" }, children: SP_JSX.jsx(SettingsView, {}) })] }));
+    return (SP_JSX.jsxs(DFL.Focusable, { style: { display: "flex", flexDirection: "column", ...themeStyle }, children: [SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), SP_JSX.jsx(DFL.ScrollPanel, { focusable: false, style: { flex: 1, maxHeight: "100%" }, children: SP_JSX.jsxs(DFL.PanelSection, { children: [active === "status" && SP_JSX.jsx(HomeView, {}), active === "typechart" && SP_JSX.jsx(TypeChartView, {}), active === "party" && SP_JSX.jsx(PartyView, {}), active === "settings" && SP_JSX.jsx(SettingsView, {})] }) })] }));
 }
 var index = definePlugin(() => {
     return {
