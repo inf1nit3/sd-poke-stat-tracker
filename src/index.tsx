@@ -1,5 +1,5 @@
 import { definePlugin } from "@decky/api";
-import { Focusable, PanelSection, ScrollPanel } from "@decky/ui";
+import { Focusable, ScrollPanel } from "@decky/ui";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { PokeballIcon } from "./components/PokeballIcon";
 import { TabBar, TabDef } from "./components/TabBar";
@@ -58,13 +58,11 @@ function PluginContent() {
         activeId={active}
         onChange={(id) => setActive(id as TabId)}
       />
-      <ScrollPanel focusable={false} style={{ flex: 1, maxHeight: "100%" }}>
-        <PanelSection>
-          {active === "status" && <HomeView />}
-          {active === "typechart" && <TypeChartView />}
-          {active === "party" && <PartyView />}
-          {active === "settings" && <SettingsView />}
-        </PanelSection>
+      <ScrollPanel focusable={true} style={{ flex: 1, maxHeight: "100%" }}>
+        {active === "status" && <HomeView />}
+        {active === "typechart" && <TypeChartView />}
+        {active === "party" && <PartyView />}
+        {active === "settings" && <SettingsView />}
       </ScrollPanel>
     </Focusable>
   );

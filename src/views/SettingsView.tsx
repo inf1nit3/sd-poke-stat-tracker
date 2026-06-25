@@ -261,26 +261,32 @@ export function SettingsView() {
     <>
       <PanelSection title="Save resolution">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }}>
+          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active save
           </div>
-          <div style={{ fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all", padding: "4px 0" }}>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={{ fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all" }}>
             {resolved?.path || "— no save found —"}
           </div>
-          {resolved?.using_override && (
-            <div style={{ fontSize: 10, color: "#777", padding: "2px 0" }}>
+        </PanelSectionRow>
+        {resolved?.using_override && (
+          <PanelSectionRow>
+            <div style={{ fontSize: 10, color: "#777" }}>
               (using manual override)
             </div>
-          )}
+          </PanelSectionRow>
+        )}
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={refresh} disabled={busy}>
+            {busy ? "Scanning…" : "Rescan saves"}
+          </ButtonItem>
         </PanelSectionRow>
-        <ButtonItem layout="below" onClick={refresh} disabled={busy}>
-          {busy ? "Scanning…" : "Rescan saves"}
-        </ButtonItem>
       </PanelSection>
 
       <PanelSection title="Manual override">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#888", lineHeight: 1.4, padding: "4px 0 8px 0" }}>
+          <div style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
             If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection.
           </div>
         </PanelSectionRow>
@@ -291,13 +297,17 @@ export function SettingsView() {
             onChange={(e) => setOverrideInput(e.target.value)}
           />
         </PanelSectionRow>
-        <ButtonItem layout="below" onClick={applyOverride} disabled={busy}>
-          Apply override
-        </ButtonItem>
-        {settings.save_path_override && (
-          <ButtonItem layout="below" onClick={clearOverride} disabled={busy}>
-            Clear override
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={applyOverride} disabled={busy}>
+            Apply override
           </ButtonItem>
+        </PanelSectionRow>
+        {settings.save_path_override && (
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={clearOverride} disabled={busy}>
+              Clear override
+            </ButtonItem>
+          </PanelSectionRow>
         )}
       </PanelSection>
 
@@ -319,10 +329,12 @@ export function SettingsView() {
 
       <PanelSection title="Theme">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }}>
+          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active theme
           </div>
-          <div style={{ fontSize: 12, color: theme ? theme.palette.accent : "#888", padding: "4px 0" }}>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={{ fontSize: 12, color: theme ? theme.palette.accent : "#888" }}>
             {theme ? theme.name : "Loading…"}
           </div>
         </PanelSectionRow>
@@ -339,19 +351,25 @@ export function SettingsView() {
 
       <PanelSection title="PBS moves database">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }}>
+          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active PBS source
           </div>
-          <div style={{ fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all", padding: "4px 0" }}>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={{ fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }}>
             {movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —"}
           </div>
-          <div style={{ fontSize: 10, color: "#777", padding: "2px 0" }}>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <div style={{ fontSize: 10, color: "#777" }}>
             {movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…"}
           </div>
         </PanelSectionRow>
-        <ButtonItem layout="below" onClick={reloadPbsAuto} disabled={pbsBusy}>
-          {pbsBusy ? "Scanning…" : "Auto-discover PBS"}
-        </ButtonItem>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={reloadPbsAuto} disabled={pbsBusy}>
+            {pbsBusy ? "Scanning…" : "Auto-discover PBS"}
+          </ButtonItem>
+        </PanelSectionRow>
         <PanelSectionRow>
           <TextField
             label="Manual PBS path (moves.txt)"
@@ -359,13 +377,17 @@ export function SettingsView() {
             onChange={(e) => setPbsInput(e.target.value)}
           />
         </PanelSectionRow>
-        <ButtonItem layout="below" onClick={applyPbsPath} disabled={pbsBusy || !pbsInput.trim()}>
-          Load PBS from path
-        </ButtonItem>
-        {movesDb?.pbs_source && (
-          <ButtonItem layout="below" onClick={clearPbs} disabled={pbsBusy}>
-            Clear PBS (use static only)
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={applyPbsPath} disabled={pbsBusy || !pbsInput.trim()}>
+            Load PBS from path
           </ButtonItem>
+        </PanelSectionRow>
+        {movesDb?.pbs_source && (
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={clearPbs} disabled={pbsBusy}>
+              Clear PBS (use static only)
+            </ButtonItem>
+          </PanelSectionRow>
         )}
       </PanelSection>
 
@@ -379,7 +401,7 @@ export function SettingsView() {
 
       <PanelSection title="Polling">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#888", marginBottom: 4, padding: "4px 0" }}>
+          <div style={{ fontSize: 11, color: "#888" }}>
             Backend live watcher checks the disk every{" "}
             <strong style={{ color: "#ccc" }}>{Math.max(5, settings.scan_interval_seconds)}</strong>
             {" "}units. The UI will always update instantly when changes occur.
@@ -404,30 +426,43 @@ export function SettingsView() {
 
       {candidates.length > 0 && (
         <PanelSection title={`Discovered saves (${candidates.length})`}>
-          {candidates.map((c) => (
+          {candidates.slice(0, 20).map((c) => (
             <PanelSectionRow key={c.path}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "4px 0" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <div style={{ fontSize: 11, color: "#ddd", wordBreak: "break-all" }}>
                   {c.path}
                 </div>
                 <div style={{ fontSize: 10, color: "#777" }}>
                   {fmtSize(c.size)} · modified {fmtTime(c.modified)}
                 </div>
-                <ButtonItem layout="inline" onClick={() => useCandidate(c.path)}>
-                  Use this save
-                </ButtonItem>
               </div>
+              <ButtonItem layout="inline" onClick={() => useCandidate(c.path)}>
+                Use this save
+              </ButtonItem>
             </PanelSectionRow>
           ))}
+          {candidates.length > 20 && (
+            <PanelSectionRow>
+              <div style={{ fontSize: 11, color: "#777", fontStyle: "italic" }}>
+                …and {candidates.length - 20} more. Use override to select specific file.
+              </div>
+            </PanelSectionRow>
+          )}
         </PanelSection>
       )}
 
       {(statusMsg || statusError) && (
         <PanelSection title="Status">
-          <PanelSectionRow>
-            {statusMsg && <div style={{ fontSize: 12, color: "#5eba7d", padding: "4px 0" }}>{statusMsg}</div>}
-            {statusError && <div style={{ fontSize: 12, color: "#e87b7b", padding: "4px 0" }}>{statusError}</div>}
-          </PanelSectionRow>
+          {statusMsg && (
+            <PanelSectionRow>
+              <div style={{ fontSize: 12, color: "#5eba7d" }}>{statusMsg}</div>
+            </PanelSectionRow>
+          )}
+          {statusError && (
+            <PanelSectionRow>
+              <div style={{ fontSize: 12, color: "#e87b7b" }}>{statusError}</div>
+            </PanelSectionRow>
+          )}
         </PanelSection>
       )}
     </>
