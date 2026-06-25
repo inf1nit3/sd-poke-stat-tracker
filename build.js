@@ -14,7 +14,7 @@ const config = {
   bundle: true,
   platform: "browser",
   target: "es2020",
-  format: "iife",
+  format: "esm",
   outfile: path.join(__dirname, "dist", "index.js"),
   jsx: "automatic",
   loader: {
