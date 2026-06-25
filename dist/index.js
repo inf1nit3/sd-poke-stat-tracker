@@ -1641,38 +1641,9 @@ function TypeChartView() {
             .finally(() => setLoading(false));
     }, [chart, mode, attacker, defenderPair]);
     if (!chart) {
-        return (SP_JSX.jsx(DFL.PanelSection, { title: "Type Chart", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "8px 0",
-                    }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading type chart\u2026" })] }) }) }));
+        return (SP_JSX.jsx(DFL.PanelSection, { title: "Type Chart", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "8px 0" }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading type chart\u2026" })] }) }) }));
     }
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "Mode", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", gap: "8px", padding: "4px 0" }, children: [SP_JSX.jsx(ModeButton, { label: "Defender", active: mode === "defense", onClick: () => setMode("defense") }), SP_JSX.jsx(ModeButton, { label: "Attacker", active: mode === "offense", onClick: () => setMode("offense") })] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), options: attackerOptions }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), options: typeOptions }) })] })) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), options: attackerOptions }) })) }), loading && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            padding: "4px 0",
-                        }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: "12px", color: "#969696" }, children: "Updating\u2026" })] }) }) })), error && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: "12px" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What does it hit?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) })), SP_JSX.jsx(DFL.PanelSection, { title: "Reference", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                            fontSize: "11px",
-                            color: "#777",
-                            lineHeight: "1.5",
-                        }, children: ["Gen ", chart.generation, " type chart. STAB (Same-Type Attack Bonus) is applied by the game engine, not by this calculator. Values are the standard multipliers for a single-typed attack."] }) }) })] }));
-}
-function ModeButton({ label, active, onClick }) {
-    return (SP_JSX.jsx("button", { onClick: onClick, style: {
-            flex: 1,
-            padding: "8px 12px",
-            background: active ? "rgba(94,186,125,0.15)" : "rgba(255,255,255,0.04)",
-            color: active ? "#5eba7d" : "#969696",
-            border: active ? "1px solid #5eba7d" : "1px solid transparent",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontSize: "12px",
-            fontWeight: active ? 600 : 500,
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-        }, children: label }));
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "Mode", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.ButtonItem, { layout: "below", onClick: () => setMode(mode === "defense" ? "offense" : "defense"), children: ["Mode: ", mode === "defense" ? "Defender" : "Attacker", " (click to switch)"] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), options: attackerOptions }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), options: typeOptions }) })] })) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), options: attackerOptions }) })) }), loading && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 12, color: "#969696" }, children: "Updating\u2026" })] }) }) })), error && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: 12, padding: "4px 0" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What does it hit?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) }))] }));
 }
 
 const TABS = [
