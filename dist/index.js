@@ -1519,106 +1519,11 @@ function SettingsView() {
     if (!settings) {
         return (SP_JSX.jsx(DFL.PanelSection, { title: "Settings", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 12, color: "#969696" }, children: "Loading\u2026" }) }) }));
     }
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "Save resolution", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: {
-                                    fontSize: 11,
-                                    color: "#969696",
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.4,
-                                }, children: "Active save" }), SP_JSX.jsx("div", { style: {
-                                    fontSize: 12,
-                                    color: resolved?.path ? "#5eba7d" : "#e0a458",
-                                    wordBreak: "break-all",
-                                    marginTop: 4,
-                                }, children: resolved?.path || "— no save found —" }), resolved?.using_override && (SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777", marginTop: 2 }, children: "(using manual override)" }))] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Manual override", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                                fontSize: 11,
-                                color: "#888",
-                                lineHeight: 1.4,
-                                marginBottom: 4,
-                            }, children: ["If auto-detection fails, paste the full path to", " ", SP_JSX.jsx("code", { style: { color: "#ccc" }, children: "Game.rxdata" }), " here. Leave blank to use auto-detection."] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Path to Game.rxdata", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }), settings.save_path_override && (SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "Auto-detect options", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.auto_scan_enabled, onChange: setAutoScan, children: "Auto-scan running processes and Wine prefixes" }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Display", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.compact_mode, onChange: setCompactMode, children: "Compact mode (auto-hide empty sections)" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
-                                fontSize: 11,
-                                color: "#888",
-                                lineHeight: 1.4,
-                            }, children: "When enabled, the UI only shows sections that have actual data from the save (e.g. IVs/EVs only on Essentials v17+, gender only when the game stores it). Disable to always show all sections with placeholder dashes." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Theme", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: {
-                                    fontSize: 11,
-                                    color: "#969696",
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.4,
-                                }, children: "Active theme" }), SP_JSX.jsx("div", { style: {
-                                    fontSize: 12,
-                                    color: theme ? theme.palette.accent : "#888",
-                                    marginTop: 4,
-                                }, children: theme ? theme.name : "Loading…" }), theme && (SP_JSX.jsx("div", { style: {
-                                    fontSize: 10,
-                                    color: "#777",
-                                    marginTop: 2,
-                                }, children: theme.description }))] }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), options: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) }), theme && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: 4,
-                                marginTop: 4,
-                            }, children: Object.keys(theme.palette)
-                                .filter((k) => [
-                                "accent",
-                                "hpGood",
-                                "hpWarn",
-                                "hpBad",
-                                "shiny",
-                                "female",
-                                "male",
-                            ].includes(k))
-                                .map((k) => (SP_JSX.jsx("div", { style: {
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: 4,
-                                    background: theme.palette[k],
-                                    border: "1px solid rgba(255,255,255,0.15)",
-                                }, title: `${k}: ${theme.palette[k]}` }, k))) }) }))] }), SP_JSX.jsxs(DFL.PanelSection, { title: "PBS moves database", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: {
-                                    fontSize: 11,
-                                    color: "#969696",
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.4,
-                                }, children: "Active PBS source" }), SP_JSX.jsx("div", { style: {
-                                    fontSize: 11,
-                                    color: movesDb?.pbs_source ? "#5eba7d" : "#888",
-                                    wordBreak: "break-all",
-                                    marginTop: 4,
-                                }, children: movesDb?.pbs_source
-                                    ? shortenPath(movesDb.pbs_source, 80)
-                                    : "— not loaded (using static DB) —" }), SP_JSX.jsx("div", { style: {
-                                    fontSize: 10,
-                                    color: "#777",
-                                    marginTop: 4,
-                                }, children: movesDb
-                                    ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS`
-                                    : "Loading…" })] }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                                fontSize: 11,
-                                color: "#888",
-                                lineHeight: 1.4,
-                            }, children: ["PBS files from your game are auto-discovered from the save folder. Loading them adds ", SP_JSX.jsx("em", { children: "custom moves" }), " (fan-game specials) on top of the static Gen 1-6 database."] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }), movesDb?.pbs_source && (SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }))] }), SP_JSX.jsxs(DFL.PanelSection, { title: "TouchMenu overlay", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.touchmenu_enabled, onChange: setTouchmenu, children: "Enable in-game touch menu" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
-                                fontSize: 11,
-                                color: "#888",
-                                lineHeight: 1.4,
-                            }, children: "When enabled, a touch menu appears over the game. Tap with two fingers on the screen to open it. Disable if it interferes with gameplay." }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Polling", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                                fontSize: 11,
-                                color: "#888",
-                                marginBottom: 4,
-                            }, children: ["Backend live watcher checks the disk every", " ", SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units (roughly ", (Math.max(5, settings.scan_interval_seconds) / 10).toFixed(1), "s). The UI will always update instantly when changes occur."] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Interval (seconds)", value: String(settings.scan_interval_seconds), onChange: (e) => {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "Save resolution", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }, children: "Active save" }), SP_JSX.jsx("div", { style: { fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all", padding: "4px 0" }, children: resolved?.path || "— no save found —" }), resolved?.using_override && (SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777", padding: "2px 0" }, children: "(using manual override)" }))] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Manual override", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 11, color: "#888", lineHeight: 1.4, padding: "4px 0 8px 0" }, children: "If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Path to save file", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }), settings.save_path_override && (SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "Auto-detect options", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.auto_scan_enabled, onChange: setAutoScan, children: "Auto-scan running processes and Wine prefixes" }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Display", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.compact_mode, onChange: setCompactMode, children: "Compact mode (auto-hide empty sections)" }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Theme", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }, children: "Active theme" }), SP_JSX.jsx("div", { style: { fontSize: 12, color: theme ? theme.palette.accent : "#888", padding: "4px 0" }, children: theme ? theme.name : "Loading…" })] }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), options: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "PBS moves database", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsx("div", { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }, children: "Active PBS source" }), SP_JSX.jsx("div", { style: { fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all", padding: "4px 0" }, children: movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —" }), SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777", padding: "2px 0" }, children: movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…" })] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }), movesDb?.pbs_source && (SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "TouchMenu overlay", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.touchmenu_enabled, onChange: setTouchmenu, children: "Enable in-game touch menu" }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Polling", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: 11, color: "#888", marginBottom: 4, padding: "4px 0" }, children: ["Backend live watcher checks the disk every", " ", SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units. The UI will always update instantly when changes occur."] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Interval (seconds)", value: String(settings.scan_interval_seconds), onChange: (e) => {
                                 const n = parseInt(e.target.value, 10);
                                 if (!isNaN(n))
                                     setScanInterval(n);
-                            } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.watcher_enabled ?? true, onChange: setWatcherEnabled, children: "Live save watcher (sub-second updates)" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
-                                fontSize: 11,
-                                color: "#888",
-                                lineHeight: 1.4,
-                            }, children: "Watches the save file mtime via a background thread and re-parses on every change. ~1s latency, near-zero CPU. Recommended when in-game; disable for battery savings." }) })] }), candidates.length > 0 && (SP_JSX.jsx(DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: candidates.map((c) => (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 4,
-                        }, children: [SP_JSX.jsx("div", { style: {
-                                    fontSize: 11,
-                                    color: "#ddd",
-                                    wordBreak: "break-all",
-                                }, children: c.path }), SP_JSX.jsxs("div", { style: { fontSize: 10, color: "#777" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }) }, c.path))) })), (statusMsg || statusError) && (SP_JSX.jsx(DFL.PanelSection, { title: "Status", children: SP_JSX.jsxs(DFL.PanelSectionRow, { children: [statusMsg && (SP_JSX.jsx("div", { style: { fontSize: 12, color: "#5eba7d" }, children: statusMsg })), statusError && (SP_JSX.jsx("div", { style: { fontSize: 12, color: "#e87b7b" }, children: statusError }))] }) }))] }));
+                            } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.watcher_enabled ?? true, onChange: setWatcherEnabled, children: "Live save watcher (sub-second updates)" }) })] }), candidates.length > 0 && (SP_JSX.jsx(DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: candidates.map((c) => (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4, padding: "4px 0" }, children: [SP_JSX.jsx("div", { style: { fontSize: 11, color: "#ddd", wordBreak: "break-all" }, children: c.path }), SP_JSX.jsxs("div", { style: { fontSize: 10, color: "#777" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }) }, c.path))) })), (statusMsg || statusError) && (SP_JSX.jsx(DFL.PanelSection, { title: "Status", children: SP_JSX.jsxs(DFL.PanelSectionRow, { children: [statusMsg && SP_JSX.jsx("div", { style: { fontSize: 12, color: "#5eba7d", padding: "4px 0" }, children: statusMsg }), statusError && SP_JSX.jsx("div", { style: { fontSize: 12, color: "#e87b7b", padding: "4px 0" }, children: statusError })] }) }))] }));
 }
 
 const BUCKET_LABELS = {

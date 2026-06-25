@@ -5,7 +5,7 @@ import {
   PanelSectionRow,
   TextField,
   Toggle,
-} from "../decky-frontend-lib-shim";
+} from "@decky/ui";
 import { useCallback, useEffect, useState } from "react";
 import { api, SaveFileCandidate, SavePathResult } from "../api";
 import { applySettingsPatch, refreshMoves, refreshTheme, useStore } from "../store";
@@ -126,7 +126,7 @@ export function SettingsView() {
     setStatusMsg(null);
     setStatusError(null);
     try {
-      const r = await api.loadPbsMoves("/dev/null");
+      await api.clearPbs();
       await refreshMoves();
       setStatusMsg("PBS override cleared. Static moves database only.");
     } catch (e) {
@@ -239,7 +239,7 @@ export function SettingsView() {
 
   const setWatcherEnabled = useCallback(async (v: boolean) => {
     try {
-      await api.setWatcherEnabled(v);
+      await applySettingsPatch({ watcher_enabled: v });
       setStatusMsg(v ? "Live save watcher enabled." : "Live save watcher disabled.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -261,28 +261,14 @@ export function SettingsView() {
     <>
       <PanelSection title="Save resolution">
         <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#969696",
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
+          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }}>
             Active save
           </div>
-          <div
-            style={{
-              fontSize: 12,
-              color: resolved?.path ? "#5eba7d" : "#e0a458",
-              wordBreak: "break-all",
-              marginTop: 4,
-            }}
-          >
+          <div style={{ fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all", padding: "4px 0" }}>
             {resolved?.path || "— no save found —"}
           </div>
           {resolved?.using_override && (
-            <div style={{ fontSize: 10, color: "#777", marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: "#777", padding: "2px 0" }}>
               (using manual override)
             </div>
           )}
@@ -294,22 +280,13 @@ export function SettingsView() {
 
       <PanelSection title="Manual override">
         <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#888",
-              lineHeight: 1.4,
-              marginBottom: 4,
-            }}
-          >
-            If auto-detection fails, paste the full path to{" "}
-            <code style={{ color: "#ccc" }}>Game.rxdata</code> here. Leave
-            blank to use auto-detection.
+          <div style={{ fontSize: 11, color: "#888", lineHeight: 1.4, padding: "4px 0 8px 0" }}>
+            If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection.
           </div>
         </PanelSectionRow>
         <PanelSectionRow>
           <TextField
-            label="Path to Game.rxdata"
+            label="Path to save file"
             value={overrideInput}
             onChange={(e) => setOverrideInput(e.target.value)}
           />
@@ -338,54 +315,16 @@ export function SettingsView() {
             Compact mode (auto-hide empty sections)
           </Toggle>
         </PanelSectionRow>
-        <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#888",
-              lineHeight: 1.4,
-            }}
-          >
-            When enabled, the UI only shows sections that have actual data
-            from the save (e.g. IVs/EVs only on Essentials v17+, gender
-            only when the game stores it). Disable to always show all
-            sections with placeholder dashes.
-          </div>
-        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Theme">
         <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#969696",
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
+          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }}>
             Active theme
           </div>
-          <div
-            style={{
-              fontSize: 12,
-              color: theme ? theme.palette.accent : "#888",
-              marginTop: 4,
-            }}
-          >
+          <div style={{ fontSize: 12, color: theme ? theme.palette.accent : "#888", padding: "4px 0" }}>
             {theme ? theme.name : "Loading…"}
           </div>
-          {theme && (
-            <div
-              style={{
-                fontSize: 10,
-                color: "#777",
-                marginTop: 2,
-              }}
-            >
-              {theme.description}
-            </div>
-          )}
         </PanelSectionRow>
         <PanelSectionRow>
           <Dropdown
@@ -396,93 +335,18 @@ export function SettingsView() {
             disabled={themes.length === 0}
           />
         </PanelSectionRow>
-        {theme && (
-          <PanelSectionRow>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 4,
-                marginTop: 4,
-              }}
-            >
-              {(Object.keys(theme.palette) as Array<keyof typeof theme.palette>)
-                .filter((k) =>
-                  [
-                    "accent",
-                    "hpGood",
-                    "hpWarn",
-                    "hpBad",
-                    "shiny",
-                    "female",
-                    "male",
-                  ].includes(k)
-                )
-                .map((k) => (
-                  <div
-                    key={k}
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 4,
-                      background: theme.palette[k],
-                      border: "1px solid rgba(255,255,255,0.15)",
-                    }}
-                    title={`${k}: ${theme.palette[k]}`}
-                  />
-                ))}
-            </div>
-          </PanelSectionRow>
-        )}
       </PanelSection>
 
       <PanelSection title="PBS moves database">
         <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#969696",
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
+          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, padding: "4px 0" }}>
             Active PBS source
           </div>
-          <div
-            style={{
-              fontSize: 11,
-              color: movesDb?.pbs_source ? "#5eba7d" : "#888",
-              wordBreak: "break-all",
-              marginTop: 4,
-            }}
-          >
-            {movesDb?.pbs_source
-              ? shortenPath(movesDb.pbs_source, 80)
-              : "— not loaded (using static DB) —"}
+          <div style={{ fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all", padding: "4px 0" }}>
+            {movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —"}
           </div>
-          <div
-            style={{
-              fontSize: 10,
-              color: "#777",
-              marginTop: 4,
-            }}
-          >
-            {movesDb
-              ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS`
-              : "Loading…"}
-          </div>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#888",
-              lineHeight: 1.4,
-            }}
-          >
-            PBS files from your game are auto-discovered from the save
-            folder. Loading them adds <em>custom moves</em> (fan-game
-            specials) on top of the static Gen 1-6 database.
+          <div style={{ fontSize: 10, color: "#777", padding: "2px 0" }}>
+            {movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…"}
           </div>
         </PanelSectionRow>
         <ButtonItem layout="below" onClick={reloadPbsAuto} disabled={pbsBusy}>
@@ -511,35 +375,14 @@ export function SettingsView() {
             Enable in-game touch menu
           </Toggle>
         </PanelSectionRow>
-        <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#888",
-              lineHeight: 1.4,
-            }}
-          >
-            When enabled, a touch menu appears over the game. Tap with two
-            fingers on the screen to open it. Disable if it interferes with
-            gameplay.
-          </div>
-        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Polling">
         <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#888",
-              marginBottom: 4,
-            }}
-          >
-            Save file is re-parsed every{" "}
-            <strong style={{ color: "#ccc" }}>
-              {Math.max(5, settings.scan_interval_seconds)}s
-            </strong>
-            . Lower values = fresher data, higher CPU. Minimum 5s.
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 4, padding: "4px 0" }}>
+            Backend live watcher checks the disk every{" "}
+            <strong style={{ color: "#ccc" }}>{Math.max(5, settings.scan_interval_seconds)}</strong>
+            {" "}units. The UI will always update instantly when changes occur.
           </div>
         </PanelSectionRow>
         <PanelSectionRow>
@@ -553,22 +396,9 @@ export function SettingsView() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <Toggle value={true} onChange={setWatcherEnabled}>
+          <Toggle value={settings.watcher_enabled ?? true} onChange={setWatcherEnabled}>
             Live save watcher (sub-second updates)
           </Toggle>
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#888",
-              lineHeight: 1.4,
-            }}
-          >
-            Watches the save file mtime via a background thread and
-            re-parses on every change. ~1s latency, near-zero CPU.
-            Recommended when in-game; disable for battery savings.
-          </div>
         </PanelSectionRow>
       </PanelSection>
 
@@ -576,20 +406,8 @@ export function SettingsView() {
         <PanelSection title={`Discovered saves (${candidates.length})`}>
           {candidates.map((c) => (
             <PanelSectionRow key={c.path}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#ddd",
-                    wordBreak: "break-all",
-                  }}
-                >
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "4px 0" }}>
+                <div style={{ fontSize: 11, color: "#ddd", wordBreak: "break-all" }}>
                   {c.path}
                 </div>
                 <div style={{ fontSize: 10, color: "#777" }}>
@@ -607,12 +425,8 @@ export function SettingsView() {
       {(statusMsg || statusError) && (
         <PanelSection title="Status">
           <PanelSectionRow>
-            {statusMsg && (
-              <div style={{ fontSize: 12, color: "#5eba7d" }}>{statusMsg}</div>
-            )}
-            {statusError && (
-              <div style={{ fontSize: 12, color: "#e87b7b" }}>{statusError}</div>
-            )}
+            {statusMsg && <div style={{ fontSize: 12, color: "#5eba7d", padding: "4px 0" }}>{statusMsg}</div>}
+            {statusError && <div style={{ fontSize: 12, color: "#e87b7b", padding: "4px 0" }}>{statusError}</div>}
           </PanelSectionRow>
         </PanelSection>
       )}

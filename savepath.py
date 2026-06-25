@@ -18,12 +18,19 @@ from typing import Optional
 
 import psutil
 
+from steampaths import candidate_steam_roots, wine_prefix_search_roots
+
 log = logging.getLogger("pokemon-overlay.savepath")
 
 SAVENAMES: tuple[str, ...] = (
     "Game.rxdata",
     "Save.rxdata",
     "Game.es3",
+)
+
+SAVE_EXTENSIONS: tuple[str, ...] = (
+    ".rxdata",
+    ".es3",
 )
 
 LIKELY_GAME_PROCESS_HINTS = (
@@ -77,57 +84,46 @@ def _find_via_open_files() -> Optional[Path]:
     return candidates[0]
 
 
-def _candidate_steam_roots() -> list[Path]:
-    home = Path.home()
-    roots = [
-        home / ".steam" / "steam" / "steamapps",
-        home / ".local" / "share" / "Steam" / "steamapps",
-    ]
-    flatpak = home / ".var" / "app" / "com.valvesoftware.Steam" / "data" / "Steam" / "steamapps"
-    if flatpak.is_dir():
-        roots.append(flatpak)
-    return [r for r in roots if r.is_dir()]
+# Steam path helpers imported from steampaths module (see Fix #6).
 
 
-def _wine_prefix_search_roots(compat_root: Path) -> list[Path]:
-    pfx_root = compat_root / "pfx" / "drive_c"
-    if not pfx_root.is_dir():
-        return []
-    return [
-        pfx_root / "users" / "steamuser" / "Documents",
-        pfx_root / "users" / "steamuser" / "My Documents",
-    ]
+def _safe_walk_find(root: Path, names: tuple[str, ...]) -> list[Path]:
+    out = []
+    skip_dirs = {"SteamLinuxRuntime_sniper", "SteamLinuxRuntime_soldier", "SteamLinuxRuntime"}
+    for dirpath, dirnames, filenames in os.walk(str(root)):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for f in filenames:
+            # Match exact save names OR any file with a known save extension
+            if f in names or any(f.endswith(ext) for ext in SAVE_EXTENSIONS):
+                p = Path(dirpath) / f
+                if _is_readable(p):
+                    out.append(p)
+    return out
 
 
 def _scan_wine_prefixes() -> list[Path]:
     out: list[Path] = []
-    for steamapps in _candidate_steam_roots():
+    for steamapps in candidate_steam_roots():
         compat = steamapps / "compatdata"
         if not compat.is_dir():
             continue
         for appdir in compat.iterdir():
             if not appdir.is_dir():
                 continue
-            for search_root in _wine_prefix_search_roots(appdir):
+            for search_root in wine_prefix_search_roots(appdir):
                 if not search_root.is_dir():
                     continue
-                for savename in SAVENAMES:
-                    for save_file in search_root.rglob(savename):
-                        if _is_readable(save_file):
-                            out.append(save_file)
+                out.extend(_safe_walk_find(search_root, SAVENAMES))
     return out
 
 
 def _scan_native_library() -> list[Path]:
     out: list[Path] = []
-    for steamapps in _candidate_steam_roots():
+    for steamapps in candidate_steam_roots():
         common = steamapps / "common"
         if not common.is_dir():
             continue
-        for savename in SAVENAMES:
-            for save_file in common.rglob(savename):
-                if _is_readable(save_file):
-                    out.append(save_file)
+        out.extend(_safe_walk_find(common, SAVENAMES))
     return out
 
 
@@ -162,6 +158,7 @@ def find_save_file(override: Optional[str] = None) -> Optional[Path]:
         return found
 
     candidates = _dedupe_by_mtime(_scan_wine_prefixes() + _scan_native_library())
+
     if not candidates:
         log.info("No save file candidates found")
         return None

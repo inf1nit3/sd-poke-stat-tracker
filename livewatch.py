@@ -35,17 +35,30 @@ LIKELY_GAME_PROCESS_HINTS: tuple[str, ...] = (
     "ruby",
     "essentials",
     "rpg",
+    "vanguard",
+    "reborn",
+    "rejuvenation",
+    "desolation",
+    "uranium",
+    "infinite",
+    "insurgence",
 )
 
 # Terms that indicate a Pokémon fan game process.
-# NOTE: "poke" and "pokemon" are NOT included here because they match
-# our own plugin process (sd-poke-stat-tracker). We only match on
-# terms that would appear in an actual game's process cmdline.
 POKEMON_TERMS: tuple[str, ...] = (
     "essentials",
     "fan game",
     "rgss",
     "rpg maker",
+    "pokemon",
+)
+
+# Generic game executable names commonly used by RPG Maker / Pokémon Essentials games
+GAME_EXE_NAMES: tuple[str, ...] = (
+    "game.exe",
+    "rgssad.exe",
+    "rgss2ad.exe",
+    "rgss3ad.exe",
 )
 
 # Paths that indicate the process is our plugin or Decky itself,
@@ -80,7 +93,9 @@ def find_game_processes() -> list[dict[str, object]]:
             h in cmdline_str for h in LIKELY_GAME_PROCESS_HINTS
         )
         is_pokemon = any(t in cmdline_str for t in POKEMON_TERMS)
-        if not (is_likely or is_pokemon):
+        # Also check for generic game exe names running under Proton/Wine
+        is_game_exe = any(name == exe_name for exe_name in GAME_EXE_NAMES)
+        if not (is_likely or is_pokemon or is_game_exe):
             continue
         # Exclude our own plugin process and Decky internals
         if any(ex in cmdline_str for ex in EXCLUDE_PATH_HINTS):
