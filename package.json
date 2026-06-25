@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "sd-poke-stat-tracker",
   "version": "0.1.0",
   "description": "In-game party stat tracker for Pokémon Essentials fan games on Steam Deck",
