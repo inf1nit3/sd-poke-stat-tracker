@@ -50,6 +50,27 @@ def _is_readable(path: Path) -> bool:
         return False
 
 
+# Exclude paths that indicate the process is our plugin / Decky itself, not
+# a game. Used to filter out false positives in both save-path resolution and
+# live game-process detection.
+EXCLUDE_PATH_HINTS: tuple[str, ...] = (
+    "sd-poke-stat-tracker",
+    "homebrew",
+    "decky",
+    "plugin_loader",
+    "pluginloader",
+)
+
+
+def _process_excluded(proc: psutil.Process) -> bool:
+    """True if this process is our plugin or Decky internals."""
+    try:
+        cmdline = " ".join(proc.cmdline() or []).lower()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False
+    return any(ex in cmdline for ex in EXCLUDE_PATH_HINTS)
+
+
 def _looks_like_game(proc: psutil.Process) -> bool:
     try:
         name = (proc.name() or "").lower()
@@ -68,6 +89,8 @@ def _find_via_open_files() -> Optional[Path]:
     """Inspect open file handles of running processes for a save file."""
     candidates: list[Path] = []
     for proc in psutil.process_iter():
+        if _process_excluded(proc):
+            continue
         if not _looks_like_game(proc):
             continue
         try:
@@ -133,7 +156,7 @@ def _dedupe_by_mtime(paths: list[Path]) -> list[Path]:
     for p in paths:
         try:
             rp = p.resolve()
-        except OSError:
+        except Exception:
             rp = p
         if rp in seen:
             continue

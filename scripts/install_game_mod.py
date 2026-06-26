@@ -22,17 +22,57 @@ PLUGIN_NAME = "PokeStatStream"
 META_SRC = HERE.parent / "game-mod" / "meta.txt"
 STREAM_SRC = HERE.parent / "game-mod" / "stream.rb"
 
+# Fallback candidates checked when --game-dir is not passed.
+# These cover the most common fan-game installs but are intentionally a
+# shortlist — the generic rglob-based search below catches anything else.
+_HARDCODED_CANDIDATES: tuple[Path, ...] = (
+    Path.home() / "Downloads" / "Vanguard 4.0.3",
+    Path.home() / "Downloads" / "Pokemon Empire",
+    Path.home() / "Downloads" / "Godra Remastered V 0.3.7",
+)
+
+# Roots we rglob for Game.exe / Plugins/. Limited to typical Steam Deck /
+# desktop download locations to keep startup cheap.
+_SEARCH_ROOTS: tuple[Path, ...] = (
+    Path.home() / "Downloads",
+    Path.home() / "Games",
+    Path.home() / "Desktop",
+    Path("/run/media"),
+)
+
+
+def _looks_like_game_dir(d: Path) -> bool:
+    """True if ``d`` has both Game.exe and a Plugins/ folder."""
+    try:
+        return (d / "Game.exe").is_file() and (d / "Plugins").is_dir()
+    except OSError:
+        return False
+
 
 def find_game_dir() -> Path | None:
-    """Look for a Pokémon Essentials game in common locations."""
-    candidates = [
-        Path.home() / "Downloads" / "Vanguard 4.0.3",
-        Path.home() / "Downloads" / "Pokemon Empire",
-        Path.home() / "Downloads" / "Godra Remastered V 0.3.7",
-    ]
-    for c in candidates:
-        if (c / "Game.exe").is_file() and (c / "Plugins").is_dir():
+    """Look for a Pokémon Essentials game in common locations.
+
+    Order:
+      1. Hardcoded candidates (instant).
+      2. rglob each search root for any Game.exe, verify Plugins/ exists.
+    """
+    for c in _HARDCODED_CANDIDATES:
+        if _looks_like_game_dir(c):
             return c
+    seen: set[Path] = set()
+    for root in _SEARCH_ROOTS:
+        if not root.is_dir():
+            continue
+        try:
+            for exe in root.rglob("Game.exe"):
+                parent = exe.parent
+                if parent in seen:
+                    continue
+                seen.add(parent)
+                if _looks_like_game_dir(parent):
+                    return parent
+        except OSError:
+            continue
     return None
 
 

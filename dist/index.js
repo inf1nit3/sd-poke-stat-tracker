@@ -127,28 +127,50 @@ function getServerSnapshot() {
     return initialState;
 }
 function useStore(selector) {
-    return SP_REACT.useSyncExternalStore(subscribe, () => selector(getSnapshot()), () => selector(getServerSnapshot()));
+    const state = SP_REACT.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+    return selector(state);
 }
 async function refreshStatic() {
-    try {
-        const [info, typeChart, settings, movesDatabase, themes] = await Promise.all([
-            api.getPluginInfo(),
-            api.getTypeChart(),
-            api.getSettings(),
-            api.getMovesDatabase(),
-            api.getThemes(),
-        ]);
-        updateState({
-            info,
-            typeChart,
-            settings,
-            movesDatabase,
-            theme: themes.active,
-        });
+    // Retry up to 3 times with exponential backoff. The Decky Loader's plugin
+    // reload cycle can transiently make the backend unreachable right when
+    // the frontend mounts — a single try then permanently shows "Loading..."
+    // for the user. Retries make the plugin robust against that boot-loop.
+    const maxAttempts = 3;
+    let lastError = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const [info, typeChart, settings, movesDatabase, themes] = await Promise.all([
+                api.getPluginInfo(),
+                api.getTypeChart(),
+                api.getSettings(),
+                api.getMovesDatabase(),
+                api.getThemes(),
+            ]);
+            updateState({
+                info,
+                typeChart,
+                settings,
+                movesDatabase,
+                theme: themes.active,
+            });
+            return;
+        }
+        catch (e) {
+            lastError = e;
+            console.warn(`[store] refreshStatic attempt ${attempt}/${maxAttempts} failed:`, e);
+            if (attempt < maxAttempts) {
+                // Exponential backoff: 500ms, 1500ms
+                const delay = 500 * Math.pow(3, attempt - 1);
+                await new Promise((r) => setTimeout(r, delay));
+            }
+        }
     }
-    catch (e) {
-        console.error("[store] refreshStatic failed", e);
-    }
+    console.error("[store] refreshStatic failed after all retries:", lastError);
+}
+// Public alias — used by views that want to manually retry after the
+// initial load failed. Same logic, callable on demand.
+async function retryRefreshStatic() {
+    await refreshStatic();
 }
 async function refreshTheme() {
     try {
@@ -181,9 +203,11 @@ async function refreshLiveState() {
     try {
         const liveState = await api.getLiveState();
         updateState({ liveState });
+        return liveState;
     }
     catch (e) {
         console.error("[store] refreshLiveState failed", e);
+        return null;
     }
 }
 async function applySettingsPatch(patch) {
@@ -200,19 +224,42 @@ async function applySettingsPatch(patch) {
         throw e;
     }
 }
-function startPolling(intervalSeconds) {
+function startPolling() {
     stopPolling();
+    // Backend SaveFileWatcher (mtime poll) fires within ~0.3s of any save, so
+    // a fast 1.5s frontend poll is the right cadence while the game is
+    // actively playing. If we haven't seen a live event in a while, back off
+    // to save battery on the Steam Deck.
+    const fastMs = 1500;
+    const slowMs = 5000;
     refreshSave(false);
     refreshLiveState();
-    pollTimer = setInterval(() => {
+    let consecutiveIdle = 0;
+    const tick = () => {
         refreshSave(false);
-        refreshLiveState();
-    }, 1500);
-    console.log(`[store] live frontend polling started, every 1.5s`);
+        refreshLiveState().then((live) => {
+            const lastAt = live?.last_live_event?.at ?? 0;
+            const now = Date.now() / 1000;
+            const sinceLast = now - lastAt;
+            if (lastAt > 0 && sinceLast < 10) {
+                consecutiveIdle = 0;
+            }
+            else {
+                consecutiveIdle += 1;
+            }
+            const next = consecutiveIdle > 4 ? slowMs : fastMs;
+            if (pollTimer !== null) {
+                clearTimeout(pollTimer);
+                pollTimer = setTimeout(tick, next);
+            }
+        });
+    };
+    pollTimer = setTimeout(tick, fastMs);
+    console.log(`[store] live frontend polling started (adaptive 1.5s/5s)`);
 }
 function stopPolling() {
     if (pollTimer !== null) {
-        clearInterval(pollTimer);
+        clearTimeout(pollTimer);
         pollTimer = null;
         console.log("[store] polling stopped");
     }
@@ -298,6 +345,10 @@ function TypeBadge({ type, size = "md", style, dimmed = false }) {
         }, children: type }));
 }
 
+function normalizeKey(name) {
+    return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 const BUCKETS$1 = [
     {
         key: "super_effective",
@@ -366,7 +417,7 @@ function MoveLookupTouchMenu() {
                     paddingBottom: 4,
                     borderBottom: "1px solid #2a2a2a",
                 }, children: [SP_JSX.jsx("span", { style: { fontSize: 11, color: "#888", fontWeight: 600 }, children: "PARTY MOVES:" }), partyMoves.map((pm, i) => {
-                        const info = movesDb?.moves?.[normalizeKey$1(pm.move)];
+                        const info = movesDb?.moves?.[normalizeKey(pm.move)];
                         const type = info?.type;
                         return (SP_JSX.jsxs("button", { onClick: () => setSelectedMove(pm.move), style: {
                                 display: "inline-flex",
@@ -454,9 +505,6 @@ function Detail({ label, value }) {
                     letterSpacing: 0.4,
                 }, children: label }), SP_JSX.jsx("div", { style: { fontSize: 12, color: "#ddd" }, children: value })] }));
 }
-function normalizeKey$1(name) {
-    return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
 
 function colorForPercent(pct) {
     if (pct >= 0.5)
@@ -517,10 +565,6 @@ function HealthBar({ hp, maxHp, statusName, width = "100%", showLabel = true, })
                     textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
                 }, children: [hp, "/", maxHp] }))] }));
-}
-
-function normalizeKey(name) {
-    return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 const STATUS_COLORS$1 = {
@@ -792,16 +836,21 @@ function TabButton({ active, onClick, children, }) {
         }, children: children }));
 }
 
+// PatchTouchMenu is provided by the Decky Loader at runtime (via the
+// `decky-frontend-lib` global). The bundled types don't expose it, so we
+// read it off globalThis with an `any` cast.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PatchTouchMenu = globalThis.PatchTouchMenu;
 let unpatch = null;
 function registerTouchMenu() {
     if (unpatch)
         return;
-    if (typeof DFL.PatchTouchMenu !== "function") {
+    if (typeof PatchTouchMenu !== "function") {
         console.warn("[pokemon-overlay] PatchTouchMenu not available in this Decky version, skipping touch menu");
         return;
     }
     try {
-        unpatch = DFL.PatchTouchMenu({
+        unpatch = PatchTouchMenu({
             menuLabel: "Pokémon Essentials",
             icon: SP_JSX.jsx(PokeballIcon, {}),
             content: SP_JSX.jsx(TouchMenuContent, {}),
@@ -902,7 +951,7 @@ function PokemonCard({ pokemon: p, features, forced }) {
     if (display.happiness && p.happiness != null) {
         compactInfo.push({ label: "♥", value: String(p.happiness) });
     }
-    return (SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: {
             display: "flex",
             flexDirection: "column",
             gap: 6,
@@ -1083,7 +1132,7 @@ function CapabilitiesSummary({ features }) {
             gap: 4,
             fontSize: 10,
             color: "#888",
-        }, children: items.map(([label, value]) => (SP_JSX.jsx("span", { style: {
+        }, children: items.map(([label, _value]) => (SP_JSX.jsx("span", { style: {
                 background: "rgba(94,186,125,0.1)",
                 color: "#5eba7d",
                 padding: "2px 6px",
@@ -1124,14 +1173,25 @@ function HomeView() {
     const settings = useStore((s) => s.settings);
     const live = useStore((s) => s.liveState);
     if (!info) {
-        return (SP_JSX.jsx(DFL.PanelSection, { title: "Pok\u00E9mon Essentials Overlay", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "8px 0",
-                    }, children: SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading\u2026" }) }) }) }));
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Pok\u00E9mon Essentials Overlay", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { onActivate: () => { }, style: {
+                            color: "#e0a458",
+                            fontSize: 12,
+                            padding: "8px 0",
+                        }, children: "Plugin data isn't loaded yet. The Decky Loader may be reloading the plugin in the background." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "4px 0",
+                        }, children: [SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading\u2026" }), SP_JSX.jsx("span", { style: {
+                                    fontSize: 11,
+                                    color: "#56b4e9",
+                                    cursor: "pointer",
+                                    textDecoration: "underline",
+                                }, onClick: () => {
+                                    retryRefreshStatic();
+                                }, children: "Reload" })] }) })] }));
     }
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "About", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "About", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: {
                             display: "flex",
                             flexDirection: "column",
                             gap: 4,
@@ -1140,7 +1200,7 @@ function HomeView() {
                                     fontSize: 12,
                                     color: "#969696",
                                     lineHeight: 1.4,
-                                }, children: String(info.description) })] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Status", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
+                                }, children: String(info.description) })] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Status", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: {
                             fontSize: 12,
                             display: "flex",
                             flexDirection: "column",
@@ -1170,7 +1230,7 @@ function HomeView() {
                                             textTransform: "uppercase",
                                             letterSpacing: 0.4,
                                             marginBottom: 4,
-                                        }, children: ["Save features (", saveData.version, ")"] }), SP_JSX.jsx(CapabilitiesSummary, { features: saveData.features })] }))] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Roadmap", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
+                                        }, children: ["Save features (", saveData.version, ")"] }), SP_JSX.jsx(CapabilitiesSummary, { features: saveData.features })] }))] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Roadmap", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: {
                             fontSize: 12,
                             color: "#969696",
                             lineHeight: 1.6,
@@ -1221,23 +1281,24 @@ function PartyView() {
         }
     }, []);
     if (!data) {
-        return (SP_JSX.jsx(DFL.PanelSection, { title: "Party", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "12px 0",
-                    }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading save data\u2026" })] }) }) }));
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Party", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { onActivate: () => { }, style: {
+                            color: "#e0a458",
+                            fontSize: 12,
+                            padding: "4px 0",
+                        }, children: "Save data isn't loaded yet. The Decky Loader may be reloading the plugin in the background." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: () => {
+                            retryRefreshStatic();
+                        }, children: "Reload" }) })] }));
     }
     if (data.error === "no_save_file_found") {
-        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Party", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: 13, color: "#969696", lineHeight: 1.5 }, children: ["No save file found. Start the game and save once, or set a manual path in ", SP_JSX.jsx("strong", { children: "Settings" }), "."] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: reloading ? "Scanning…" : "Scan again" })] }));
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Party", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: { fontSize: 13, color: "#969696", lineHeight: 1.5 }, children: ["No save file found. Start the game and save once, or set a manual path in ", SP_JSX.jsx("strong", { children: "Settings" }), "."] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: reloading ? "Scanning…" : "Scan again" })] }));
     }
     if (data.error === "parse_failed") {
-        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Party", children: [SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsxs("div", { style: { color: "#e87b7b", fontSize: 13 }, children: ["Parse error: ", data.message] }), SP_JSX.jsx("div", { style: {
-                                fontSize: 11,
-                                color: "#777",
-                                marginTop: 6,
-                                wordBreak: "break-all",
-                            }, children: data.path })] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: "Try again" })] }));
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Party", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, children: [SP_JSX.jsxs("div", { style: { color: "#e87b7b", fontSize: 13 }, children: ["Parse error: ", data.message] }), SP_JSX.jsx("div", { style: {
+                                    fontSize: 11,
+                                    color: "#777",
+                                    marginTop: 6,
+                                    wordBreak: "break-all",
+                                }, children: data.path })] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: "Try again" })] }));
     }
     const compactMode = settings?.compact_mode ?? true;
     return (SP_JSX.jsx(PartyContent, { data: data, reloading: reloading, onReload: reload, autoRefreshSeconds: settings?.scan_interval_seconds ?? 30, forced: compactMode ? undefined : DEFAULT_DISPLAY }));
@@ -1245,12 +1306,12 @@ function PartyView() {
 function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }) {
     const party = data.party || [];
     const slots = Array.from({ length: MAX_PARTY_SLOTS }).map((_, i) => party[i] || null);
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: data.trainer_name || "Trainer", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: data.trainer_name || "Trainer", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: {
                                 display: "grid",
                                 gridTemplateColumns: "1fr 1fr",
                                 gap: 4,
                                 fontSize: 12,
-                            }, children: [SP_JSX.jsx(Stat, { label: "Money", value: formatMoney(data.money) }), SP_JSX.jsx(Stat, { label: "Badges", value: String(data.badges) }), SP_JSX.jsx(Stat, { label: "Location", value: data.location_name || `Map #${data.map_id ?? "?"}` }), SP_JSX.jsx(Stat, { label: "Position", value: `${data.x ?? "?"}, ${data.y ?? "?"}` }), SP_JSX.jsx(Stat, { label: "Play time", value: formatPlayTime(data.play_time_seconds) }), SP_JSX.jsx(Stat, { label: "Version", value: data.version })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: 11, color: "#777" }, children: ["Updated ", timeAgo(data.parsed_at), " \u00B7 auto-refresh every", " ", Math.max(5, autoRefreshSeconds), "s"] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: onReload, disabled: reloading, children: reloading ? "Reloading…" : "Reload from disk" })] }), data.features && (SP_JSX.jsx(DFL.PanelSection, { title: "Detected features", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(CapabilitiesSummary, { features: data.features }) }) })), SP_JSX.jsx(DFL.PanelSection, { title: `Party (${party.length}/${MAX_PARTY_SLOTS})`, children: slots.map((p, i) => p ? (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(PokemonCard, { pokemon: p, features: data.features, forced: forced }) }, `slot-${i}`)) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: {
+                            }, children: [SP_JSX.jsx(Stat, { label: "Money", value: formatMoney(data.money) }), SP_JSX.jsx(Stat, { label: "Badges", value: String(data.badges) }), SP_JSX.jsx(Stat, { label: "Location", value: data.location_name || `Map #${data.map_id ?? "?"}` }), SP_JSX.jsx(Stat, { label: "Position", value: `${data.x ?? "?"}, ${data.y ?? "?"}` }), SP_JSX.jsx(Stat, { label: "Play time", value: formatPlayTime(data.play_time_seconds) }), SP_JSX.jsx(Stat, { label: "Version", value: data.version })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: { fontSize: 11, color: "#777" }, children: ["Updated ", timeAgo(data.parsed_at), " \u00B7 auto-refresh every", " ", Math.max(5, autoRefreshSeconds), "s"] }) }), SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: onReload, disabled: reloading, children: reloading ? "Reloading…" : "Reload from disk" })] }), data.features && (SP_JSX.jsx(DFL.PanelSection, { title: "Detected features", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { onActivate: () => { }, children: SP_JSX.jsx(CapabilitiesSummary, { features: data.features }) }) }) })), SP_JSX.jsx(DFL.PanelSection, { title: `Party (${party.length}/${MAX_PARTY_SLOTS})`, children: slots.map((p, i) => p ? (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(PokemonCard, { pokemon: p, features: data.features, forced: forced }) }, `slot-${i}`)) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { onActivate: () => { }, style: {
                             padding: 10,
                             background: "rgba(255,255,255,0.02)",
                             borderRadius: 6,
@@ -1259,7 +1320,7 @@ function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }
                             fontSize: 11,
                             color: "#555",
                             fontStyle: "italic",
-                        }, children: ["Slot ", i + 1, " \u2014 empty"] }) }, `slot-${i}`))) }), SP_JSX.jsx(DFL.PanelSection, { title: "Source", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
+                        }, children: ["Slot ", i + 1, " \u2014 empty"] }) }, `slot-${i}`))) }), SP_JSX.jsx(DFL.PanelSection, { title: "Source", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { onActivate: () => { }, style: {
                             fontSize: 10,
                             color: "#666",
                             wordBreak: "break-all",
@@ -1299,6 +1360,8 @@ function SettingsView() {
     const settings = useStore((s) => s.settings);
     const movesDb = useStore((s) => s.movesDatabase);
     const theme = useStore((s) => s.theme);
+    // themes list is fetched once via the API but cached locally so the
+    // Dropdown doesn't unmount when the active theme changes.
     const [resolved, setResolved] = SP_REACT.useState(null);
     const [candidates, setCandidates] = SP_REACT.useState([]);
     const [overrideInput, setOverrideInput] = SP_REACT.useState("");
@@ -1328,12 +1391,18 @@ function SettingsView() {
     SP_REACT.useEffect(() => {
         refresh();
     }, [refresh]);
+    // Fetch the themes list once on mount. The list of available themes
+    // doesn't change at runtime — re-fetching on theme changes was a bug
+    // (caused a brief "Loading…" flash every time the user picked a new theme).
+    const themesLoaded = SP_REACT.useMemo(() => themes.length > 0, [themes]);
     SP_REACT.useEffect(() => {
+        if (themesLoaded)
+            return;
         api
             .getThemes()
             .then((r) => setThemes(r.themes))
             .catch((e) => console.error("themes", e));
-    }, [theme?.id]);
+    }, [themesLoaded]);
     SP_REACT.useEffect(() => {
         if (settings)
             setOverrideInput(settings.save_path_override ?? "");
@@ -1502,7 +1571,6 @@ function SettingsView() {
     const setTheme = SP_REACT.useCallback(async (v) => {
         try {
             await applySettingsPatch({ theme: v });
-            await refreshTheme();
         }
         catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
@@ -1532,13 +1600,25 @@ function SettingsView() {
         }
     }, []);
     if (!settings) {
-        return (SP_JSX.jsx(DFL.PanelSection, { title: "Settings", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 12, color: "#969696" }, children: "Loading\u2026" }) }) }));
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Settings", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: {
+                            color: "#e0a458",
+                            fontSize: 12,
+                            padding: "4px 0",
+                        }, children: "Settings aren't loaded yet. The Decky Loader may be reloading the plugin in the background." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { style: { fontSize: 12, color: "#969696", padding: "4px 0" }, children: ["Loading\u2026", SP_JSX.jsx("span", { style: {
+                                    fontSize: 11,
+                                    color: "#56b4e9",
+                                    cursor: "pointer",
+                                    textDecoration: "underline",
+                                    marginLeft: 8,
+                                }, onClick: () => {
+                                    retryRefreshStatic();
+                                }, children: "Reload" })] }) })] }));
     }
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "Save resolution", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active save" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all" }, children: resolved?.path || "— no save found —" }) }), resolved?.using_override && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777" }, children: "(using manual override)" }) })), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Manual override", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 11, color: "#888", lineHeight: 1.4 }, children: "If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Path to save file", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }) }), settings.save_path_override && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }) }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "Auto-detect options", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.auto_scan_enabled, onChange: setAutoScan, children: "Auto-scan running processes and Wine prefixes" }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Display", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.compact_mode, onChange: setCompactMode, children: "Compact mode (auto-hide empty sections)" }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Theme", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active theme" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 12, color: theme ? theme.palette.accent : "#888" }, children: theme ? theme.name : "Loading…" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), options: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "PBS moves database", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active PBS source" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }, children: movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777" }, children: movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }) }), movesDb?.pbs_source && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }) }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "TouchMenu overlay", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.touchmenu_enabled, onChange: setTouchmenu, children: "Enable in-game touch menu" }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Live memory reading", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 11, color: "#888", lineHeight: 1.4 }, children: "When the game is running, read party state directly from the game's process memory. Updates arrive every ~1s without waiting for the game to save to disk. Opt-in: the disk watcher still runs as a fallback if memory reading fails." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.live_memory_enabled ?? false, onChange: setLiveMemory, children: "Read live data from game process memory" }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Polling", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: 11, color: "#888" }, children: ["Backend live watcher checks the disk every", " ", SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units. The UI will always update instantly when changes occur."] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Interval (seconds)", value: String(settings.scan_interval_seconds), onChange: (e) => {
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(DFL.PanelSection, { title: "Save resolution", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active save" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all" }, children: resolved?.path || "— no save found —" }) }), resolved?.using_override && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 10, color: "#777" }, children: "(using manual override)" }) })), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Manual override", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 11, color: "#888", lineHeight: 1.4 }, children: "If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Path to save file", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }) }), settings.save_path_override && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }) }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "Auto-detect options", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Auto-scan running processes and Wine prefixes", checked: settings.auto_scan_enabled, onChange: setAutoScan }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: "Display", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Compact mode (auto-hide empty sections)", checked: settings.compact_mode, onChange: setCompactMode }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Theme", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active theme" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 12, color: theme ? theme.palette.accent : "#888" }, children: theme ? theme.name : "Loading…" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), rgOptions: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "PBS moves database", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active PBS source" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }, children: movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 10, color: "#777" }, children: movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }) }), movesDb?.pbs_source && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }) }))] }), SP_JSX.jsx(DFL.PanelSection, { title: "TouchMenu overlay", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Enable in-game touch menu", checked: settings.touchmenu_enabled, onChange: setTouchmenu }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Live memory reading", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 11, color: "#888", lineHeight: 1.4 }, children: "When the game is running, read party state directly from the game's process memory. Updates arrive every ~1s without waiting for the game to save to disk. Opt-in: the disk watcher still runs as a fallback if memory reading fails." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Read live data from game process memory", checked: Boolean(settings?.live_memory_enabled), onChange: setLiveMemory }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: "Polling", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { style: { fontSize: 11, color: "#888" }, children: ["Backend live watcher checks the disk every", " ", SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units. The UI will always update instantly when changes occur."] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.TextField, { label: "Interval (seconds)", value: String(settings.scan_interval_seconds), onChange: (e) => {
                                 const n = parseInt(e.target.value, 10);
                                 if (!isNaN(n))
                                     setScanInterval(n);
-                            } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Toggle, { value: settings.watcher_enabled ?? true, onChange: setWatcherEnabled, children: "Live save watcher (sub-second updates)" }) })] }), candidates.length > 0 && (SP_JSX.jsxs(DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: [candidates.slice(0, 20).map((c) => (SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [SP_JSX.jsx("div", { style: { fontSize: 11, color: "#ddd", wordBreak: "break-all" }, children: c.path }), SP_JSX.jsxs("div", { style: { fontSize: 10, color: "#777" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] })] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }, c.path))), candidates.length > 20 && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: 11, color: "#777", fontStyle: "italic" }, children: ["\u2026and ", candidates.length - 20, " more. Use override to select specific file."] }) }))] })), (statusMsg || statusError) && (SP_JSX.jsxs(DFL.PanelSection, { title: "Status", children: [statusMsg && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 12, color: "#5eba7d" }, children: statusMsg }) })), statusError && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { fontSize: 12, color: "#e87b7b" }, children: statusError }) }))] }))] }));
+                            } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Live save watcher (sub-second updates)", checked: settings.watcher_enabled ?? true, onChange: setWatcherEnabled }) })] }), candidates.length > 0 && (SP_JSX.jsxs(DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: [candidates.slice(0, 20).map((c) => (SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsxs(DFL.Focusable, { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [SP_JSX.jsx("div", { style: { fontSize: 11, color: "#ddd", wordBreak: "break-all" }, children: c.path }), SP_JSX.jsxs("div", { style: { fontSize: 10, color: "#777" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] })] }), SP_JSX.jsx(DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }, c.path))), candidates.length > 20 && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.Focusable, { style: { fontSize: 11, color: "#777", fontStyle: "italic" }, children: ["\u2026and ", candidates.length - 20, " more. Use override to select specific file."] }) }))] })), (statusMsg || statusError) && (SP_JSX.jsxs(DFL.PanelSection, { title: "Status", children: [statusMsg && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 12, color: "#5eba7d" }, children: statusMsg }) })), statusError && (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Focusable, { style: { fontSize: 12, color: "#e87b7b" }, children: statusError }) }))] }))] }));
 }
 
 const BUCKET_LABELS = {
@@ -1656,9 +1736,15 @@ function TypeChartView() {
             .finally(() => setLoading(false));
     }, [chart, mode, attacker, defenderPair]);
     if (!chart) {
-        return (SP_JSX.jsx(DFL.PanelSection, { title: "Type Chart", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "8px 0" }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 13, color: "#969696" }, children: "Loading type chart\u2026" })] }) }) }));
+        return (SP_JSX.jsxs(DFL.PanelSection, { title: "Type Chart", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: {
+                            color: "#e0a458",
+                            fontSize: 12,
+                            padding: "8px 0",
+                        }, children: "Type chart data isn't loaded yet. The Decky Loader may be reloading the plugin in the background." }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: () => {
+                            retryRefreshStatic();
+                        }, children: "Reload" }) })] }));
     }
-    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "Mode", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.ButtonItem, { layout: "below", onClick: () => setMode(mode === "defense" ? "offense" : "defense"), children: ["Mode: ", mode === "defense" ? "Defender" : "Attacker", " (click to switch)"] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), options: attackerOptions }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), options: typeOptions }) })] })) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), options: attackerOptions }) })) }), loading && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 12, color: "#969696" }, children: "Updating\u2026" })] }) }) })), error && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: 12, padding: "4px 0" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What does it hit?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) }))] }));
+    return (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "Mode", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(DFL.ButtonItem, { layout: "below", onClick: () => setMode(mode === "defense" ? "offense" : "defense"), children: ["Mode: ", mode === "defense" ? "Defender" : "Attacker", " (click to switch)"] }) }) }), SP_JSX.jsx(DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), rgOptions: attackerOptions }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), rgOptions: typeOptions }) })] })) : (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), rgOptions: attackerOptions }) })) }), loading && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }, children: [SP_JSX.jsx(DFL.Spinner, {}), SP_JSX.jsx("span", { style: { fontSize: 12, color: "#969696" }, children: "Updating\u2026" })] }) }) })), error && (SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { color: "#e87b7b", fontSize: 12, padding: "4px 0" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (SP_JSX.jsx(DFL.PanelSection, { title: "What does it hit?", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) }))] }));
 }
 
 const TABS = [
@@ -1669,23 +1755,22 @@ const TABS = [
 ];
 function PluginContent() {
     const [active, setActive] = SP_REACT.useState("status");
-    const settings = useStore((s) => s.settings);
+    useStore((s) => s.settings);
     const theme = useStore((s) => s.theme);
-    const interval = settings?.scan_interval_seconds ?? 30;
     SP_REACT.useEffect(() => {
         refreshStatic();
     }, []);
     SP_REACT.useEffect(() => {
         startPolling();
         return () => stopPolling();
-    }, [interval]);
+    }, []);
     SP_REACT.useEffect(() => {
         registerTouchMenu();
         return () => unregisterTouchMenu();
     }, []);
     const palette = theme?.palette ?? DEFAULT_PALETTE;
     const themeStyle = SP_REACT.useMemo(() => paletteToCssVars(palette), [palette]);
-    return (SP_JSX.jsxs(DFL.Focusable, { style: { display: "flex", flexDirection: "column", ...themeStyle }, children: [SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), SP_JSX.jsxs(DFL.ScrollPanel, { focusable: true, style: { flex: 1, maxHeight: "100%" }, children: [active === "status" && SP_JSX.jsx(HomeView, {}), active === "typechart" && SP_JSX.jsx(TypeChartView, {}), active === "party" && SP_JSX.jsx(PartyView, {}), active === "settings" && SP_JSX.jsx(SettingsView, {})] })] }));
+    return (SP_JSX.jsxs(DFL.Focusable, { style: { display: "flex", flexDirection: "column", ...themeStyle }, children: [SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), SP_JSX.jsxs(DFL.ScrollPanel, { children: [active === "status" && SP_JSX.jsx(HomeView, {}), active === "typechart" && SP_JSX.jsx(TypeChartView, {}), active === "party" && SP_JSX.jsx(PartyView, {}), active === "settings" && SP_JSX.jsx(SettingsView, {})] })] }));
 }
 var index = definePlugin(() => {
     return {

@@ -9,18 +9,33 @@ Phase 6: Live memory reading from the running game process.
 
 from __future__ import annotations
 
-# Patch rubymarshal to handle TYPE_LINK forward references.
-# Must be loaded BEFORE any other module in the plugin imports
-# rubymarshal, otherwise the unpatched ``loads`` will be cached
-# in sys.modules and the patch won't apply.
+# Patch rubymarshal to handle TYPE_LINK forward references in Essentials .rxdata
+# files. Must be loaded BEFORE any other module in the plugin imports
+# rubymarshal, otherwise the unpatched ``loads`` will be cached in
+# sys.modules and the patch won't apply.
+#
+# Why this matters: Vanguard and other fan-game forks use circular references
+# (e.g. $Trainer.@party[i].@trainer -> $Trainer). The upstream rubymarshal
+# reader raises ValueError when a TYPE_LINK points at an object whose slot
+# is still None during unmarshalling. Our _marshal_compat module replaces
+# the upstream ``loads`` with one that returns a ForwardRef proxy for
+# unresolved links, then walks the tree post-parse to resolve them all.
+#
+# See: https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md
+# (unrelated upstream) + tests/smoke_test.py for the round-trip verification.
 try:
-    from rubymarshal import _forward_ref_patch  # noqa: F401
+    import _marshal_compat  # noqa: F401  # applies the monkey-patch on import
 except ImportError:
+    # _marshal_compat is shipped alongside this module; if it's missing,
+    # save-parser will fail with "invalid link destination" on any save
+    # with circular references. We continue anyway because some synthetic
+    # or older saves might still parse without the patch.
     pass
 
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -31,7 +46,7 @@ import decky
 # copies of livewatch/savepath/steampaths that may live in
 # site-packages from a previous install of this plugin.
 PLUGIN_DIR: Path = Path(__file__).resolve().parent
-sys.path.insert(0, str(PLUGIN_DIR))
+sys.path.insert(0, str(PLUGIN_DIR / "py_modules"))
 
 from livewatch import (
     LiveMemoryReader,
@@ -49,11 +64,19 @@ from savepath import find_save_file, list_save_files
 from themes import ThemeManager
 from typechart import TypeChart
 
-PLUGIN_DIR: Path = Path(__file__).resolve().parent
+import decky_plugin
+
 DATA_DIR: Path = PLUGIN_DIR / "data"
 TYPE_CHART_PATH: Path = DATA_DIR / "type_chart.json"
-SETTINGS_PATH: Path = DATA_DIR / "settings.json"
 THEMES_PATH: Path = DATA_DIR / "themes.json"
+
+# Use Decky Loader's dedicated settings directory for persistence
+try:
+    SETTINGS_DIR = Path(decky_plugin.DECKY_PLUGIN_SETTINGS_DIR)
+except AttributeError:
+    SETTINGS_DIR = Path(os.environ.get("DECKY_PLUGIN_SETTINGS_DIR", str(DATA_DIR)))
+
+SETTINGS_PATH: Path = SETTINGS_DIR / "settings.json"
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "save_path_override": None,
@@ -65,8 +88,71 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "theme": "default",
     "compact_mode": True,
     "watcher_enabled": True,
+    # Live-memory reading is currently experimental (see livewatch.py
+    # module docstring) — it scans /proc/<pid>/mem for Marshal headers
+    # every ~3s but cannot find valid blobs in a running RPG Maker XP /
+    # Pokémon Essentials session. Default OFF so users don't pay the CPU
+    # cost without opt-in awareness.
     "live_memory_enabled": False,  # Phase 6: opt-in
 }
+
+# Type guards for settings.json loaded from disk. Without this a manually
+# edited or older settings.json (e.g. with "30" instead of 30) can crash
+# downstream code that does e.g. scan_interval_seconds / 10.
+def _coerce_settings(raw: dict[str, Any]) -> dict[str, Any]:
+    """Best-effort coerce a loaded settings dict to match DEFAULT_SETTINGS types.
+
+    Drops unknown keys, fixes wrong-typed values, and clamps numerics to
+    sane ranges. Returns the cleaned dict (does not mutate the input).
+    """
+    out: dict[str, Any] = {}
+    for key, default in DEFAULT_SETTINGS.items():
+        value = raw.get(key, default)
+        out[key] = _coerce_setting_value(key, value, default)
+    return out
+
+
+def _coerce_setting_value(key: str, value: Any, default: Any) -> Any:
+    """Coerce a single setting value to the type of its default."""
+    if value is None:
+        return None if default is None else default
+    if isinstance(default, bool):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            low = value.strip().lower()
+            if low in ("true", "1", "yes", "on"):
+                return True
+            if low in ("false", "0", "no", "off"):
+                return False
+        return default
+    if isinstance(default, int) and not isinstance(default, bool):
+        try:
+            n = int(value)
+            if key == "scan_interval_seconds":
+                n = max(5, min(600, n))
+            return n
+        except (TypeError, ValueError):
+            return default
+    if isinstance(default, float):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+    if isinstance(default, str):
+        return str(value) if isinstance(value, str) else default
+    if isinstance(default, dict) and isinstance(value, dict):
+        # Merge dict-valued settings (touchmenu_position) with type coercion.
+        merged = dict(default)
+        for k, v in value.items():
+            if k in default:
+                merged[k] = _coerce_setting_value(f"{key}.{k}", v, default[k])
+            else:
+                merged[k] = v
+        return merged
+    return default
 
 PLUGIN_INFO: dict[str, str] = {
     "name": "Pokémon Essentials Overlay",
@@ -89,6 +175,8 @@ class Plugin:
         self._type_chart_engine: TypeChart = TypeChart(TYPE_CHART_PATH)
         self._moves_db: MovesDB = MovesDB()
         self._themes: ThemeManager = ThemeManager(THEMES_PATH)
+        self._state_lock = threading.Lock()
+        self._state_lock = threading.Lock()
         self._settings: dict[str, Any] = dict(DEFAULT_SETTINGS)
         self._initialized: bool = False
         self._save_cache: dict[str, Any] | None = None
@@ -149,19 +237,21 @@ class Plugin:
         self._initialized = False
 
     def _load_settings(self) -> None:
+        # _coerce_settings() returns a complete dict with every DEFAULT_SETTINGS
+        # key populated (using defaults for missing/invalid entries), so we
+        # don't need a separate setdefault loop afterwards.
+        loaded: dict[str, Any] = {}
         if SETTINGS_PATH.is_file():
             try:
                 with SETTINGS_PATH.open("r", encoding="utf-8") as fh:
                     loaded = json.load(fh)
-                if isinstance(loaded, dict):
-                    self._settings.update(loaded)
             except (json.JSONDecodeError, OSError) as exc:
                 log.warning(f"Could not read settings.json: {exc}")
-        for key, default in DEFAULT_SETTINGS.items():
-            self._settings.setdefault(key, default)
+        with self._state_lock:
+            self._settings.update(_coerce_settings(loaded))
 
     def _save_settings(self) -> None:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
         tmp_path = SETTINGS_PATH.with_suffix(".json.tmp")
         try:
             with tmp_path.open("w", encoding="utf-8") as fh:
@@ -232,7 +322,8 @@ class Plugin:
 
     async def get_settings(self) -> dict[str, Any]:
         """Return the current settings dict."""
-        return dict(self._settings)
+        with self._state_lock:
+            return dict(self._settings)
 
     async def update_settings(self, patch: dict[str, Any]) -> dict[str, Any]:
         """Merge patch into settings and persist to disk."""
@@ -251,26 +342,38 @@ class Plugin:
                 and isinstance(pos["y"], (int, float))
             ):
                 raise TypeError("touchmenu_position must be { x: number, y: number }")
-        self._settings.update(patch)
-        self._save_settings()
+        # Coerce types in the patch to match DEFAULT_SETTINGS — otherwise a
+        # frontend bug sending scan_interval_seconds as a string would land
+        # in self._settings and crash downstream arithmetic (e.g.
+        # _start_watcher divides it by 10). Unknown keys are dropped.
+        with self._state_lock:
+            coerced = _coerce_settings({**self._settings, **patch})
+        # Apply only the keys that were actually in the patch, so callers
+        # can't accidentally widen the settings schema via coercion.
+            self._settings.update({k: coerced[k] for k in patch.keys() if k in coerced})
+            self._save_settings()
         if "save_path_override" in patch:
-            self._save_cache = None
-            self._save_cache_path = None
-            self._last_live_event = {}
+            with self._state_lock:
+                self._save_cache = None
+                self._save_cache_path = None
+                self._last_live_event = {}
             self._stop_watcher()
             if self._settings.get("watcher_enabled", True):
                 self._start_watcher()
         if "watcher_enabled" in patch:
-            if patch["watcher_enabled"]:
+            # Use the coerced value (patch["watcher_enabled"] could be int or
+            # string from a buggy frontend) for consistency with self._settings.
+            if coerced.get("watcher_enabled", True):
                 self._start_watcher()
             else:
                 self._stop_watcher()
         if "live_memory_enabled" in patch:
-            if patch["live_memory_enabled"]:
+            if coerced.get("live_memory_enabled", False):
                 self._start_memory_reader()
             else:
                 self._stop_memory_reader()
-        return dict(self._settings)
+        with self._state_lock:
+            return dict(self._settings)
 
     async def find_save_path(self) -> dict[str, Any]:
         """Resolve the most likely save file path. Does not parse it."""
@@ -293,24 +396,27 @@ class Plugin:
         """
         import time as _time
 
-        override = self._settings.get("save_path_override")
+        with self._state_lock:
+            override = self._settings.get("save_path_override")
         path = find_save_file(override if override else None)
         if path is None:
-            self._save_cache = None
-            self._save_cache_path = None
+            with self._state_lock:
+                self._save_cache = None
+                self._save_cache_path = None
             return {"error": "no_save_file_found", "path": None}
 
         path_str = str(path)
-        if (
-            not force_reload
-            and self._save_cache is not None
-            and self._save_cache_path == path_str
-        ):
-            try:
-                if path.stat().st_mtime <= self._save_cache_at:
-                    return self._save_cache
-            except OSError:
-                pass
+        with self._state_lock:
+            if (
+                not force_reload
+                and self._save_cache is not None
+                and self._save_cache_path == path_str
+            ):
+                try:
+                    if path.stat().st_mtime <= self._save_cache_at:
+                        return self._save_cache
+                except OSError:
+                    pass
 
         try:
             data: SaveData = parse_save_file(path)
@@ -330,14 +436,15 @@ class Plugin:
             }
 
         out = data.to_dict()
-        self._save_cache = out
-        self._save_cache_path = path_str
-        try:
-            self._save_cache_at = path.stat().st_mtime
-        except OSError:
-            self._save_cache_at = _time.time()
-        self._settings["last_save_path"] = path_str
-        self._save_settings()
+        with self._state_lock:
+            self._save_cache = out
+            self._save_cache_path = path_str
+            try:
+                self._save_cache_at = path.stat().st_mtime
+            except OSError:
+                self._save_cache_at = _time.time()
+            self._settings["last_save_path"] = path_str
+            self._save_settings()
         if self._watcher is not None:
             self._watcher.notify_save_loaded(path)
         return out
@@ -452,14 +559,15 @@ class Plugin:
                 pass
         try:
             data = parse_save_file(path)
-            self._save_cache = data.to_dict()
-            self._save_cache_path = str(path)
-            try:
-                self._save_cache_at = path.stat().st_mtime
-            except OSError:
-                self._save_cache_at = _time.time()
-            self._settings["last_save_path"] = str(path)
-            self._save_settings()
+            with self._state_lock:
+                self._save_cache = data.to_dict()
+                self._save_cache_path = str(path)
+                try:
+                    self._save_cache_at = path.stat().st_mtime
+                except OSError:
+                    self._save_cache_at = _time.time()
+                self._settings["last_save_path"] = str(path)
+                self._save_settings()
             self._last_live_event = {
                 "kind": "save_modified",
                 "path": str(path),
@@ -533,11 +641,12 @@ class Plugin:
         # Stream updates are fresher than memory updates.
         if self._live_source == "stream":
             return
-        if now <= self._save_cache_at:
-            return
-        self._save_cache = payload
-        self._save_cache_path = f"<memory:{self._memory_pid}>"
-        self._save_cache_at = now
+        with self._state_lock:
+            if now <= self._save_cache_at:
+                return
+            self._save_cache = payload
+            self._save_cache_path = f"<memory:{self._memory_pid}>"
+            self._save_cache_at = now
         self._live_source = "memory"
         self._last_live_event = {
             "kind": "memory_update",
@@ -560,9 +669,10 @@ class Plugin:
         now = _time.time()
         # Stream always wins over memory/disk if a fresh-enough
         # timestamp arrives.
-        self._save_cache = payload
-        self._save_cache_path = f"<stream:9988>"
-        self._save_cache_at = now
+        with self._state_lock:
+            self._save_cache = payload
+            self._save_cache_path = f"<stream:9988>"
+            self._save_cache_at = now
         self._live_source = "stream"
         self._last_live_event = {
             "kind": "stream_update",

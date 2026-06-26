@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -132,10 +133,11 @@ class PokemonSummary:
         return d
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SaveData:
     version: str
-    essentials_version: Optional[str]
+    essentials_version: Optional[str] = None
+    game_version: Optional[str] = None
     trainer_name: str
     party: list[PokemonSummary]
     money: int
@@ -152,6 +154,7 @@ class SaveData:
         return {
             "version": self.version,
             "essentials_version": self.essentials_version,
+            "game_version": self.game_version,
             "trainer_name": self.trainer_name,
             "party": [p.to_dict() for p in self.party],
             "party_count": len(self.party),
@@ -177,6 +180,11 @@ class SaveData:
         version_supports_shiny = self.version in ("v17+", "v18+", "v21+")
         version_supports_nature = version_supports_shiny or self.version == "v17"
         version_supports_ivs = version_supports_nature
+        # EVs / happiness only exist in v18+; v16/v17 saves simply lack the
+        # @ev instance variable, so we mark them unsupported up front rather
+        # than relying on the per-Pokemon loop to discover the absence.
+        version_supports_evs = self.version in ("v18+", "v21+")
+        version_supports_happiness = version_supports_evs
 
         features: dict[str, bool] = {
             "ivs": False,
@@ -194,9 +202,11 @@ class SaveData:
         for p in self.party:
             if p.iv_hp is not None:
                 features["ivs"] = True
-            if p.ev_hp is not None:
+            # A stored "0" EV is still data — the per-Pokemon loop catches it.
+            # (Version gating above already excludes v16/v17 saves.)
+            if version_supports_evs and p.ev_hp is not None:
                 features["evs"] = True
-            if p.happiness is not None:
+            if version_supports_happiness and p.happiness is not None:
                 features["happiness"] = True
             if any(
                 v is not None
@@ -316,7 +326,7 @@ def _top_key(parsed: Any, *names: str) -> Any:
 
 _SPECIES_TYPES_CACHE: dict[str, tuple[Optional[str], Optional[str]]] | None = None
 _SPECIES_TYPES_SOURCE: Optional[Path] = None
-_SPECIES_TYPES_LOCK = False
+_SPECIES_TYPES_LOCK = threading.Lock()
 
 
 def _read_pbs_multiform(path: Path) -> dict[str, dict[str, str]]:
@@ -499,13 +509,11 @@ def _get_species_types(
     global _SPECIES_TYPES_CACHE, _SPECIES_TYPES_SOURCE, _SPECIES_TYPES_LOCK
     if not species:
         return (None, None)
-    if _SPECIES_TYPES_CACHE is None and not _SPECIES_TYPES_LOCK:
-        _SPECIES_TYPES_LOCK = True
-        try:
-            _SPECIES_TYPES_CACHE = _load_species_types_from_pbs(save_path)
-            _SPECIES_TYPES_SOURCE = save_path
-        finally:
-            _SPECIES_TYPES_LOCK = False
+    if _SPECIES_TYPES_CACHE is None:
+        with _SPECIES_TYPES_LOCK:
+            if _SPECIES_TYPES_CACHE is None:
+                _SPECIES_TYPES_CACHE = _load_species_types_from_pbs(save_path)
+                _SPECIES_TYPES_SOURCE = save_path
     if _SPECIES_TYPES_CACHE is None:
         return (None, None)
     return _SPECIES_TYPES_CACHE.get(species.upper(), (None, None))
@@ -548,6 +556,14 @@ def _parse_pokemon(obj: Any, save_path: Optional[Path] = None) -> Optional[Pokem
         except (TypeError, ValueError):
             return default
 
+    def _opt_int(value: Any) -> Optional[int]:
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
     status = _int(_attr(obj, "@status", "status"), 0)
     shiny_raw = _attr(obj, "@shiny", "shiny")
 
@@ -576,11 +592,11 @@ def _parse_pokemon(obj: Any, save_path: Optional[Path] = None) -> Optional[Pokem
         gender_name=GENDER_NAMES.get(_int(_attr(obj, "@gender", "gender"), 0), "?"),
         shiny=bool(shiny_raw) if shiny_raw is not None else False,
         nature=_symbol_name(_attr(obj, "@nature", "nature")),
-        attack=_int(_attr(obj, "@attack", "attack"), 0) or None,
-        defense=_int(_attr(obj, "@defense", "defense"), 0) or None,
-        spatk=_int(_attr(obj, "@spatk", "@spatk", "spatk", "specialattack"), 0) or None,
-        spdef=_int(_attr(obj, "@spdef", "spdef", "specialdefense"), 0) or None,
-        speed=_int(_attr(obj, "@speed", "speed"), 0) or None,
+        attack=_opt_int(_attr(obj, "@attack", "attack")),
+        defense=_opt_int(_attr(obj, "@defense", "defense")),
+        spatk=_opt_int(_attr(obj, "@spatk", "spatk", "specialattack")),
+        spdef=_opt_int(_attr(obj, "@spdef", "spdef", "specialdefense")),
+        speed=_opt_int(_attr(obj, "@speed", "speed")),
         **_parse_iv_ev_happiness(obj),
     )
 
@@ -659,9 +675,18 @@ def _parse_iv_ev_happiness(obj: Any) -> dict[str, Optional[int]]:
     return out
 
 
-def _detect_version(parsed: dict[str, Any]) -> str:
-    """Best-effort Essentials version guess based on field presence."""
-    trainer = parsed.get("$Trainer")
+def _detect_version(
+    parsed: dict[str, Any],
+    essentials_version: Optional[str] = None,
+) -> str:
+    """Best-effort Essentials version guess based on field presence.
+
+    If ``essentials_version`` is provided (the save's own version string,
+    e.g. ``"20.1"``), we can return a more specific label like ``"v20.1"``
+    without relying solely on field-presence heuristics (which fail for
+    fan-game forks like Vanguard that store extra fields).
+    """
+    trainer = _top_key(parsed, "$Trainer", "player", "Trainer")
     if not isinstance(trainer, RubyObject):
         return "unknown"
     party = trainer.attributes.get("@party", []) if trainer.attributes else []
@@ -678,6 +703,11 @@ def _detect_version(parsed: dict[str, Any]) -> str:
         return "v17+"
     if "@level" in sample_attrs:
         return "v16+"
+    if essentials_version:
+        # Fallback: use the save's own version string. We don't know the
+        # exact semantics of an unknown fan-game fork's version, but
+        # matching the string the save declares is more useful than "unknown".
+        return f"v{essentials_version}"
     return "unknown"
 
 
@@ -841,9 +871,23 @@ def _parse_and_extract(
         except (TypeError, ValueError):
             play_time = 0
 
+    # essentials_version + game_version — present in v18+ saves and most
+    # fan-game forks (Vanguard, Rejuvenation, etc.). The keys are stored as
+    # Symbol objects in the Marshal hash, so we need _top_key (which tries
+    # both string and Symbol) rather than a direct dict lookup.
+    essentials_version_raw = _top_key(parsed, "essentials_version")
+    game_version_raw = _top_key(parsed, "game_version")
+    essentials_version_str = (
+        str(essentials_version_raw) if essentials_version_raw is not None else None
+    )
+    game_version_str = (
+        str(game_version_raw) if game_version_raw is not None else None
+    )
+
     return SaveData(
-        version=_detect_version(parsed),
-        essentials_version=None,
+        version=_detect_version(parsed, essentials_version=essentials_version_str),
+        essentials_version=essentials_version_str,
+        game_version=game_version_str,
         trainer_name=trainer_name,
         party=party,
         money=money,

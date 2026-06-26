@@ -18,6 +18,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from steampaths import candidate_steam_roots, wine_prefix_search_roots
+
 log = logging.getLogger("pokemon-overlay.pbsfinder")
 
 PBS_FILENAMES: dict[str, tuple[str, ...]] = {
@@ -34,31 +36,11 @@ GAME_FOLDER_HINTS: tuple[str, ...] = (
     "data",
 )
 
+# CANDIDATE_STEAM_ROOTS_ATTR kept for backward compat but unused.
 CANDIDATE_STEAM_ROOTS_ATTR: str = "_candidate_steam_roots"
 
 
-def _candidate_steam_roots() -> list[Path]:
-    """Same as savepath._candidate_steam_roots but duplicated to avoid coupling."""
-    home = Path.home()
-    roots = [
-        home / ".steam" / "steam" / "steamapps",
-        home / ".local" / "share" / "Steam" / "steamapps",
-    ]
-    flatpak = home / ".var" / "app" / "com.valvesoftware.Steam" / "data" / "Steam" / "steamapps"
-    if flatpak.is_dir():
-        roots.append(flatpak)
-    return [r for r in roots if r.is_dir()]
-
-
-def _wine_prefix_search_roots(compat_root: Path) -> list[Path]:
-    pfx_root = compat_root / "pfx" / "drive_c"
-    if not pfx_root.is_dir():
-        return []
-    return [
-        pfx_root / "users" / "steamuser" / "Documents",
-        pfx_root / "users" / "steamuser" / "My Documents",
-        pfx_root / "Program Files (x86)" / "Steam" / "steamapps" / "common",
-    ]
+# Steam path helpers imported from steampaths module (see Fix #6).
 
 
 def _walk_for_pbs(root: Path) -> dict[str, Path]:
@@ -107,7 +89,7 @@ def find_pbs_files(
     if hint:
         candidates.append(Path(os.path.expanduser(hint)))
 
-    for steamapps in _candidate_steam_roots():
+    for steamapps in candidate_steam_roots():
         common = steamapps / "common"
         if common.is_dir():
             for game_dir in common.iterdir():
@@ -122,7 +104,7 @@ def find_pbs_files(
             for appdir in compat.iterdir():
                 if not appdir.is_dir():
                     continue
-                for search_root in _wine_prefix_search_roots(appdir):
+                for search_root in wine_prefix_search_roots(appdir):
                     if not search_root.is_dir():
                         continue
                     for game_dir in search_root.iterdir():

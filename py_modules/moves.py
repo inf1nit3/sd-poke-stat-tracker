@@ -246,6 +246,12 @@ class MovesDB:
     def pbs_source(self) -> Optional[Path]:
         return self._pbs_source
 
+    def clear_pbs(self) -> None:
+        """Clear PBS overlay data, reverting to static moves only."""
+        self._pbs = {}
+        self._pbs_source = None
+        log.info("PBS moves cleared, using static database only")
+
     def get(self, name: str) -> Optional[dict[str, Any]]:
         """Look up a move by name. Returns a dict or None."""
         if not name:

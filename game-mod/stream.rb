@@ -56,7 +56,11 @@ class PokeStatStream
     rescue StandardError => e
       # Never let the game crash from a streaming error.
       close_socket!
-      $stderr.putrsor = nil rescue nil
+      log_error(e)
+    end
+
+    def log_error(e)
+      $stderr.puts("[PokeStatStream] #{e.class}: #{e.message}") rescue nil
     end
 
     def stream_state
