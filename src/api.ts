@@ -1,4 +1,4 @@
-import { call } from "./decky-shim";
+import { call } from "@decky/api";
 
 export interface PluginInfo {
   name: string;
@@ -18,6 +18,8 @@ export interface PluginSettings {
   last_save_path: string | null;
   theme: string;
   compact_mode: boolean;
+  watcher_enabled: boolean;
+  live_memory_enabled: boolean;
   [key: string]: unknown;
 }
 
@@ -239,6 +241,7 @@ export interface GameProcess {
   pid: number | null;
   name: string | null;
   cmdline: string;
+  is_emulator?: boolean;
 }
 
 export interface LiveState {
@@ -246,6 +249,10 @@ export interface LiveState {
   processes: GameProcess[];
   active_process: GameProcess | null;
   watcher_active: boolean;
+  live_source: "disk" | "memory" | "stream";
+  memory_reader_active: boolean;
+  memory_pid: number | null;
+  memory_failure_log: string[];
   last_live_event: {
     kind?: string;
     path?: string;
@@ -254,6 +261,45 @@ export interface LiveState {
   } | null;
   last_save_data: SaveData | null;
   last_save_path: string | null;
+  in_menu?: boolean;
+  screen_state?: string;
+  battle_analysis?: BattleAnalysis;
+  mod_needs_restart?: boolean;
+}
+
+export interface BattleEnemy {
+  name: string;
+  hp_percent?: number;
+  type?: string[];
+  types?: string[];
+  totalhp?: number;
+  hp?: number;
+  stages?: number[];
+}
+
+export interface BattleMove {
+  name: string;
+  type?: string;
+  power?: number;
+  effectiveness_label?: string;
+}
+
+export interface BattleAnalysis {
+  enemy: BattleEnemy;
+  moves: BattleMove[];
+  best_move: string;
+  coach_suggestion?: {
+    suggested_pokemon: string;
+    reason: string;
+  };
+}
+
+
+export interface MemoryRegion {
+  path: string;
+  start: string;
+  end: string;
+  perms: string;
 }
 
 async function callOrThrow<T>(method: string, ...args: unknown[]): Promise<T> {
@@ -293,6 +339,8 @@ export const api = {
   loadPbsMoves: (path: string) =>
     callOrThrow<PbsLoadResult>("load_pbs_moves", path),
   autoLoadPbs: () => callOrThrow<PbsAutoLoadResult>("auto_load_pbs"),
+  clearPbs: () =>
+    callOrThrow<{ database: MovesDatabase }>("clear_pbs"),
   getThemes: () => callOrThrow<ThemesResponse>("get_themes"),
   getActiveTheme: () => callOrThrow<Theme>("get_active_theme"),
   getLiveState: () => callOrThrow<LiveState>("get_live_state"),
@@ -304,10 +352,3 @@ export const api = {
   getProcessMemoryRegions: (pid: number) =>
     callOrThrow<MemoryRegion[]>("get_process_memory_regions", pid),
 };
-
-export interface MemoryRegion {
-  path: string;
-  start: string;
-  end: string;
-  perms: string;
-}

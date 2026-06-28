@@ -1,6 +1,7 @@
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useRef, useCallback } from "react";
 import {
   api,
+  LiveState,
   MovesDatabase,
   PluginInfo,
   PluginSettings,
@@ -16,6 +17,7 @@ export interface StoreState {
   settings: PluginSettings | null;
   movesDatabase: MovesDatabase | null;
   theme: Theme | null;
+  liveState: LiveState | null;
 }
 
 const initialState: StoreState = {
@@ -25,19 +27,24 @@ const initialState: StoreState = {
   settings: null,
   movesDatabase: null,
   theme: null,
+  liveState: null,
 };
 
 let state: StoreState = initialState;
 const listeners = new Set<() => void>();
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-let currentIntervalSeconds = 0;
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
 function notify() {
   for (const l of listeners) l();
 }
 
-function setState(next: StoreState) {
-  state = next;
+/**
+ * Functional state updater that always reads the *current* module-level
+ * state before merging, preventing stale-closure race conditions when
+ * multiple async operations resolve concurrently.
+ */
+function updateState(patch: Partial<StoreState>) {
+  state = { ...state, ...patch };
   notify();
 }
 
@@ -56,49 +63,111 @@ function getServerSnapshot() {
   return initialState;
 }
 
-export function useStore<T>(selector: (s: StoreState) => T): T {
-  return useSyncExternalStore(
-    subscribe,
-    () => selector(getSnapshot()),
-    () => selector(getServerSnapshot())
-  );
+export function useStore<T>(
+  selector: (s: StoreState) => T,
+  equalityFn?: (a: T, b: T) => boolean
+): T {
+  const selectorRef = useRef(selector);
+  selectorRef.current = selector;
+  const eqRef = useRef(equalityFn);
+  eqRef.current = equalityFn;
+
+  const cache = useRef<{ state: StoreState; selection: T } | null>(null);
+
+  const getSelection = useCallback(() => {
+    const currentState = getState();
+    const currentSelector = selectorRef.current;
+
+    // If the state hasn't changed, return the cached selection.
+    // (Assumes the selector is a pure function of state).
+    if (cache.current && cache.current.state === currentState) {
+      return cache.current.selection;
+    }
+
+    const newSelection = currentSelector(currentState);
+
+    // If the state changed but the selected value is identical (or custom equality passes),
+    // update the cached state but return the old selection reference 
+    // so React bails out of re-rendering.
+    const isEq = cache.current && (eqRef.current 
+      ? eqRef.current(cache.current.selection, newSelection)
+      : Object.is(cache.current.selection, newSelection));
+
+    if (cache.current && isEq) {
+      cache.current.state = currentState;
+      return cache.current.selection;
+    }
+
+    cache.current = { state: currentState, selection: newSelection };
+    return newSelection;
+  }, []);
+
+  const getServerSelection = useCallback(() => {
+    return selectorRef.current(getServerSnapshot());
+  }, []);
+
+  return useSyncExternalStore(subscribe, getSelection, getServerSelection);
 }
 
 export async function refreshStatic() {
-  try {
-    const [info, typeChart, settings, movesDatabase, themes] = await Promise.all([
-      api.getPluginInfo(),
-      api.getTypeChart(),
-      api.getSettings(),
-      api.getMovesDatabase(),
-      api.getThemes(),
-    ]);
-    setState({
-      ...state,
-      info,
-      typeChart,
-      settings,
-      movesDatabase,
-      theme: themes.active,
-    });
-  } catch (e) {
-    console.error("[store] refreshStatic failed", e);
+  // Retry up to 3 times with exponential backoff. The Decky Loader's plugin
+  // reload cycle can transiently make the backend unreachable right when
+  // the frontend mounts — a single try then permanently shows "Loading..."
+  // for the user. Retries make the plugin robust against that boot-loop.
+  const maxAttempts = 3;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const [info, typeChart, settings, movesDatabase, themes] = await Promise.all([
+        api.getPluginInfo(),
+        api.getTypeChart(),
+        api.getSettings(),
+        api.getMovesDatabase(),
+        api.getThemes(),
+      ]);
+      updateState({
+        info,
+        typeChart,
+        settings,
+        movesDatabase,
+        theme: themes.active,
+      });
+      return;
+    } catch (e) {
+      lastError = e;
+      console.warn(
+        `[store] refreshStatic attempt ${attempt}/${maxAttempts} failed:`,
+        e
+      );
+      if (attempt < maxAttempts) {
+        // Exponential backoff: 500ms, 1500ms
+        const delay = 500 * Math.pow(3, attempt - 1);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
   }
+  console.error("[store] refreshStatic failed after all retries:", lastError);
+}
+
+// Public alias — used by views that want to manually retry after the
+// initial load failed. Same logic, callable on demand.
+export async function retryRefreshStatic() {
+  await refreshStatic();
 }
 
 export async function refreshTheme() {
   try {
     const themes = await api.getThemes();
-    setState({ ...state, theme: themes.active });
+    updateState({ theme: themes.active });
   } catch (e) {
     console.error("[store] refreshTheme failed", e);
   }
 }
 
-export async function refreshSave(force = true) {
+export async function refreshSave(force = false) {
   try {
     const saveData = await api.getSaveData(force);
-    setState({ ...state, saveData });
+    updateState({ saveData });
   } catch (e) {
     console.error("[store] refreshSave failed", e);
   }
@@ -107,16 +176,27 @@ export async function refreshSave(force = true) {
 export async function refreshMoves() {
   try {
     const movesDatabase = await api.getMovesDatabase();
-    setState({ ...state, movesDatabase });
+    updateState({ movesDatabase });
   } catch (e) {
     console.error("[store] refreshMoves failed", e);
+  }
+}
+
+export async function refreshLiveState(): Promise<LiveState | null> {
+  try {
+    const liveState = await api.getLiveState();
+    updateState({ liveState });
+    return liveState;
+  } catch (e) {
+    console.error("[store] refreshLiveState failed", e);
+    return null;
   }
 }
 
 export async function applySettingsPatch(patch: Partial<PluginSettings>) {
   try {
     const settings = await api.updateSettings(patch);
-    setState({ ...state, settings });
+    updateState({ settings });
     if ("theme" in patch) {
       await refreshTheme();
     }
@@ -127,23 +207,43 @@ export async function applySettingsPatch(patch: Partial<PluginSettings>) {
   }
 }
 
-export function startPolling(intervalSeconds: number) {
+export function startPolling() {
   stopPolling();
-  const safeInterval = Math.max(5, intervalSeconds);
-  if (safeInterval === currentIntervalSeconds) return;
-  currentIntervalSeconds = safeInterval;
-  refreshSave(true);
-  pollTimer = setInterval(() => {
-    refreshSave(true);
-  }, safeInterval * 1000);
-  console.log(`[store] polling started, every ${safeInterval}s`);
+  // Backend SaveFileWatcher (mtime poll) fires within ~0.3s of any save, so
+  // a fast 1.5s frontend poll is the right cadence while the game is
+  // actively playing. If we haven't seen a live event in a while, back off
+  // to save battery on the Steam Deck.
+  const fastMs = 1500;
+  const slowMs = 5000;
+  refreshSave(false);
+  refreshLiveState();
+  let consecutiveIdle = 0;
+  const tick = () => {
+    refreshSave(false);
+    refreshLiveState().then((live) => {
+      const lastAt = live?.last_live_event?.at ?? 0;
+      const now = Date.now() / 1000;
+      const sinceLast = now - lastAt;
+      if (lastAt > 0 && sinceLast < 10) {
+        consecutiveIdle = 0;
+      } else {
+        consecutiveIdle += 1;
+      }
+      const next = consecutiveIdle > 4 ? slowMs : fastMs;
+      if (pollTimer !== null) {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(tick, next);
+      }
+    });
+  };
+  pollTimer = setTimeout(tick, fastMs);
+  console.log(`[store] live frontend polling started (adaptive 1.5s/5s)`);
 }
 
 export function stopPolling() {
   if (pollTimer !== null) {
-    clearInterval(pollTimer);
+    clearTimeout(pollTimer);
     pollTimer = null;
-    currentIntervalSeconds = 0;
     console.log("[store] polling stopped");
   }
 }

@@ -1,6 +1,6 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
 import { CapabilitiesSummary } from "../components/PokemonCard";
-import { useStore } from "../store";
+import { useStore, retryRefreshStatic } from "../store";
 
 function StatusDot({ ok }: { ok: boolean }) {
   return (
@@ -35,21 +35,50 @@ export function HomeView() {
   const movesDb = useStore((s) => s.movesDatabase);
   const settings = useStore((s) => s.settings);
   const live = useStore((s) => s.liveState);
+  const party = useStore((s) => s.saveData?.party);
+  const faintedCount = party?.filter((p: any) => p.is_fainted).length ?? 0;
 
   if (!info) {
     return (
       <PanelSection title="Pokémon Essentials Overlay">
         <PanelSectionRow>
-          <div
+          <Focusable
+            onActivate={() => {}}
+            style={{
+              color: "#e0a458",
+              fontSize: 12,
+              padding: "8px 0",
+            }}
+          >
+            Plugin data isn't loaded yet. The Decky Loader may be
+            reloading the plugin in the background.
+          </Focusable>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Focusable
+            onActivate={() => {}}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 8,
-              padding: "8px 0",
+              padding: "4px 0",
             }}
           >
             <span style={{ fontSize: 13, color: "#969696" }}>Loading…</span>
-          </div>
+            <span
+              style={{
+                fontSize: 11,
+                color: "#56b4e9",
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
+              onClick={() => {
+                retryRefreshStatic();
+              }}
+            >
+              Reload
+            </span>
+          </Focusable>
         </PanelSectionRow>
       </PanelSection>
     );
@@ -59,7 +88,8 @@ export function HomeView() {
     <>
       <PanelSection title="About">
         <PanelSectionRow>
-          <div
+          <Focusable
+            onActivate={() => {}}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -82,13 +112,14 @@ export function HomeView() {
             >
               {String(info.description)}
             </div>
-          </div>
+          </Focusable>
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Status">
         <PanelSectionRow>
-          <div
+          <Focusable
+            onActivate={() => {}}
             style={{
               fontSize: 12,
               display: "flex",
@@ -123,6 +154,22 @@ export function HomeView() {
                     ? `Game running: ${String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
                     : "No game process detected"}
                 </div>
+                {live.active_process?.is_emulator && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      backgroundColor: "#e0a458",
+                      color: "#1a1a1a",
+                      padding: "8px 12px",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      lineHeight: 1.4
+                    }}
+                  >
+                    Live-Daten werden für diese Engine aktuell nicht unterstützt.
+                  </div>
+                )}
                 <div>
                   <StatusDot ok={live.watcher_active} />
                   {live.watcher_active
@@ -165,13 +212,32 @@ export function HomeView() {
                 <CapabilitiesSummary features={saveData.features} />
               </div>
             )}
-          </div>
+            {party && (
+              <div
+                style={{
+                  marginTop: 8,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  color: "#ddd",
+                  padding: "8px 12px",
+                  borderRadius: "4px",
+                  fontSize: "13px",
+                  fontWeight: "bold",
+                  display: "flex",
+                  justifyContent: "space-between"
+                }}
+              >
+                <span>Fainted Pokémon (Nuzlocke):</span>
+                <span style={{ color: faintedCount > 0 ? "#e05858" : "#5eba7d" }}>{faintedCount}</span>
+              </div>
+            )}
+          </Focusable>
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Roadmap">
         <PanelSectionRow>
-          <div
+          <Focusable
+            onActivate={() => {}}
             style={{
               fontSize: 12,
               color: "#969696",
@@ -197,7 +263,7 @@ export function HomeView() {
               <span style={{ color: "#5eba7d" }}>●</span> Phase 5 — Live PBS,
               IV/EV, dynamic UI, themes, watcher
             </div>
-          </div>
+          </Focusable>
         </PanelSectionRow>
       </PanelSection>
     </>

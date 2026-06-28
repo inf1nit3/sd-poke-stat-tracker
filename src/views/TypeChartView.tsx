@@ -1,7 +1,7 @@
 import { ButtonItem, Dropdown, Focusable, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
 import { useEffect, useMemo, useState } from "react";
 import { api, DefenseSummary, OffenseSummary } from "../api";
-import { useStore } from "../store";
+import { useStore, retryRefreshStatic } from "../store";
 import { DefenseGrid, OffenseGrid } from "../components/TypeChartGrid";
 
 type Mode = "defense" | "offense";
@@ -69,10 +69,26 @@ export function TypeChartView() {
     return (
       <PanelSection title="Type Chart">
         <PanelSectionRow>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0" }}>
-            <Spinner />
-            <span style={{ fontSize: 13, color: "#969696" }}>Loading type chart…</span>
+          <div
+            style={{
+              color: "#e0a458",
+              fontSize: 12,
+              padding: "8px 0",
+            }}
+          >
+            Type chart data isn't loaded yet. The Decky Loader may be
+            reloading the plugin in the background.
           </div>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => {
+              retryRefreshStatic();
+            }}
+          >
+            Reload
+          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
     );
@@ -99,7 +115,7 @@ export function TypeChartView() {
                 menuLabel="Type 1"
                 selectedOption={def1}
                 onChange={(opt) => setDef1(opt.data)}
-                options={attackerOptions}
+                rgOptions={attackerOptions}
               />
             </PanelSectionRow>
             <PanelSectionRow>
@@ -107,7 +123,7 @@ export function TypeChartView() {
                 menuLabel="Type 2"
                 selectedOption={def2}
                 onChange={(opt) => setDef2(opt.data)}
-                options={typeOptions}
+                rgOptions={typeOptions}
               />
             </PanelSectionRow>
           </>
@@ -117,7 +133,7 @@ export function TypeChartView() {
               menuLabel="Attacker"
               selectedOption={attacker}
               onChange={(opt) => setAttacker(opt.data)}
-              options={attackerOptions}
+              rgOptions={attackerOptions}
             />
           </PanelSectionRow>
         )}

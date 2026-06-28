@@ -1,14 +1,15 @@
 import {
   ButtonItem,
   Dropdown,
+  Focusable,
   PanelSection,
   PanelSectionRow,
   TextField,
-  Toggle,
+  ToggleField,
 } from "@decky/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, SaveFileCandidate, SavePathResult } from "../api";
-import { applySettingsPatch, refreshMoves, refreshTheme, useStore } from "../store";
+import { applySettingsPatch, refreshMoves, refreshTheme, retryRefreshStatic, useStore } from "../store";
 
 function fmtTime(epoch: number): string {
   if (!epoch) return "—";
@@ -32,6 +33,8 @@ export function SettingsView() {
   const settings = useStore((s) => s.settings);
   const movesDb = useStore((s) => s.movesDatabase);
   const theme = useStore((s) => s.theme);
+  // themes list is fetched once via the API but cached locally so the
+  // Dropdown doesn't unmount when the active theme changes.
   const [resolved, setResolved] = useState<SavePathResult | null>(null);
   const [candidates, setCandidates] = useState<SaveFileCandidate[]>([]);
   const [overrideInput, setOverrideInput] = useState<string>("");
@@ -40,7 +43,9 @@ export function SettingsView() {
   const [pbsBusy, setPbsBusy] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [themes, setThemes] = useState<{ id: string; name: string; description: string }[]>([]);
+  const [themes, setThemes] = useState<
+    { id: string; name: string; description: string }[]
+  >([]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -62,12 +67,17 @@ export function SettingsView() {
     refresh();
   }, [refresh]);
 
+  // Fetch the themes list once on mount. The list of available themes
+  // doesn't change at runtime — re-fetching on theme changes was a bug
+  // (caused a brief "Loading…" flash every time the user picked a new theme).
+  const themesLoaded = useMemo(() => themes.length > 0, [themes]);
   useEffect(() => {
+    if (themesLoaded) return;
     api
       .getThemes()
       .then((r) => setThemes(r.themes))
       .catch((e: Error) => console.error("themes", e));
-  }, [theme?.id]);
+  }, [themesLoaded]);
 
   useEffect(() => {
     if (settings) setOverrideInput(settings.save_path_override ?? "");
@@ -230,7 +240,6 @@ export function SettingsView() {
   const setTheme = useCallback(async (v: string) => {
     try {
       await applySettingsPatch({ theme: v });
-      await refreshTheme();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatusError(msg);
@@ -265,7 +274,35 @@ export function SettingsView() {
     return (
       <PanelSection title="Settings">
         <PanelSectionRow>
-          <div style={{ fontSize: 12, color: "#969696" }}>Loading…</div>
+          <Focusable
+            style={{
+              color: "#e0a458",
+              fontSize: 12,
+              padding: "4px 0",
+            }}
+          >
+            Settings aren't loaded yet. The Decky Loader may be
+            reloading the plugin in the background.
+          </Focusable>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Focusable style={{ fontSize: 12, color: "#969696", padding: "4px 0" }}>
+            Loading…
+            <span
+              style={{
+                fontSize: 11,
+                color: "#56b4e9",
+                cursor: "pointer",
+                textDecoration: "underline",
+                marginLeft: 8,
+              }}
+              onClick={() => {
+                retryRefreshStatic();
+              }}
+            >
+              Reload
+            </span>
+          </Focusable>
         </PanelSectionRow>
       </PanelSection>
     );
@@ -275,20 +312,20 @@ export function SettingsView() {
     <>
       <PanelSection title="Save resolution">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
+          <Focusable style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active save
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <div style={{ fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all" }}>
+          <Focusable style={{ fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all" }}>
             {resolved?.path || "— no save found —"}
-          </div>
+          </Focusable>
         </PanelSectionRow>
         {resolved?.using_override && (
           <PanelSectionRow>
-            <div style={{ fontSize: 10, color: "#777" }}>
+            <Focusable style={{ fontSize: 10, color: "#777" }}>
               (using manual override)
-            </div>
+            </Focusable>
           </PanelSectionRow>
         )}
         <PanelSectionRow>
@@ -300,9 +337,9 @@ export function SettingsView() {
 
       <PanelSection title="Manual override">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
+          <Focusable style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
             If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection.
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
           <TextField
@@ -327,37 +364,41 @@ export function SettingsView() {
 
       <PanelSection title="Auto-detect options">
         <PanelSectionRow>
-          <Toggle value={settings.auto_scan_enabled} onChange={setAutoScan}>
-            Auto-scan running processes and Wine prefixes
-          </Toggle>
+          <ToggleField
+            label="Auto-scan running processes and Wine prefixes"
+            checked={settings.auto_scan_enabled}
+            onChange={setAutoScan}
+          />
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Display">
         <PanelSectionRow>
-          <Toggle value={settings.compact_mode} onChange={setCompactMode}>
-            Compact mode (auto-hide empty sections)
-          </Toggle>
+          <ToggleField
+            label="Compact mode (auto-hide empty sections)"
+            checked={settings.compact_mode}
+            onChange={setCompactMode}
+          />
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Theme">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
+          <Focusable style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active theme
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <div style={{ fontSize: 12, color: theme ? theme.palette.accent : "#888" }}>
+          <Focusable style={{ fontSize: 12, color: theme ? theme.palette.accent : "#888" }}>
             {theme ? theme.name : "Loading…"}
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
           <Dropdown
             menuLabel="Theme"
             selectedOption={settings.theme || "default"}
             onChange={(opt) => setTheme(opt.data)}
-            options={themes.map((t) => ({ data: t.id, label: t.name }))}
+            rgOptions={themes.map((t) => ({ data: t.id, label: t.name }))}
             disabled={themes.length === 0}
           />
         </PanelSectionRow>
@@ -365,19 +406,19 @@ export function SettingsView() {
 
       <PanelSection title="PBS moves database">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
+          <Focusable style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active PBS source
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }}>
+          <Focusable style={{ fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }}>
             {movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —"}
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <div style={{ fontSize: 10, color: "#777" }}>
+          <Focusable style={{ fontSize: 10, color: "#777" }}>
             {movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…"}
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={reloadPbsAuto} disabled={pbsBusy}>
@@ -407,35 +448,39 @@ export function SettingsView() {
 
       <PanelSection title="TouchMenu overlay">
         <PanelSectionRow>
-          <Toggle value={settings.touchmenu_enabled} onChange={setTouchmenu}>
-            Enable in-game touch menu
-          </Toggle>
+          <ToggleField
+            label="Enable in-game touch menu"
+            checked={settings.touchmenu_enabled}
+            onChange={setTouchmenu}
+          />
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Live memory reading">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
+          <Focusable style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
             When the game is running, read party state directly from the
             game's process memory. Updates arrive every ~1s without waiting
             for the game to save to disk. Opt-in: the disk watcher still
             runs as a fallback if memory reading fails.
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Toggle value={settings.live_memory_enabled ?? false} onChange={setLiveMemory}>
-            Read live data from game process memory
-          </Toggle>
+          <ToggleField
+            label="Read live data from game process memory"
+            checked={Boolean(settings?.live_memory_enabled)}
+            onChange={setLiveMemory}
+          />
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Polling">
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#888" }}>
+          <Focusable style={{ fontSize: 11, color: "#888" }}>
             Backend live watcher checks the disk every{" "}
             <strong style={{ color: "#ccc" }}>{Math.max(5, settings.scan_interval_seconds)}</strong>
             {" "}units. The UI will always update instantly when changes occur.
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
           <TextField
@@ -448,9 +493,11 @@ export function SettingsView() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <Toggle value={settings.watcher_enabled ?? true} onChange={setWatcherEnabled}>
-            Live save watcher (sub-second updates)
-          </Toggle>
+          <ToggleField
+            label="Live save watcher (sub-second updates)"
+            checked={settings.watcher_enabled ?? true}
+            onChange={setWatcherEnabled}
+          />
         </PanelSectionRow>
       </PanelSection>
 
@@ -458,14 +505,14 @@ export function SettingsView() {
         <PanelSection title={`Discovered saves (${candidates.length})`}>
           {candidates.slice(0, 20).map((c) => (
             <PanelSectionRow key={c.path}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <Focusable style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <div style={{ fontSize: 11, color: "#ddd", wordBreak: "break-all" }}>
                   {c.path}
                 </div>
                 <div style={{ fontSize: 10, color: "#777" }}>
                   {fmtSize(c.size)} · modified {fmtTime(c.modified)}
                 </div>
-              </div>
+              </Focusable>
               <ButtonItem layout="inline" onClick={() => useCandidate(c.path)}>
                 Use this save
               </ButtonItem>
@@ -473,9 +520,9 @@ export function SettingsView() {
           ))}
           {candidates.length > 20 && (
             <PanelSectionRow>
-              <div style={{ fontSize: 11, color: "#777", fontStyle: "italic" }}>
+              <Focusable style={{ fontSize: 11, color: "#777", fontStyle: "italic" }}>
                 …and {candidates.length - 20} more. Use override to select specific file.
-              </div>
+              </Focusable>
             </PanelSectionRow>
           )}
         </PanelSection>
@@ -485,12 +532,12 @@ export function SettingsView() {
         <PanelSection title="Status">
           {statusMsg && (
             <PanelSectionRow>
-              <div style={{ fontSize: 12, color: "#5eba7d" }}>{statusMsg}</div>
+              <Focusable style={{ fontSize: 12, color: "#5eba7d" }}><div>{statusMsg}</div></Focusable>
             </PanelSectionRow>
           )}
           {statusError && (
             <PanelSectionRow>
-              <div style={{ fontSize: 12, color: "#e87b7b" }}>{statusError}</div>
+              <Focusable style={{ fontSize: 12, color: "#e87b7b" }}><div>{statusError}</div></Focusable>
             </PanelSectionRow>
           )}
         </PanelSection>

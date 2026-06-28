@@ -1,4 +1,4 @@
-import { ButtonItem, PanelSection, PanelSectionRow, Spinner } from "../decky-frontend-lib-shim";
+import { ButtonItem, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
 import { useCallback, useState } from "react";
 import { SaveData } from "../api";
 import {
@@ -7,7 +7,7 @@ import {
   DisplayOptions,
   PokemonCard,
 } from "../components/PokemonCard";
-import { refreshSave, useStore } from "../store";
+import { refreshSave, retryRefreshStatic, useStore } from "../store";
 
 function formatMoney(n: number): string {
   return `₽${n.toLocaleString("en-US")}`;
@@ -36,7 +36,10 @@ function timeAgo(epochSeconds: number): string {
 const MAX_PARTY_SLOTS = 6;
 
 export function PartyView() {
-  const data = useStore((s) => s.saveData);
+  const data = useStore(
+    (s) => s.saveData,
+    (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  );
   const settings = useStore((s) => s.settings);
   const [reloading, setReloading] = useState(false);
 
@@ -53,19 +56,27 @@ export function PartyView() {
     return (
       <PanelSection title="Party">
         <PanelSectionRow>
-          <div
+          <Focusable
+            onActivate={() => {}}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "12px 0",
+              color: "#e0a458",
+              fontSize: 12,
+              padding: "4px 0",
             }}
           >
-            <Spinner />
-            <span style={{ fontSize: 13, color: "#969696" }}>
-              Loading save data…
-            </span>
-          </div>
+            Save data isn't loaded yet. The Decky Loader may be
+            reloading the plugin in the background.
+          </Focusable>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => {
+              retryRefreshStatic();
+            }}
+          >
+            Reload
+          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
     );
@@ -75,10 +86,10 @@ export function PartyView() {
     return (
       <PanelSection title="Party">
         <PanelSectionRow>
-          <div style={{ fontSize: 13, color: "#969696", lineHeight: 1.5 }}>
+          <Focusable onActivate={() => {}} style={{ fontSize: 13, color: "#969696", lineHeight: 1.5 }}>
             No save file found. Start the game and save once, or set a
             manual path in <strong>Settings</strong>.
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <ButtonItem layout="below" onClick={reload} disabled={reloading}>
           {reloading ? "Scanning…" : "Scan again"}
@@ -91,19 +102,21 @@ export function PartyView() {
     return (
       <PanelSection title="Party">
         <PanelSectionRow>
-          <div style={{ color: "#e87b7b", fontSize: 13 }}>
-            Parse error: {data.message}
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              color: "#777",
-              marginTop: 6,
-              wordBreak: "break-all",
-            }}
-          >
-            {data.path}
-          </div>
+          <Focusable onActivate={() => {}}>
+            <div style={{ color: "#e87b7b", fontSize: 13 }}>
+              Parse error: {data.message}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#777",
+                marginTop: 6,
+                wordBreak: "break-all",
+              }}
+            >
+              {data.path}
+            </div>
+          </Focusable>
         </PanelSectionRow>
         <ButtonItem layout="below" onClick={reload} disabled={reloading}>
           Try again
@@ -146,7 +159,8 @@ function PartyContent({
     <>
       <PanelSection title={data.trainer_name || "Trainer"}>
         <PanelSectionRow>
-          <div
+          <Focusable
+            onActivate={() => {}}
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
@@ -163,13 +177,13 @@ function PartyContent({
             <Stat label="Position" value={`${data.x ?? "?"}, ${data.y ?? "?"}`} />
             <Stat label="Play time" value={formatPlayTime(data.play_time_seconds)} />
             <Stat label="Version" value={data.version} />
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <div style={{ fontSize: 11, color: "#777" }}>
+          <Focusable onActivate={() => {}} style={{ fontSize: 11, color: "#777" }}>
             Updated {timeAgo(data.parsed_at)} · auto-refresh every{" "}
             {Math.max(5, autoRefreshSeconds)}s
-          </div>
+          </Focusable>
         </PanelSectionRow>
         <ButtonItem layout="below" onClick={onReload} disabled={reloading}>
           {reloading ? "Reloading…" : "Reload from disk"}
@@ -179,7 +193,9 @@ function PartyContent({
       {data.features && (
         <PanelSection title="Detected features">
           <PanelSectionRow>
-            <CapabilitiesSummary features={data.features} />
+            <Focusable onActivate={() => {}}>
+              <CapabilitiesSummary features={data.features} />
+            </Focusable>
           </PanelSectionRow>
         </PanelSection>
       )}
@@ -196,7 +212,8 @@ function PartyContent({
             </PanelSectionRow>
           ) : (
             <PanelSectionRow key={`slot-${i}`}>
-              <div
+              <Focusable
+                onActivate={() => {}}
                 style={{
                   padding: 10,
                   background: "rgba(255,255,255,0.02)",
@@ -209,7 +226,7 @@ function PartyContent({
                 }}
               >
                 Slot {i + 1} — empty
-              </div>
+              </Focusable>
             </PanelSectionRow>
           )
         )}
@@ -217,7 +234,8 @@ function PartyContent({
 
       <PanelSection title="Source">
         <PanelSectionRow>
-          <div
+          <Focusable
+            onActivate={() => {}}
             style={{
               fontSize: 10,
               color: "#666",
@@ -226,7 +244,7 @@ function PartyContent({
             }}
           >
             {data.source_path}
-          </div>
+          </Focusable>
         </PanelSectionRow>
       </PanelSection>
     </>

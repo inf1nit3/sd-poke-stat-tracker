@@ -21,6 +21,7 @@ HERE = Path(__file__).resolve().parent
 PLUGIN_NAME = "PokeStatStream"
 META_SRC = HERE.parent / "game-mod" / "meta.txt"
 STREAM_SRC = HERE.parent / "game-mod" / "stream.rb"
+GAME_MOD_SRC = HERE.parent / "game-mod"
 
 # Fallback candidates checked when --game-dir is not passed.
 # These cover the most common fan-game installs but are intentionally a
@@ -76,23 +77,57 @@ def find_game_dir() -> Path | None:
     return None
 
 
+def _remove_legacy_poke_plugins(plugins_dir: Path) -> None:
+    """Remove any stale PokeStatStream plugin dirs that aren't the current one.
+
+    Older releases shipped as ``PokeEssStatStream`` (and similar) and still
+    ``require 'json'`` at the top of ``stream.rb``, which crashes on the
+    minimal Ruby that ships with some Pokémon Essentials builds. Cleaning
+    them up here makes the install idempotent across version bumps.
+    """
+    if not plugins_dir.is_dir():
+        return
+    for entry in plugins_dir.iterdir():
+        if not entry.is_dir():
+            continue
+        if entry.name == PLUGIN_NAME:
+            continue
+        if not entry.name.startswith("Poke"):
+            continue
+        if not any(entry.rglob("*.rb")):
+            continue
+        print(f"Removed legacy plugin {entry.name}")
+        shutil.rmtree(entry)
+
+
 def install(game_dir: Path, *, force: bool = False) -> bool:
     plugin_dir = game_dir / "Plugins" / PLUGIN_NAME
+    _remove_legacy_poke_plugins(game_dir / "Plugins")
     if plugin_dir.is_dir():
         if not force:
             print(f"Already installed at {plugin_dir}. Use --force to reinstall.")
             return True
         shutil.rmtree(plugin_dir)
     plugin_dir.mkdir(parents=True, exist_ok=True)
+    if not GAME_MOD_SRC.is_dir():
+        print(f"ERROR: missing {GAME_MOD_SRC}")
+        return False
     if not META_SRC.is_file():
         print(f"ERROR: missing {META_SRC}")
         return False
-    if not STREAM_SRC.is_file():
-        print(f"ERROR: missing {STREAM_SRC}")
-        return False
-    shutil.copy(META_SRC, plugin_dir / "meta.txt")
-    shutil.copy(STREAM_SRC, plugin_dir / "stream.rb")
+    # Copy every file in the canonical game-mod/ directory (meta.txt,
+    # stream.rb, and any future helpers) so future contributors don't
+    # need to remember to update this script when they add a file.
+    # Hidden files and editor backups (anything starting with '.') are
+    # skipped so a stray .DS_Store doesn't get deployed.
+    copied: list[str] = []
+    for src in sorted(GAME_MOD_SRC.iterdir()):
+        if not src.is_file() or src.name.startswith("."):
+            continue
+        shutil.copy(src, plugin_dir / src.name)
+        copied.append(src.name)
     print(f"Installed PokeStatStream plugin to {plugin_dir}")
+    print(f"Files deployed: {', '.join(copied)}")
     print("Next step: restart the Pokémon game so the PluginManager")
     print("compiles the new plugin into PluginScripts.rxdata.")
     return True
