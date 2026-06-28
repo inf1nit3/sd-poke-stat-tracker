@@ -27,7 +27,7 @@ if [[ ! -f "$SCRIPT_DIR/plugin.json" ]] || [[ ! -f "$SCRIPT_DIR/dist/index.js" ]
     exit 1
 fi
 
-blue "▶ Testing SSH connection to $DEST…"
+blue "▶ Testing SSH connection to ${DEST}…"
 if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$DEST" true 2>/dev/null; then
     red "ERROR: Cannot SSH to $DEST"
     red "  Make sure SSH is enabled on the Steam Deck and the user/host are correct."
