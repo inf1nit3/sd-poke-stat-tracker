@@ -52,4 +52,4 @@ print('PLASMASTORM:', db.get('PLASMASTORM'))
 Ruby (any 2.7+ or 3.x) is required. On macOS: `brew install ruby`. On Linux:
 `apt install ruby` or equivalent.
 
-Python 3.11+ with the project dependencies installed: `pip install psutil pyyaml rubymarshal`
+Python 3.11+ with the project dependencies installed: `pip install psutil rubymarshal`

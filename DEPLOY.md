@@ -1,6 +1,6 @@
 # Deploy to Steam Deck
 
-This guide walks through getting `pokemon-overlay-plugin` onto your Steam Deck.
+This guide walks through getting the plugin onto your Steam Deck.
 
 ## Prerequisites
 
@@ -12,19 +12,17 @@ This guide walks through getting `pokemon-overlay-plugin` onto your Steam Deck.
 
 The simplest path. From your computer:
 
-1. **Extract the package** — either unzip `pokemon-overlay-plugin.zip` or untar `pokemon-overlay-plugin.tar.gz` into a folder. The folder name will be `pokemon-overlay-plugin` (the contents include `plugin.json`, `main.py`, `dist/`, `data/`, etc. directly at the top level).
-
-2. **Copy to the Steam Deck** — using whichever method you prefer:
+1. **Copy the plugin folder** to the Steam Deck — using whichever method you prefer:
    - **SSH** (recommended):
      ```bash
-     scp -r pokemon-overlay-plugin/ deck@steamdeck:/home/deck/homebrew/plugins/
+     scp -r sd-poke-stat-tracker/ deck@steamdeck:/home/deck/homebrew/plugins/
      ```
-   - **USB stick**: Copy the `pokemon-overlay-plugin/` folder to a USB stick, plug into the Steam Deck, then in Desktop Mode move it to `~/homebrew/plugins/`.
-   - **Network share / Syncthing / etc.**: any sync method that lands the folder at `~/homebrew/plugins/pokemon-overlay-plugin/`.
+   - **USB stick**: Copy the folder to a USB stick, plug into the Steam Deck, then in Desktop Mode move it to `~/homebrew/plugins/`.
+   - **Network share / Syncthing / etc.**: any sync method that lands the folder at `~/homebrew/plugins/sd-poke-stat-tracker/`.
 
-3. **Verify the path** — the final layout must look like:
+2. **Verify the path** — the final layout must look like:
    ```
-   ~/homebrew/plugins/pokemon-overlay-plugin/
+   ~/homebrew/plugins/sd-poke-stat-tracker/
    ├── plugin.json
    ├── main.py
    ├── package.json
@@ -36,46 +34,49 @@ The simplest path. From your computer:
    │   ├── type_chart.json   ← baked-in
    │   ├── moves.json        ← baked-in
    │   └── themes.json       ← baked-in
-   ├── livewatch.py
-   ├── moves.py
-   ├── pbsfinder.py
-   ├── pbsparser.py
-   ├── saveparser.py
-   ├── savepath.py
-   ├── themes.py
-   └── typechart.py
+   └── py_modules/
+       ├── _marshal_compat.py
+       ├── livewatch.py
+       ├── moves.py
+       ├── pbsfinder.py
+       ├── pbsparser.py
+       ├── saveparser.py
+       ├── savepath.py
+       ├── steampaths.py
+       ├── themes.py
+       └── typechart.py
    ```
 
-## Option B: Install via scp into Decky plugin path
+## Option B: Use the deploy script
 
 ```bash
-# From your computer
-scp pokemon-overlay-plugin.zip deck@steamdeck:/tmp/
-
-# On the Steam Deck (via SSH or Desktop terminal)
-ssh deck@steamdeck
-cd ~/homebrew/plugins
-unzip /tmp/pokemon-overlay-plugin.zip -d pokemon-overlay-plugin
-ls pokemon-overlay-plugin/  # should show main.py, dist/, data/, etc.
+# From your computer — copies + runs setup on the Deck
+./install.sh deck@steamdeck
 ```
 
 ## Post-install
 
 ### 1. Install Python dependencies (one-time)
 
-The plugin needs `psutil`, `pyyaml`, and `rubymarshal` in addition to what Decky already provides (`python-decky`).
+The plugin needs `psutil` and `rubymarshal` in addition to what Decky already provides (`python-decky`).
 
 On the Steam Deck, in the plugin directory:
 
 ```bash
-cd ~/homebrew/plugins/pokemon-overlay-plugin
-pip install --user psutil pyyaml rubymarshal
+cd ~/homebrew/plugins/sd-poke-stat-tracker
+pip install --user psutil rubymarshal
 ```
 
 If your Decky runs Decky in a venv (older versions), use that venv's pip:
 
 ```bash
-sudo /opt/decky/bin/pip install psutil pyyaml rubymarshal
+sudo /opt/decky/bin/pip install psutil rubymarshal
+```
+
+Or simply run the bundled setup script:
+
+```bash
+./setup.sh
 ```
 
 ### 2. Restart Decky
@@ -96,12 +97,12 @@ If the Pokémon game has been run, the **Party** tab will show the trainer info.
 ## Troubleshooting
 
 ### Plugin doesn't appear in QAM
-- Check that `~/homebrew/plugins/pokemon-overlay-plugin/plugin.json` exists and is valid JSON
+- Check that `~/homebrew/plugins/sd-poke-stat-tracker/plugin.json` exists and is valid JSON
 - Check Decky's log: `cat ~/.config/decky/loader.log` (or wherever your install writes logs)
 - Make sure the plugin folder is **directly** under `homebrew/plugins/`, not nested in another folder
 
 ### "Module not found: psutil / rubymarshal"
-- Run `pip install --user psutil pyyaml rubymarshal` again
+- Run `pip install --user psutil rubymarshal` again
 - If using a venv install, use the venv's pip
 
 ### "No save file found" even though the game has saves
@@ -131,7 +132,7 @@ If the Pokémon game has been run, the **Party** tab will show the trainer info.
 
 To update to a new version:
 1. Stop the plugin in QAM (or restart Decky)
-2. Replace the contents of `~/homebrew/plugins/pokemon-overlay-plugin/`
+2. Replace the contents of `~/homebrew/plugins/sd-poke-stat-tracker/`
 3. Restart the plugin
 
 The `data/settings.json` is created at runtime; you can keep it across updates to preserve your settings.
@@ -139,7 +140,7 @@ The `data/settings.json` is created at runtime; you can keep it across updates t
 ## Uninstalling
 
 ```bash
-rm -rf ~/homebrew/plugins/pokemon-overlay-plugin
+rm -rf ~/homebrew/plugins/sd-poke-stat-tracker
 ```
 
 Then restart Decky.

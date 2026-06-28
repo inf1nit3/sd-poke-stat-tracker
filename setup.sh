@@ -72,7 +72,7 @@ install_python_deps() {
     pipcmd="$(command -v pip3 || command -v pip)"
 
     local installed=true
-    for mod in psutil yaml rubymarshal; do
+    for mod in psutil rubymarshal; do
         if python3 -c "import $mod" 2>/dev/null; then
             green "  ✓ $mod (already installed)"
         else
@@ -86,17 +86,17 @@ install_python_deps() {
         return
     fi
 
-    "$pipcmd" install --user --quiet psutil pyyaml rubymarshal 2>/dev/null || \
-    "$pipcmd" install --user --quiet --break-system-packages psutil pyyaml rubymarshal 2>/dev/null || {
+    "$pipcmd" install --user --quiet psutil rubymarshal 2>/dev/null || \
+    "$pipcmd" install --user --quiet --break-system-packages psutil rubymarshal 2>/dev/null || {
         yellow "  --user failed, trying sudo…"
-        sudo "$pipcmd" install --quiet psutil pyyaml rubymarshal 2>/dev/null || {
+        sudo "$pipcmd" install --quiet psutil rubymarshal 2>/dev/null || {
             red "  ✗ Could not install Python deps"
-            red "  Try: $pipcmd install --user --break-system-packages psutil pyyaml rubymarshal"
+            red "  Try: $pipcmd install --user --break-system-packages psutil rubymarshal"
             exit 1
         }
     }
 
-    for mod in psutil yaml rubymarshal; do
+    for mod in psutil rubymarshal; do
         if python3 -c "import $mod" 2>/dev/null; then
             green "  ✓ $mod"
         else
@@ -110,9 +110,8 @@ verify_plugin() {
     yellow "▶ Smoke-testing plugin…"
     (
         cd "$PLUGIN_DIR"
-        PYTHONPATH="$PLUGIN_DIR" python3 -c "
+        PYTHONPATH="$PLUGIN_DIR:$PLUGIN_DIR/py_modules" python3 -c "
 import sys, types
-sys.path.insert(0, '.')
 mock = types.ModuleType('decky')
 class L:
     def info(self, *a, **kw): pass
@@ -120,9 +119,15 @@ class L:
     def error(self, *a, **kw): pass
 mock.logger = L()
 sys.modules['decky'] = mock
+dp = types.ModuleType('decky_plugin')
+dp.DECKY_PLUGIN_SETTINGS_DIR = '$PLUGIN_DIR/data'
+dp.DECKY_PLUGIN_RUNTIME_DIR = '$PLUGIN_DIR/data'
+sys.modules['decky_plugin'] = dp
 
-import main, typechart, saveparser, savepath, pbsparser, pbsfinder, moves, themes, livewatch
-print('  All 9 Python modules import OK')
+import main
+print('  main.py imports OK')
+from py_modules import typechart, saveparser, savepath, pbsparser, pbsfinder, moves, themes, livewatch
+print('  All 8 py_modules import OK')
         " 2>&1
     )
     green "  ✓ Plugin ready"

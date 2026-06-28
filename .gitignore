@@ -18,3 +18,7 @@ data/cache/
 # Decky runtime logs (kept at repo root for quick access; not source)
 decky_logs.txt
 decker_logs.txt
+
+# Local-only tooling (not part of the plugin)
+token-optimizer/
+.pytest_cache/

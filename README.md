@@ -50,26 +50,36 @@ GitHub: https://github.com/inf1nit3/sd-poke-stat-tracker
 ```
 sd-poke-stat-tracker/
 ├── main.py                # Python backend (Plugin class, lifecycle, settings, glue)
-├── typechart.py           # Static type chart (Gen 6) + lookup helpers
-├── saveparser.py          # Ruby Marshal v4.8 parser for .rxdata
-├── savepath.py            # Save-file path resolver (Wine + native Steam)
-├── pbsparser.py           # PBS file parser (moves, pokemon, types)
-├── pbsfinder.py           # PBS file finder (Wine prefixes + Steam library)
-├── moves.py               # Merged moves DB (static + PBS + heuristic fallback)
-├── themes.py              # Theme manager + palette loader
-├── livewatch.py           # Save-file watcher + process detection
 ├── package.json           # Frontend package + scripts
 ├── plugin.json            # Decky plugin manifest
 ├── pyproject.toml         # Python dependencies
 ├── tsconfig.json          # TypeScript config
-├── build.js               # esbuild bundler
+├── rollup.config.js       # Rollup bundler config
+├── install.sh             # Deploy-to-Steam-Deck script (rsync + setup)
+├── rebuild.sh             # Rebuild frontend bundle (dev only)
+├── setup.sh               # Fast installer run on the Steam Deck
 ├── data/
 │   ├── type_chart.json    # Static type chart (Gen 6, 18 types)
 │   ├── moves.json         # Static moves DB (Gen 1-6, ~260 moves)
-│   ├── themes.json        # 4 built-in themes
-│   └── settings.json      # Runtime-generated user settings (gitignored)
-├── public/
-│   └── index.js           # HTML template injected into the plugin iframe
+│   └── themes.json        # 4 built-in themes
+├── py_modules/            # Backend modules (importable as `py_modules.*`)
+│   ├── _marshal_compat.py # Ruby Marshal forward-ref patch (TYPE_LINK)
+│   ├── typechart.py       # Static type chart (Gen 6) + lookup helpers
+│   ├── saveparser.py      # Ruby Marshal v4.8 parser for .rxdata
+│   ├── savepath.py        # Save-file path resolver (Wine + native Steam)
+│   ├── pbsparser.py       # PBS file parser (moves, pokemon, types)
+│   ├── pbsfinder.py       # PBS file finder (Wine prefixes + Steam library)
+│   ├── moves.py           # Merged moves DB (static + PBS + heuristic fallback)
+│   ├── themes.py          # Theme manager + palette loader
+│   ├── steampaths.py      # Steam install / Wine prefix path helpers
+│   └── livewatch.py       # Save-file watcher + process detection + stream server
+├── game-mod/              # Ruby plugin installed into the game's Plugins/
+│   ├── meta.txt
+│   └── stream.rb          # Live state streamer (TCP → 127.0.0.1:9988)
+├── scripts/
+│   └── install_game_mod.py # Installs game-mod into a Pokémon Essentials game dir
+├── tools/                 # Test save/PBS generators (Ruby)
+├── tests/                 # pytest smoke tests
 ├── dist/
 │   └── index.js           # Built frontend bundle
 └── src/
@@ -79,8 +89,9 @@ sd-poke-stat-tracker/
     ├── theme.ts           # Theme palette + CSS variable conversion
     ├── decky.d.ts         # Type declarations for external Decky modules
     ├── utils/
-    │   └── normalize.ts    # Name normalization helpers
+    │   └── normalize.ts   # Name normalization helpers
     ├── components/
+    │   ├── ErrorBoundary.tsx
     │   ├── HealthBar.tsx
     │   ├── PokeballIcon.tsx
     │   ├── PokemonCard.tsx       # Capability-aware conditional rendering
@@ -97,6 +108,7 @@ sd-poke-stat-tracker/
         ├── HomeView.tsx       # Status tab
         ├── TypeChartView.tsx  # Type Chart tab
         ├── PartyView.tsx      # Party tab
+        ├── BattleAnalyzerView.tsx  # Battle Analyzer (live stream)
         └── SettingsView.tsx   # Settings tab
 ```
 

@@ -11,7 +11,7 @@ Exits 0 on success, non-zero on any failure. Not a unit-test suite — just
 end-to-end smoke checks against the live codebase.
 
 Requires:
-    pip install rubymarshal psutil pyyaml
+    pip install rubymarshal psutil
 """
 from __future__ import annotations
 
