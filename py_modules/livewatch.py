@@ -469,8 +469,9 @@ class LiveStreamServer:
                     try:
                         payload = _json.loads(line)
                     except _json.JSONDecodeError as e:
-                        log.info(f"Stream JSON decode failed: {e}, line[:200]={line[:200]!r}")
+                        log.info(f"Stream JSON decode failed: {e}, line[:300]={line[:300]!r}")
                         continue
+                    log.info(f"Stream parsed payload kind={payload.get('kind') if isinstance(payload, dict) else type(payload).__name__}, len={len(line)}")
                     self._dispatch(payload)
         finally:
             log.info("Live stream client disconnected")
