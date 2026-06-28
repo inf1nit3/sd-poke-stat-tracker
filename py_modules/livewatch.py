@@ -336,10 +336,35 @@ class LiveStreamServer:
         self._client: Optional[_socket.socket] = None
         self._client_lock = threading.Lock()
         self._stop = threading.Event()
+        # Status tracking for the frontend
+        self._stream_connected = False
+        self._last_data_at: float = 0.0
+        self._last_data_trainer: Optional[str] = None
+        self._total_frames = 0
 
     @property
     def is_listening(self) -> bool:
         return self._server is not None
+
+    @property
+    def is_connected(self) -> bool:
+        with self._client_lock:
+            return self._stream_connected
+
+    @property
+    def last_data_at(self) -> float:
+        return self._last_data_at
+
+    @property
+    def status(self) -> dict[str, Any]:
+        with self._client_lock:
+            return {
+                "listening": self._server is not None,
+                "connected": self._stream_connected,
+                "last_data_at": self._last_data_at,
+                "last_data_trainer": self._last_data_trainer,
+                "total_frames": self._total_frames,
+            }
 
     def start(self) -> bool:
         """Bind the listener. Returns False on address-in-use."""
@@ -390,6 +415,7 @@ class LiveStreamServer:
             self._close_client()
             with self._client_lock:
                 self._client = client
+                self._stream_connected = True
             log.info(f"Live stream client connected: {addr}")
             self._client_thread = threading.Thread(
                 target=self._client_loop, args=(client,), daemon=True,
@@ -409,6 +435,7 @@ class LiveStreamServer:
                 except OSError:
                     pass
                 self._client = None
+            self._stream_connected = False
         if self._client_thread is not None and self._client_thread is not threading.current_thread():
             self._client_thread.join(timeout=2.0)
             self._client_thread = None
@@ -425,8 +452,6 @@ class LiveStreamServer:
                     return
                 buf += data
                 if len(buf) > _MAX_LINE_BYTES:
-                    # Discard up to and including the next newline, retaining
-                    # any valid data after the oversized frame.
                     idx = buf.find(b"\n")
                     buf = buf[idx + 1:] if idx >= 0 else b""
                     continue
@@ -436,7 +461,8 @@ class LiveStreamServer:
                         continue
                     try:
                         payload = _json.loads(line)
-                    except _json.JSONDecodeError:
+                    except _json.JSONDecodeError as e:
+                        log.debug(f"Stream JSON decode failed: {e}, line[:200]={line[:200]!r}")
                         continue
                     self._dispatch(payload)
         finally:
@@ -527,6 +553,11 @@ class LiveStreamServer:
         except Exception as exc:
             log.error(f"Live stream _dispatch normalize failed: {exc}", exc_info=True)
             return
+        # Update stream status
+        with self._client_lock:
+            self._last_data_at = _time.time()
+            self._last_data_trainer = normalized.get("trainer_name") or ""
+            self._total_frames += 1
         try:
             self._on_state(normalized)
         except Exception as exc:

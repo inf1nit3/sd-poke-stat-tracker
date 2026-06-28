@@ -807,6 +807,26 @@ class Plugin:
             self._memory_reader.update_pid(new_pid)
             self._memory_pid = new_pid
 
+    @staticmethod
+    def _extract_game_name(proc: dict[str, Any] | None) -> str | None:
+        """Extract a human-readable game name from the process cmdline."""
+        if not proc:
+            return None
+        cmdline = proc.get("cmdline_str", "") or ""
+        # Look for "Game.exe" in the cmdline and extract the parent directory name.
+        # Patterns: ".../Vanguard 4.0.3/Game.exe" or "Z:\home\deck\Downloads\Vanguard 4.0.3\Game.exe"
+        import re
+        m = re.search(r'[\\/\\\\]([^\\/\\\\]+)[\\/\\\\]Game\.exe', cmdline, re.IGNORECASE)
+        if m:
+            return m.group(1)
+        # Fallback: look for known Pokémon fan-game names in cmdline
+        known = ("vanguard", "reborn", "rejuvenation", "desolation", "uranium",
+                 "insurgence", "infinite", "empire", "godra")
+        for name in known:
+            if name in cmdline:
+                return name.title()
+        return None
+
     async def get_live_state(self) -> dict[str, Any]:
         """Return current game-process + watcher state.
 
@@ -826,8 +846,15 @@ class Plugin:
             last_live_event = dict(self._last_live_event) if self._last_live_event else {}
             save_cache = self._save_cache
             save_cache_path = self._save_cache_path
+        # Stream status from the LiveStreamServer
+        stream_status = self._stream_server.status if self._stream_server else {
+            "listening": False, "connected": False, "last_data_at": 0.0,
+            "last_data_trainer": None, "total_frames": 0,
+        }
+        detected_game = self._extract_game_name(active_proc)
         return {
             "game_running": bool(processes),
+            "detected_game_name": detected_game,
             "processes": [
                 {
                     "pid": p.get("pid"),
@@ -846,6 +873,7 @@ class Plugin:
             "last_live_event": last_live_event,
             "last_save_data": save_cache,
             "last_save_path": save_cache_path,
+            "stream_status": stream_status,
         }
 
     async def get_live_save_data(self) -> dict[str, Any] | None:

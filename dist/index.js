@@ -1336,17 +1336,17 @@ function HomeView() {
                                             ? `Moves DB: ${movesDb.merged_count} (PBS loaded)`
                                             : `Moves DB: ${movesDb.static_count} static only`
                                         : "Moves DB not loaded"] }), live && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.game_running }), live.game_running
-                                                ? `Game running: ${String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
-                                                : "No game process detected"] }), live.active_process?.is_emulator && (window.SP_JSX.jsx("div", { style: {
-                                            marginTop: 8,
-                                            backgroundColor: "#e0a458",
-                                            color: "#1a1a1a",
-                                            padding: "8px 12px",
-                                            borderRadius: "4px",
-                                            fontSize: "12px",
-                                            fontWeight: 600,
-                                            lineHeight: 1.4
-                                        }, children: "Live data reading is not currently supported for this engine." })), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.watcher_active }), live.watcher_active
+                                                ? `Game running: ${live.detected_game_name || String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
+                                                : "No game process detected"] }), live.game_running && live.stream_status && (window.SP_JSX.jsxs("div", { style: { marginTop: 4, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.05)" }, children: [window.SP_JSX.jsx("div", { style: { fontSize: 10, color: "#777", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 }, children: "Live Injection Status" }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.stream_status.listening }), live.stream_status.listening
+                                                        ? "Stream server listening on 127.0.0.1:9988"
+                                                        : "Stream server not started"] }), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.stream_status.connected }), live.stream_status.connected
+                                                        ? `Game mod connected${live.stream_status.last_data_trainer ? ` (trainer: ${live.stream_status.last_data_trainer})` : ""}`
+                                                        : "Game mod not connected"] }), live.stream_status.total_frames > 0 ? (window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: true }), `Injection active — ${live.stream_status.total_frames} frames received` +
+                                                        (live.stream_status.last_data_at
+                                                            ? ` · last ${timeAgo$1(live.stream_status.last_data_at)}`
+                                                            : "")] })) : (window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: false }), live.stream_status.listening
+                                                        ? "Waiting for game mod data…"
+                                                        : "Injection not started"] }))] })), window.SP_JSX.jsxs("div", { children: [window.SP_JSX.jsx(StatusDot, { ok: live.watcher_active }), live.watcher_active
                                                 ? `Save watcher active${live.last_live_event?.at
                                                     ? ` · last event ${timeAgo$1(live.last_live_event.at)}`
                                                     : ""}`

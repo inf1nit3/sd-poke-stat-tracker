@@ -244,8 +244,17 @@ export interface GameProcess {
   is_emulator?: boolean;
 }
 
+export interface StreamStatus {
+  listening: boolean;
+  connected: boolean;
+  last_data_at: number;
+  last_data_trainer: string | null;
+  total_frames: number;
+}
+
 export interface LiveState {
   game_running: boolean;
+  detected_game_name: string | null;
   processes: GameProcess[];
   active_process: GameProcess | null;
   watcher_active: boolean;
@@ -265,6 +274,7 @@ export interface LiveState {
   screen_state?: string;
   battle_analysis?: BattleAnalysis;
   mod_needs_restart?: boolean;
+  stream_status?: StreamStatus;
 }
 
 export interface BattleEnemy {

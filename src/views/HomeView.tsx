@@ -151,23 +151,42 @@ export function HomeView() {
                 <div>
                   <StatusDot ok={live.game_running} />
                   {live.game_running
-                    ? `Game running: ${String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
+                    ? `Game running: ${live.detected_game_name || String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
                     : "No game process detected"}
                 </div>
-                {live.active_process?.is_emulator && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      backgroundColor: "#e0a458",
-                      color: "#1a1a1a",
-                      padding: "8px 12px",
-                      borderRadius: "4px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      lineHeight: 1.4
-                    }}
-                  >
-                    Live data reading is not currently supported for this engine.
+                {live.game_running && live.stream_status && (
+                  <div style={{ marginTop: 4, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ fontSize: 10, color: "#777", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 }}>
+                      Live Injection Status
+                    </div>
+                    <div>
+                      <StatusDot ok={live.stream_status.listening} />
+                      {live.stream_status.listening
+                        ? "Stream server listening on 127.0.0.1:9988"
+                        : "Stream server not started"}
+                    </div>
+                    <div>
+                      <StatusDot ok={live.stream_status.connected} />
+                      {live.stream_status.connected
+                        ? `Game mod connected${live.stream_status.last_data_trainer ? ` (trainer: ${live.stream_status.last_data_trainer})` : ""}`
+                        : "Game mod not connected"}
+                    </div>
+                    {live.stream_status.total_frames > 0 ? (
+                      <div>
+                        <StatusDot ok={true} />
+                        {`Injection active — ${live.stream_status.total_frames} frames received` +
+                          (live.stream_status.last_data_at
+                            ? ` · last ${timeAgo(live.stream_status.last_data_at)}`
+                            : "")}
+                      </div>
+                    ) : (
+                      <div>
+                        <StatusDot ok={false} />
+                        {live.stream_status.listening
+                          ? "Waiting for game mod data…"
+                          : "Injection not started"}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div>
