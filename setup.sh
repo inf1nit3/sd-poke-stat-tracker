@@ -38,17 +38,24 @@ check_requirements() {
         green "  ✓ python3 ($pyver)"
     fi
 
-    if ! command -v pip3 >/dev/null 2>&1 && ! command -v pip >/dev/null 2>&1; then
-        missing+=("pip")
-    else
-        local pipcmd
-        pipcmd="$(command -v pip3 || command -v pip)"
+    # On SteamOS, pip is usually only available as `python3 -m pip`, not as a
+    # standalone binary. Check both forms.
+    if python3 -m pip --version >/dev/null 2>&1; then
+        green "  ✓ pip (python3 -m pip)"
+    elif command -v pip3 >/dev/null 2>&1; then
         green "  ✓ pip ($pipcmd)"
+    elif command -v pip >/dev/null 2>&1; then
+        green "  ✓ pip ($pipcmd)"
+    else
+        missing+=("pip")
     fi
 
     if [[ ${#missing[@]} -gt 0 ]]; then
         red "  ✗ Missing tools: ${missing[*]}"
-        red "  Install: sudo steamos-readonly disable && sudo pacman -S python-pip"
+        if [[ " ${missing[*]} " == *" pip "* ]]; then
+            red "  Try: python3 -m ensurepip --user"
+            red "  Or:   sudo steamos-readonly disable && sudo pacman -S python-pip"
+        fi
         exit 1
     fi
 }
@@ -67,9 +74,21 @@ check_plugin_layout() {
 }
 
 install_python_deps() {
-    yellow "▶ Installing Python dependencies (3 small packages)…"
+    yellow "▶ Installing Python dependencies (2 small packages)…"
+
+    # Prefer `python3 -m pip` (works on SteamOS where pip isn't on PATH).
     local pipcmd
-    pipcmd="$(command -v pip3 || command -v pip)"
+    if python3 -m pip --version >/dev/null 2>&1; then
+        pipcmd="python3 -m pip"
+    elif command -v pip3 >/dev/null 2>&1; then
+        pipcmd="pip3"
+    elif command -v pip >/dev/null 2>&1; then
+        pipcmd="pip"
+    else
+        red "  ✗ No pip available"
+        red "  Try: python3 -m ensurepip --user"
+        exit 1
+    fi
 
     local installed=true
     for mod in psutil rubymarshal; do
@@ -86,10 +105,10 @@ install_python_deps() {
         return
     fi
 
-    "$pipcmd" install --user --quiet psutil rubymarshal 2>/dev/null || \
-    "$pipcmd" install --user --quiet --break-system-packages psutil rubymarshal 2>/dev/null || {
+    $pipcmd install --user --quiet psutil rubymarshal 2>/dev/null || \
+    $pipcmd install --user --quiet --break-system-packages psutil rubymarshal 2>/dev/null || {
         yellow "  --user failed, trying sudo…"
-        sudo "$pipcmd" install --quiet psutil rubymarshal 2>/dev/null || {
+        sudo $pipcmd install --quiet psutil rubymarshal 2>/dev/null || {
             red "  ✗ Could not install Python deps"
             red "  Try: $pipcmd install --user --break-system-packages psutil rubymarshal"
             exit 1
