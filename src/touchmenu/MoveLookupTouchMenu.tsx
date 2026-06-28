@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, MoveInfo, OffenseSummary } from "../api";
 import { TypeBadge } from "../components/TypeBadge";
 import { useStore } from "../store";
+import { normalizeKey } from "../utils/normalize";
 
 const BUCKETS = [
   {
@@ -35,19 +36,24 @@ export function MoveLookupTouchMenu() {
       setOffense(null);
       return;
     }
+    let cancelled = false;
     setLoading(true);
     setOffense(null);
     api
       .getMoveInfo(selectedMove)
       .then((info) => {
+        if (cancelled) return;
         setMoveInfo(info);
         if (info && info.type) {
-          return api.getOffenseSummary(info.type).then(setOffense);
+          return api.getOffenseSummary(info.type).then((off) => {
+            if (!cancelled) setOffense(off);
+          });
         }
         return null;
       })
       .catch((e: Error) => console.error("[move-lookup]", e))
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [selectedMove]);
 
   if (!saveData || saveData.error) {
@@ -66,12 +72,18 @@ export function MoveLookupTouchMenu() {
   }
 
   const party = saveData.party || [];
-  const partyMoves: { move: string; owner: string }[] = [];
-  for (const p of party) {
-    for (const m of p.moves) {
-      if (m) partyMoves.push({ move: m, owner: p.nickname || p.species });
-    }
-  }
+  const partyMoves = useMemo(
+    () => {
+      const out: { move: string; owner: string }[] = [];
+      for (const p of party) {
+        for (const m of p.moves) {
+          if (m) out.push({ move: m, owner: p.nickname || p.species });
+        }
+      }
+      return out;
+    },
+    [party]
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -301,8 +313,4 @@ function Detail({ label, value }: { label: string; value: string }) {
       <div style={{ fontSize: 12, color: "#ddd" }}>{value}</div>
     </div>
   );
-}
-
-function normalizeKey(name: string): string {
-  return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }

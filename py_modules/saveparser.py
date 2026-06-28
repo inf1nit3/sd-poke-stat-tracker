@@ -337,8 +337,6 @@ def _read_pbs_multiform(path: Path) -> dict[str, dict[str, str]]:
     block. Sub-form ``InternalName =`` lines inherit all preceding
     attributes from the enclosing section.
     """
-    import re
-
     out: dict[str, dict[str, str]] = {}
     section_attrs: dict[str, str] = {}
     current_form: Optional[dict[str, str]] = None
@@ -505,15 +503,22 @@ def _get_species_types(
     """Return ``(type1, type2)`` for a species constant like ``CROCONAWT``.
 
     Caches the entire PBS mapping for the lifetime of the process.
+    Invalidates and reloads when ``save_path`` changes (user switched games).
     """
-    global _SPECIES_TYPES_CACHE, _SPECIES_TYPES_SOURCE, _SPECIES_TYPES_LOCK
+    global _SPECIES_TYPES_CACHE, _SPECIES_TYPES_SOURCE
     if not species:
         return (None, None)
-    if _SPECIES_TYPES_CACHE is None:
-        with _SPECIES_TYPES_LOCK:
-            if _SPECIES_TYPES_CACHE is None:
-                _SPECIES_TYPES_CACHE = _load_species_types_from_pbs(save_path)
-                _SPECIES_TYPES_SOURCE = save_path
+    with _SPECIES_TYPES_LOCK:
+        # Invalidate cache if the save path changed (different fan game).
+        if _SPECIES_TYPES_CACHE is not None and _SPECIES_TYPES_SOURCE is not None:
+            current = Path(save_path) if save_path else None
+            cached = Path(_SPECIES_TYPES_SOURCE) if _SPECIES_TYPES_SOURCE else None
+            if current != cached:
+                _SPECIES_TYPES_CACHE = None
+                _SPECIES_TYPES_SOURCE = None
+        if _SPECIES_TYPES_CACHE is None:
+            _SPECIES_TYPES_CACHE = _load_species_types_from_pbs(save_path)
+            _SPECIES_TYPES_SOURCE = save_path
     if _SPECIES_TYPES_CACHE is None:
         return (None, None)
     return _SPECIES_TYPES_CACHE.get(species.upper(), (None, None))
@@ -522,8 +527,9 @@ def _get_species_types(
 def reset_species_cache() -> None:
     """Clear the cached species→types mapping (test helper)."""
     global _SPECIES_TYPES_CACHE, _SPECIES_TYPES_SOURCE
-    _SPECIES_TYPES_CACHE = None
-    _SPECIES_TYPES_SOURCE = None
+    with _SPECIES_TYPES_LOCK:
+        _SPECIES_TYPES_CACHE = None
+        _SPECIES_TYPES_SOURCE = None
 
 
 def _parse_pokemon(obj: Any, save_path: Optional[Path] = None) -> Optional[PokemonSummary]:
@@ -540,11 +546,15 @@ def _parse_pokemon(obj: Any, save_path: Optional[Path] = None) -> Optional[Pokem
     if isinstance(moves_raw, (list, tuple)):
         for m in moves_raw:
             n: Any = None
-            if isinstance(m, RubyObject):
+            if isinstance(m, (Symbol, str)):
+                # v16/v17 store moves as Symbols or strings directly.
+                n = _symbol_name(m)
+            elif isinstance(m, int):
+                n = str(m)
+            elif isinstance(m, RubyObject):
                 # v21+ stores moves as Pokemon::Move objects with @id.
-                # v17 stored them as Symbols or strings directly.
                 n = _attr(m, "@id", "id")
-            n = _symbol_name(n)
+                n = _symbol_name(n)
             if n:
                 moves.append(n)
 

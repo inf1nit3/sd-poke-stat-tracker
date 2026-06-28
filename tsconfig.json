@@ -11,8 +11,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "resolveJsonModule": true,
-    "lib": ["DOM", "ES2020"],
-    "types": ["node"]
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "lib": ["DOM", "ES2020"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }

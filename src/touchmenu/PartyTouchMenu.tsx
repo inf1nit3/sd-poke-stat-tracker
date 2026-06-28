@@ -2,7 +2,7 @@ import type { MovesDatabase, PokemonSummary, SaveFeatures } from "../api";
 import { HealthBar } from "../components/HealthBar";
 import { TypeBadge } from "../components/TypeBadge";
 import { normalizeKey } from "../utils/normalize";
-import { useStore } from "../store";
+import { useStore, saveDataEqual } from "../store";
 
 const STATUS_COLORS: Record<string, string> = {
   OK: "#5eba7d",
@@ -23,8 +23,15 @@ const GENDER_SYMBOLS: Record<string, string> = {
 const MAX_SLOTS = 6;
 
 export function PartyTouchMenu() {
-  const saveData = useStore((s) => s.saveData);
-  const movesDb = useStore((s) => s.movesDatabase);
+  const saveData = useStore((s) => s.saveData, saveDataEqual);
+  const movesDb = useStore(
+    (s) => s.movesDatabase,
+    (a, b): boolean => {
+      if (a === b) return true;
+      if (!a || !b) return false;
+      return a.merged_count === b.merged_count && a.pbs_source === b.pbs_source;
+    }
+  );
 
   if (!saveData) {
     return <EmptyState>Loading save data…</EmptyState>;

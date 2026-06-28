@@ -9,29 +9,6 @@ Phase 6: Live memory reading from the running game process.
 
 from __future__ import annotations
 
-# Patch rubymarshal to handle TYPE_LINK forward references in Essentials .rxdata
-# files. Must be loaded BEFORE any other module in the plugin imports
-# rubymarshal, otherwise the unpatched ``loads`` will be cached in
-# sys.modules and the patch won't apply.
-#
-# Why this matters: Vanguard and other fan-game forks use circular references
-# (e.g. $Trainer.@party[i].@trainer -> $Trainer). The upstream rubymarshal
-# reader raises ValueError when a TYPE_LINK points at an object whose slot
-# is still None during unmarshalling. Our _marshal_compat module replaces
-# the upstream ``loads`` with one that returns a ForwardRef proxy for
-# unresolved links, then walks the tree post-parse to resolve them all.
-#
-# See: https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md
-# (unrelated upstream) + tests/smoke_test.py for the round-trip verification.
-try:
-    import _marshal_compat  # noqa: F401  # applies the monkey-patch on import
-except ImportError:
-    # _marshal_compat is shipped alongside this module; if it's missing,
-    # save-parser will fail with "invalid link destination" on any save
-    # with circular references. We continue anyway because some synthetic
-    # or older saves might still parse without the patch.
-    pass
-
 import json
 import os
 import sys
@@ -45,8 +22,32 @@ import decky
 # work. Use INSERT (not append) so the plugin's modules shadow any older
 # copies of livewatch/savepath/steampaths that may live in
 # site-packages from a previous install of this plugin.
+#
+# IMPORTANT: This MUST run BEFORE the _marshal_compat import below, because
+# _marshal_compat.py lives in py_modules/ and a bare `import` would fail
+# with ImportError (silently swallowed) if py_modules isn't on sys.path yet.
 PLUGIN_DIR: Path = Path(__file__).resolve().parent
 sys.path.insert(0, str(PLUGIN_DIR / "py_modules"))
+
+# Patch rubymarshal to handle TYPE_LINK forward references in Essentials .rxdata
+# files. Must be loaded BEFORE any other module in the plugin imports
+# rubymarshal, otherwise the unpatched ``loads`` will be cached in
+# sys.modules and the patch won't apply.
+#
+# Why this matters: Vanguard and other fan-game forks use circular references
+# (e.g. $Trainer.@party[i].@trainer -> $Trainer). The upstream rubymarshal
+# reader raises ValueError when a TYPE_LINK points at an object whose slot
+# is still None during unmarshalling. Our _marshal_compat module replaces
+# the upstream ``loads`` with one that returns a ForwardRef proxy for
+# unresolved links, then walks the tree post-parse to resolve them all.
+try:
+    import _marshal_compat  # noqa: F401  # applies the monkey-patch on import
+except ImportError:
+    # _marshal_compat is shipped alongside this module; if it's missing,
+    # save-parser will fail with "invalid link destination" on any save
+    # with circular references. We continue anyway because some synthetic
+    # or older saves might still parse without the patch.
+    pass
 
 from livewatch import (
     LiveMemoryReader,
@@ -173,18 +174,23 @@ class Plugin:
 
     def __init__(self) -> None:
         self._type_chart_engine: TypeChart = TypeChart(TYPE_CHART_PATH)
-        self._moves_db: MovesDB = MovesDB()
+        self._moves_db: MovesDB = MovesDB(static_path=DATA_DIR / "moves.json")
         self._themes: ThemeManager = ThemeManager(THEMES_PATH)
         self._state_lock = threading.Lock()
-        self._state_lock = threading.Lock()
+        self._lifecycle_lock = threading.Lock()
         self._settings: dict[str, Any] = dict(DEFAULT_SETTINGS)
         self._initialized: bool = False
+        self._shutting_down: bool = False
         self._save_cache: dict[str, Any] | None = None
         self._save_cache_path: str | None = None
         self._save_cache_at: float = 0.0
         self._watcher: Optional[SaveFileWatcher] = None
         self._watcher_callback_id: int = 0
         self._last_live_event: dict[str, Any] = {}
+        # Cached resolved save path — refreshed only when settings change or
+        # the watcher detects a new save, NOT on every poll tick (avoids
+        # re-walking the entire Steam library every 0.3-2s).
+        self._cached_save_path: Optional[Path] = None
         # Phase 6: live memory reading
         self._memory_reader: Optional[LiveMemoryReader] = None
         self._memory_pid: Optional[int] = None
@@ -221,6 +227,8 @@ class Plugin:
     async def _unload(self) -> None:
         """Called once when the plugin is unloaded."""
         log.info("=== Pokémon Essentials Overlay unloading ===")
+        with self._lifecycle_lock:
+            self._shutting_down = True
         if self._watcher is not None:
             self._watcher.stop()
             self._watcher = None
@@ -230,11 +238,13 @@ class Plugin:
         if self._stream_server is not None:
             self._stream_server.stop()
             self._stream_server = None
-        self._settings = dict(DEFAULT_SETTINGS)
-        self._save_cache = None
-        self._save_cache_path = None
-        self._save_cache_at = 0.0
-        self._initialized = False
+        with self._state_lock:
+            self._settings = dict(DEFAULT_SETTINGS)
+            self._save_cache = None
+            self._save_cache_path = None
+            self._save_cache_at = 0.0
+            self._cached_save_path = None
+            self._initialized = False
 
     def _load_settings(self) -> None:
         # _coerce_settings() returns a complete dict with every DEFAULT_SETTINGS
@@ -344,25 +354,23 @@ class Plugin:
                 raise TypeError("touchmenu_position must be { x: number, y: number }")
         # Coerce types in the patch to match DEFAULT_SETTINGS — otherwise a
         # frontend bug sending scan_interval_seconds as a string would land
-        # in self._settings and crash downstream arithmetic (e.g.
-        # _start_watcher divides it by 10). Unknown keys are dropped.
+        # in self._settings and crash downstream arithmetic.
         with self._state_lock:
             coerced = _coerce_settings({**self._settings, **patch})
-        # Apply only the keys that were actually in the patch, so callers
-        # can't accidentally widen the settings schema via coercion.
             self._settings.update({k: coerced[k] for k in patch.keys() if k in coerced})
-            self._save_settings()
+            current_settings = dict(self._settings)
+        # Persist outside the lock to avoid blocking I/O on the event loop.
+        self._save_settings()
         if "save_path_override" in patch:
             with self._state_lock:
                 self._save_cache = None
                 self._save_cache_path = None
+                self._cached_save_path = None
                 self._last_live_event = {}
             self._stop_watcher()
             if self._settings.get("watcher_enabled", True):
                 self._start_watcher()
         if "watcher_enabled" in patch:
-            # Use the coerced value (patch["watcher_enabled"] could be int or
-            # string from a buggy frontend) for consistency with self._settings.
             if coerced.get("watcher_enabled", True):
                 self._start_watcher()
             else:
@@ -372,13 +380,14 @@ class Plugin:
                 self._start_memory_reader()
             else:
                 self._stop_memory_reader()
-        with self._state_lock:
-            return dict(self._settings)
+        return current_settings
 
     async def find_save_path(self) -> dict[str, Any]:
         """Resolve the most likely save file path. Does not parse it."""
-        override = self._settings.get("save_path_override")
-        path = find_save_file(override if override else None)
+        import asyncio
+        with self._state_lock:
+            override = self._settings.get("save_path_override")
+        path = await asyncio.to_thread(find_save_file, override if override else None)
         return {
             "path": str(path) if path else None,
             "using_override": bool(override) and path is not None,
@@ -386,7 +395,8 @@ class Plugin:
 
     async def list_save_files(self) -> list[dict[str, Any]]:
         """List all discoverable save files with metadata."""
-        return list_save_files()
+        import asyncio
+        return await asyncio.to_thread(list_save_files)
 
     async def get_save_data(self, force_reload: bool = False) -> dict[str, Any]:
         """Parse the active save file and return a normalized dict.
@@ -394,11 +404,12 @@ class Plugin:
         Caches the result in memory. ``force_reload=True`` invalidates the cache
         and re-parses from disk.
         """
+        import asyncio
         import time as _time
 
         with self._state_lock:
             override = self._settings.get("save_path_override")
-        path = find_save_file(override if override else None)
+        path = await asyncio.to_thread(find_save_file, override if override else None)
         if path is None:
             with self._state_lock:
                 self._save_cache = None
@@ -419,7 +430,7 @@ class Plugin:
                     pass
 
         try:
-            data: SaveData = parse_save_file(path)
+            data: SaveData = await asyncio.to_thread(parse_save_file, path)
         except SaveParseError as exc:
             log.warning(f"Save parse error: {exc}")
             return {
@@ -444,7 +455,8 @@ class Plugin:
             except OSError:
                 self._save_cache_at = _time.time()
             self._settings["last_save_path"] = path_str
-            self._save_settings()
+        # Persist settings outside the lock to avoid blocking I/O on the event loop.
+        self._save_settings()
         if self._watcher is not None:
             self._watcher.notify_save_loaded(path)
         return out
@@ -482,15 +494,17 @@ class Plugin:
 
     async def find_pbs_files(self, save_path: str | None = None) -> dict[str, str]:
         """Locate PBS files. Returns ``{file_type: absolute_path}`` for found files."""
+        import asyncio
         sp = Path(save_path) if save_path else None
-        found = find_pbs_files(save_path=sp)
+        found = await asyncio.to_thread(lambda: find_pbs_files(save_path=sp))
         return {k: str(v) for k, v in found.items()}
 
     async def load_pbs_moves(self, path: str) -> dict[str, Any]:
         """Load a PBS/moves.txt file. Reloads the moves DB with PBS data."""
+        import asyncio
         if not isinstance(path, str) or not path:
             raise TypeError("path must be a non-empty string")
-        count = self._moves_db.load_pbs(path)
+        count = await asyncio.to_thread(self._moves_db.load_pbs, path)
         return {
             "loaded": count > 0,
             "count": count,
@@ -500,9 +514,11 @@ class Plugin:
 
     async def auto_load_pbs(self) -> dict[str, Any]:
         """Re-attempt PBS auto-discovery. Returns the loaded path or None."""
-        last_save = self._settings.get("last_save_path")
+        import asyncio
+        with self._state_lock:
+            last_save = self._settings.get("last_save_path")
         sp = Path(last_save) if last_save else None
-        loaded = self._moves_db.auto_load_pbs(save_path=sp)
+        loaded = await asyncio.to_thread(lambda: self._moves_db.auto_load_pbs(save_path=sp))
         return {
             "loaded": loaded is not None,
             "source": str(loaded) if loaded else None,
@@ -525,61 +541,92 @@ class Plugin:
         return self._themes.get(active if isinstance(active, str) else None)
 
     def _start_watcher(self) -> None:
-        if self._watcher is not None:
-            return
-        # Lower floor than before — 0.3s polling feels live without
-        # burning CPU. Saves happen on every Pokemon Center visit,
-        # battle end, and menu save, so 0.3s gives near-instant updates.
-        interval = max(0.3, min(2.0, self._settings.get("scan_interval_seconds", 30) / 10))
-        self._watcher = SaveFileWatcher(
-            path_provider=lambda: self._resolve_active_save(),
-            on_change=self._on_watcher_change,
-            interval=interval,
-        )
-        self._watcher.start()
+        with self._lifecycle_lock:
+            if self._watcher is not None:
+                return
+            # Lower floor than before — 0.3s polling feels live without
+            # burning CPU. Saves happen on every Pokemon Center visit,
+            # battle end, and menu save, so 0.3s gives near-instant updates.
+            interval = max(0.3, min(2.0, self._settings.get("scan_interval_seconds", 30) / 10))
+            self._watcher = SaveFileWatcher(
+                path_provider=self._resolve_active_save_cached,
+                on_change=self._on_watcher_change,
+                interval=interval,
+            )
+            self._watcher.start()
 
     def _stop_watcher(self) -> None:
-        if self._watcher is not None:
-            self._watcher.stop()
-            self._watcher = None
+        with self._lifecycle_lock:
+            if self._watcher is not None:
+                self._watcher.stop()
+                self._watcher = None
 
-    def _resolve_active_save(self) -> Optional[Path]:
+    def _resolve_active_save_cached(self) -> Optional[Path]:
+        """Return the cached save path, or resolve + cache it on first call.
+
+        This avoids re-walking the entire Steam library on every watcher poll
+        tick (0.3-2s). The cache is invalidated when settings change or when
+        the watcher detects a path change.
+        """
+        with self._state_lock:
+            if self._cached_save_path is not None:
+                # Verify the cached path still exists.
+                cached = self._cached_save_path
+            else:
+                cached = None
+        if cached is not None and cached.is_file():
+            return cached
+        # Cache miss or file gone — re-resolve (this does the filesystem walk).
         override = self._settings.get("save_path_override")
         found = find_save_file(override if override else None)
+        with self._state_lock:
+            self._cached_save_path = found
         return found
 
     def _on_watcher_change(self, path: Path) -> None:
         import time as _time
 
-        if self._save_cache is not None and self._save_cache_path == str(path):
-            try:
-                if path.stat().st_mtime <= self._save_cache_at:
-                    return
-            except OSError:
-                pass
+        with self._state_lock:
+            if self._save_cache is not None and self._save_cache_path == str(path):
+                try:
+                    if path.stat().st_mtime <= self._save_cache_at:
+                        return
+                except OSError:
+                    pass
         try:
             data = parse_save_file(path)
-            with self._state_lock:
-                self._save_cache = data.to_dict()
-                self._save_cache_path = str(path)
-                try:
-                    self._save_cache_at = path.stat().st_mtime
-                except OSError:
-                    self._save_cache_at = _time.time()
+        except SaveParseError as exc:
+            log.warning(f"Live save parse failed: {exc}")
+            return
+        out = data.to_dict()
+        last_save_changed = False
+        with self._state_lock:
+            self._save_cache = out
+            self._save_cache_path = str(path)
+            try:
+                self._save_cache_at = path.stat().st_mtime
+            except OSError:
+                self._save_cache_at = _time.time()
+            if self._settings.get("last_save_path") != str(path):
                 self._settings["last_save_path"] = str(path)
-                self._save_settings()
+                last_save_changed = True
+            # Disk watcher takes priority demotion: if a stream was previously
+            # active but is no longer sending, disk updates should resume.
+            self._live_source = "disk"
             self._last_live_event = {
                 "kind": "save_modified",
                 "path": str(path),
                 "at": _time.time(),
                 "trainer": data.trainer_name,
             }
-            log.info(
-                f"Live save change: {data.trainer_name} "
-                f"({len(data.party)} Pokemon)"
-            )
-        except SaveParseError as exc:
-            log.warning(f"Live save parse failed: {exc}")
+        # Only persist settings if last_save_path actually changed (avoids
+        # hammering flash I/O on every autosave).
+        if last_save_changed:
+            self._save_settings()
+        log.info(
+            f"Live save change: {data.trainer_name} "
+            f"({len(data.party)} Pokemon)"
+        )
 
     # --- Phase 6: live memory reading ---------------------------------
 
@@ -592,45 +639,55 @@ class Plugin:
         reconnects automatically after restart). The memory reader
         is best-effort and may find nothing — see livewatch.py.
         """
-        # 1) TCP stream server — most reliable source when the
-        #    game-mod is installed.
-        if self._stream_server is None:
-            self._stream_server = LiveStreamServer(
-                on_state=self._on_stream_state,
+        with self._lifecycle_lock:
+            if self._shutting_down:
+                return
+            # 1) TCP stream server — most reliable source when the
+            #    game-mod is installed.
+            if self._stream_server is None:
+                self._stream_server = LiveStreamServer(
+                    on_state=self._on_stream_state,
+                    on_disconnect=self._on_stream_disconnect,
+                )
+                if not self._stream_server.start():
+                    log.warning("Live stream server failed to bind, falling back to disk only")
+                    self._stream_server = None
+            # 2) Memory reader — experimental, usually finds nothing.
+            if self._memory_reader is not None:
+                return
+            procs = find_game_processes()
+            if not procs:
+                log.info("Live memory reader: no game process found, "
+                         "stream server + disk watcher remain active")
+                return
+            game_proc = procs[0]
+            pid = int(game_proc.get("pid") or 0)
+            if pid <= 0:
+                log.warning("Live memory reader: game process has no pid")
+                return
+            self._memory_pid = pid
+            self._memory_reader = LiveMemoryReader(
+                pid=pid,
+                on_update=self._on_memory_update,
+                on_failure=self._on_memory_failure,
+                interval=3.0,
             )
-            if not self._stream_server.start():
-                log.warning("Live stream server failed to bind, falling back to disk only")
-                self._stream_server = None
-        # 2) Memory reader — experimental, usually finds nothing.
-        if self._memory_reader is not None:
-            return
-        procs = find_game_processes()
-        if not procs:
-            log.info("Live memory reader: no game process found, "
-                     "stream server + disk watcher remain active")
-            return
-        game_proc = procs[0]
-        pid = int(game_proc.get("pid") or 0)
-        if pid <= 0:
-            log.warning("Live memory reader: game process has no pid")
-            return
-        self._memory_pid = pid
-        self._memory_reader = LiveMemoryReader(
-            pid=pid,
-            on_update=self._on_memory_update,
-            on_failure=self._on_memory_failure,
-            interval=3.0,
-        )
-        self._memory_reader.start()
+            self._memory_reader.start()
 
     def _stop_memory_reader(self) -> None:
-        if self._memory_reader is not None:
-            self._memory_reader.stop()
-            self._memory_reader = None
-        self._memory_pid = None
-        if self._stream_server is not None:
-            self._stream_server.stop()
-            self._stream_server = None
+        with self._lifecycle_lock:
+            if self._memory_reader is not None:
+                # Avoid self-join: if we're on the reader's own thread, just
+                # signal stop without joining.
+                if self._memory_reader._thread is threading.current_thread():
+                    self._memory_reader._stop.set()
+                else:
+                    self._memory_reader.stop()
+                self._memory_reader = None
+            self._memory_pid = None
+            if self._stream_server is not None:
+                self._stream_server.stop()
+                self._stream_server = None
 
     def _on_memory_update(self, payload: dict[str, Any]) -> None:
         """A live memory scan produced a fresh save. Update the cache
@@ -638,23 +695,23 @@ class Plugin:
         """
         import time as _time
         now = _time.time()
-        # Stream updates are fresher than memory updates.
-        if self._live_source == "stream":
-            return
         with self._state_lock:
+            # Stream updates are fresher than memory updates.
+            if self._live_source == "stream":
+                return
             if now <= self._save_cache_at:
                 return
             self._save_cache = payload
             self._save_cache_path = f"<memory:{self._memory_pid}>"
             self._save_cache_at = now
-        self._live_source = "memory"
-        self._last_live_event = {
-            "kind": "memory_update",
-            "pid": self._memory_pid,
-            "at": now,
-            "trainer": payload.get("trainer_name"),
-            "party_count": len(payload.get("party", [])),
-        }
+            self._live_source = "memory"
+            self._last_live_event = {
+                "kind": "memory_update",
+                "pid": self._memory_pid,
+                "at": now,
+                "trainer": payload.get("trainer_name"),
+                "party_count": len(payload.get("party", [])),
+            }
         log.debug(
             f"Live memory update: trainer={payload.get('trainer_name')} "
             f"party={len(payload.get('party', []))}"
@@ -667,55 +724,69 @@ class Plugin:
         """
         import time as _time
         now = _time.time()
-        # Stream always wins over memory/disk if a fresh-enough
-        # timestamp arrives.
         with self._state_lock:
             self._save_cache = payload
             self._save_cache_path = f"<stream:9988>"
             self._save_cache_at = now
-        self._live_source = "stream"
-        self._last_live_event = {
-            "kind": "stream_update",
-            "at": now,
-            "trainer": payload.get("trainer_name"),
-            "party_count": payload.get("party_count", 0),
-            "in_menu": payload.get("in_menu", False),
-        }
+            self._live_source = "stream"
+            self._last_live_event = {
+                "kind": "stream_update",
+                "at": now,
+                "trainer": payload.get("trainer_name"),
+                "party_count": payload.get("party_count", 0),
+                "in_menu": payload.get("in_menu", False),
+                "in_battle": payload.get("in_battle", False),
+            }
         log.debug(
             f"Live stream update: trainer={payload.get('trainer_name')} "
             f"party={payload.get('party_count')} "
             f"menu={payload.get('in_menu')}"
         )
 
+    def _on_stream_disconnect(self) -> None:
+        """Stream client disconnected — demote live source back to disk."""
+        with self._state_lock:
+            if self._live_source == "stream":
+                self._live_source = "disk"
+        log.info("Live stream client disconnected, falling back to disk watcher")
+
     def _on_memory_failure(self, reason: str) -> None:
         """Memory reader couldn't produce data. Stay quiet — the disk
         watcher keeps working as fallback. Only log the first few.
         """
-        self._memory_failure_log.append(reason)
-        # Keep only the last 5 reasons to avoid unbounded growth.
-        self._memory_failure_log = self._memory_failure_log[-5:]
+        with self._state_lock:
+            self._memory_failure_log.append(reason)
+            self._memory_failure_log = self._memory_failure_log[-5:]
         # If the game process disappeared, stop the reader. The disk
         # watcher will still pick up the last save.
-        if reason == "process_gone" and self._memory_reader is not None:
+        if reason == "process_gone":
             log.info("Live memory reader: game process gone, stopping")
-            self._stop_memory_reader()
-            # Try to restart in case the game was just restarted.
-            self._restart_memory_reader_if_game_present()
+            # Schedule stop+restart on a separate thread to avoid self-join
+            # deadlock (this callback runs on the reader's own worker thread).
+            threading.Thread(
+                target=self._handle_memory_reader_process_gone,
+                daemon=True,
+                name="MemoryReaderRestart",
+            ).start()
         else:
             log.debug(f"Live memory reader: {reason}")
 
-    def _restart_memory_reader_if_game_present(self) -> None:
-        import threading
-        def _check_and_start():
-            import time as _t
-            _t.sleep(2.0)
-            if self._memory_reader is None and self._settings.get(
-                "live_memory_enabled", False
-            ):
-                procs = find_game_processes()
-                if procs:
-                    self._start_memory_reader()
-        threading.Thread(target=_check_and_start, daemon=True).start()
+    def _handle_memory_reader_process_gone(self) -> None:
+        """Stop the memory reader and try to restart if the game reappears.
+
+        Runs on a dedicated thread so we never join the reader's own worker
+        thread (which would deadlock).
+        """
+        import time as _t
+        self._stop_memory_reader()
+        _t.sleep(2.0)
+        if self._shutting_down:
+            return
+        if not self._settings.get("live_memory_enabled", False):
+            return
+        procs = find_game_processes()
+        if procs:
+            self._start_memory_reader()
 
     def _refresh_memory_reader_pid(self) -> None:
         """Re-detect the game PID (handles restart) and update the reader."""
@@ -743,12 +814,18 @@ class Plugin:
         to surface the most recent live save change. Falls back to
         the most recent ``get_save_data`` result if no live event yet.
         """
-        processes = find_game_processes()
-        active_proc: Optional[dict[str, object]] = None
-        if processes:
-            active_proc = processes[0]
-        watcher_active = self._watcher is not None
-        memory_active = self._memory_reader is not None
+        import asyncio
+        processes = await asyncio.to_thread(find_game_processes)
+        with self._state_lock:
+            active_proc = processes[0] if processes else None
+            watcher_active = self._watcher is not None
+            memory_active = self._memory_reader is not None
+            live_source = self._live_source
+            memory_pid = self._memory_pid
+            memory_failure_log = list(self._memory_failure_log)
+            last_live_event = dict(self._last_live_event) if self._last_live_event else {}
+            save_cache = self._save_cache
+            save_cache_path = self._save_cache_path
         return {
             "game_running": bool(processes),
             "processes": [
@@ -756,18 +833,19 @@ class Plugin:
                     "pid": p.get("pid"),
                     "name": p.get("name"),
                     "cmdline": p.get("cmdline_str", ""),
+                    "is_emulator": p.get("is_emulator", False),
                 }
                 for p in processes[:5]
             ],
             "active_process": active_proc,
             "watcher_active": watcher_active,
-            "live_source": self._live_source,
+            "live_source": live_source,
             "memory_reader_active": memory_active,
-            "memory_pid": self._memory_pid,
-            "memory_failure_log": list(self._memory_failure_log),
-            "last_live_event": self._last_live_event,
-            "last_save_data": self._save_cache,
-            "last_save_path": self._save_cache_path,
+            "memory_pid": memory_pid,
+            "memory_failure_log": memory_failure_log,
+            "last_live_event": last_live_event,
+            "last_save_data": save_cache,
+            "last_save_path": save_cache_path,
         }
 
     async def get_live_save_data(self) -> dict[str, Any] | None:
@@ -786,7 +864,8 @@ class Plugin:
 
     async def find_process_by_save(self, save_path: str) -> dict[str, Any] | None:
         """Find the process that has ``save_path`` open."""
-        info = find_process_by_save_path(save_path)
+        import asyncio
+        info = await asyncio.to_thread(find_process_by_save_path, save_path)
         if info is None:
             return None
         return {
@@ -798,6 +877,7 @@ class Plugin:
 
     async def get_process_memory_regions(self, pid: int) -> list[dict[str, str]]:
         """Return the memory map for a process (best effort)."""
+        import asyncio
         if not isinstance(pid, int) or pid <= 0:
             raise TypeError("pid must be a positive integer")
-        return get_process_memory_map(pid)
+        return await asyncio.to_thread(get_process_memory_map, pid)

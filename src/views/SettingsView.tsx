@@ -7,9 +7,9 @@ import {
   TextField,
   ToggleField,
 } from "@decky/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, SaveFileCandidate, SavePathResult } from "../api";
-import { applySettingsPatch, refreshMoves, refreshTheme, retryRefreshStatic, useStore } from "../store";
+import { applySettingsPatch, refreshMoves, retryRefreshStatic, useStore } from "../store";
 
 function fmtTime(epoch: number): string {
   if (!epoch) return "—";
@@ -39,6 +39,7 @@ export function SettingsView() {
   const [candidates, setCandidates] = useState<SaveFileCandidate[]>([]);
   const [overrideInput, setOverrideInput] = useState<string>("");
   const [pbsInput, setPbsInput] = useState<string>("");
+  const [scanIntervalInput, setScanIntervalInput] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
   const [pbsBusy, setPbsBusy] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -64,28 +65,48 @@ export function SettingsView() {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    setBusy(true);
+    Promise.all([api.findSavePath(), api.listSaveFiles()])
+      .then(([r, c]) => { if (!cancelled) { setResolved(r); setCandidates(c); } })
+      .catch((e: Error) => { if (!cancelled) setStatusError(e.message); })
+      .finally(() => { if (!cancelled) setBusy(false); });
+    return () => { cancelled = true; };
+  }, []);
 
-  // Fetch the themes list once on mount. The list of available themes
-  // doesn't change at runtime — re-fetching on theme changes was a bug
-  // (caused a brief "Loading…" flash every time the user picked a new theme).
-  const themesLoaded = useMemo(() => themes.length > 0, [themes]);
+  // Fetch the themes list once on mount.
   useEffect(() => {
-    if (themesLoaded) return;
-    api
-      .getThemes()
-      .then((r) => setThemes(r.themes))
+    let cancelled = false;
+    if (themes.length > 0) return;
+    api.getThemes()
+      .then((r) => { if (!cancelled) setThemes(r.themes); })
       .catch((e: Error) => console.error("themes", e));
-  }, [themesLoaded]);
+    return () => { cancelled = true; };
+  }, []);
 
+  // Initialize input fields from settings/movesDb ONCE (not on every change
+  // — that would clobber the user's in-progress typing).
+  const overrideInit = useRef(false);
+  const pbsInit = useRef(false);
+  const scanInit = useRef(false);
   useEffect(() => {
-    if (settings) setOverrideInput(settings.save_path_override ?? "");
-  }, [settings?.save_path_override]);
-
+    if (settings && !overrideInit.current) {
+      setOverrideInput(settings.save_path_override ?? "");
+      overrideInit.current = true;
+    }
+  }, [settings]);
   useEffect(() => {
-    if (movesDb) setPbsInput(movesDb.pbs_source ?? "");
-  }, [movesDb?.pbs_source]);
+    if (movesDb && !pbsInit.current) {
+      setPbsInput(movesDb.pbs_source ?? "");
+      pbsInit.current = true;
+    }
+  }, [movesDb]);
+  useEffect(() => {
+    if (settings && !scanInit.current) {
+      setScanIntervalInput(String(settings.scan_interval_seconds));
+      scanInit.current = true;
+    }
+  }, [settings]);
 
   const reloadPbsAuto = useCallback(async () => {
     setPbsBusy(true);
@@ -219,13 +240,15 @@ export function SettingsView() {
     }
   }, []);
 
-  const setScanInterval = useCallback(async (v: number) => {
-    try {
-      await applySettingsPatch({ scan_interval_seconds: Math.max(5, v) });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setStatusError(msg);
-    }
+  const scanDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setScanInterval = useCallback((v: number) => {
+    const clamped = Math.max(5, v);
+    if (scanDebounce.current) clearTimeout(scanDebounce.current);
+    scanDebounce.current = setTimeout(() => {
+      applySettingsPatch({ scan_interval_seconds: clamped }).catch((e: Error) =>
+        setStatusError(e.message)
+      );
+    }, 500);
   }, []);
 
   const setCompactMode = useCallback(async (v: boolean) => {
@@ -485,9 +508,10 @@ export function SettingsView() {
         <PanelSectionRow>
           <TextField
             label="Interval (seconds)"
-            value={String(settings.scan_interval_seconds)}
+            value={scanIntervalInput}
             onChange={(e) => {
               const n = parseInt(e.target.value, 10);
+              setScanIntervalInput(e.target.value);
               if (!isNaN(n)) setScanInterval(n);
             }}
           />

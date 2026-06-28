@@ -6,7 +6,6 @@ requires-python = ">=3.11"
 dependencies = [
   "python-decky",
   "psutil>=5.9.0",
-  "pyyaml>=6.0",
   "rubymarshal>=1.2.0"
 ]
 
@@ -15,4 +14,12 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["main", "typechart", "saveparser", "savepath", "pbsparser", "pbsfinder", "moves", "themes", "livewatch"]
+py-modules = ["main", "typechart", "saveparser", "savepath", "pbsparser", "pbsfinder", "moves", "themes", "livewatch", "steampaths", "_marshal_compat"]
+
+[tool.setuptools.package-data]
+"*" = ["data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

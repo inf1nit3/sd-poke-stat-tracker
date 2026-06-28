@@ -2,7 +2,7 @@
   "name": "SD Poké Stat Tracker",
   "author": "inf1nit3",
   "homepage": "https://github.com/inf1nit3/sd-poke-stat-tracker",
-  "flags": ["debug"],
+  "flags": [],
   "api_version": 1,
   "minimum_steamdeck_version": "1.0.0",
   "publish": {

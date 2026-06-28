@@ -42,10 +42,25 @@ _SEARCH_ROOTS: tuple[Path, ...] = (
 )
 
 
+# Legacy plugin names that this installer previously shipped under.
+# Only these exact names are cleaned up — never blanket-delete every
+# directory starting with "Poke" (that would nuke unrelated user plugins).
+_LEGACY_PLUGIN_NAMES: frozenset[str] = frozenset({
+    "PokeEssStatStream",
+    "PokeStatStreamLegacy",
+    "PokeStatStreamer",
+    "PokeStream",
+})
+
+
 def _looks_like_game_dir(d: Path) -> bool:
-    """True if ``d`` has both Game.exe and a Plugins/ folder."""
+    """True if ``d`` has both Game.exe (case-insensitive) and a Plugins/ folder."""
     try:
-        return (d / "Game.exe").is_file() and (d / "Plugins").is_dir()
+        has_exe = any(
+            (d / name).is_file()
+            for name in ("Game.exe", "game.exe", "Game.EXE")
+        )
+        return has_exe and (d / "Plugins").is_dir()
     except OSError:
         return False
 
@@ -55,7 +70,7 @@ def find_game_dir() -> Path | None:
 
     Order:
       1. Hardcoded candidates (instant).
-      2. rglob each search root for any Game.exe, verify Plugins/ exists.
+      2. rglob each search root for any Game.exe (case-insensitive), verify Plugins/ exists.
     """
     for c in _HARDCODED_CANDIDATES:
         if _looks_like_game_dir(c):
@@ -65,25 +80,26 @@ def find_game_dir() -> Path | None:
         if not root.is_dir():
             continue
         try:
-            for exe in root.rglob("Game.exe"):
-                parent = exe.parent
-                if parent in seen:
-                    continue
-                seen.add(parent)
-                if _looks_like_game_dir(parent):
-                    return parent
+            # Search for both standard and lowercase Game.exe (case-sensitive
+            # filesystems like ext4 won't match "game.exe" with "Game.exe").
+            for pattern in ("Game.exe", "game.exe", "Game.EXE"):
+                for exe in root.rglob(pattern):
+                    parent = exe.parent
+                    if parent in seen:
+                        continue
+                    seen.add(parent)
+                    if _looks_like_game_dir(parent):
+                        return parent
         except OSError:
             continue
     return None
 
 
 def _remove_legacy_poke_plugins(plugins_dir: Path) -> None:
-    """Remove any stale PokeStatStream plugin dirs that aren't the current one.
+    """Remove stale plugin dirs shipped under previous names.
 
-    Older releases shipped as ``PokeEssStatStream`` (and similar) and still
-    ``require 'json'`` at the top of ``stream.rb``, which crashes on the
-    minimal Ruby that ships with some Pokémon Essentials builds. Cleaning
-    them up here makes the install idempotent across version bumps.
+    Only deletes directories whose names match a known legacy name exactly,
+    preventing accidental removal of unrelated Pokémon plugins.
     """
     if not plugins_dir.is_dir():
         return
@@ -92,7 +108,7 @@ def _remove_legacy_poke_plugins(plugins_dir: Path) -> None:
             continue
         if entry.name == PLUGIN_NAME:
             continue
-        if not entry.name.startswith("Poke"):
+        if entry.name not in _LEGACY_PLUGIN_NAMES:
             continue
         if not any(entry.rglob("*.rb")):
             continue

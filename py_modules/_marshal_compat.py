@@ -34,12 +34,14 @@ class ForwardRef:
     def resolve(self) -> Any:
         if not self._resolved:
             self._resolved = True
-            self._objects_ref[self._index]
         return self._objects_ref[self._index]
 
     @property
     def resolved(self) -> bool:
-        return self._objects_ref[self._index] is not None
+        try:
+            return self._objects_ref[self._index] is not None
+        except IndexError:
+            return False
 
     def __repr__(self) -> str:
         return f"<ForwardRef #{self._index} resolved={self.resolved}>"
@@ -57,12 +59,15 @@ def _resolve_forward_refs(root: Any) -> None:
             attrs = node.attributes
             if isinstance(attrs, dict):
                 for k, v in list(attrs.items()):
+                    current_k = k
                     if isinstance(k, ForwardRef):
                         new_k = k.resolve()
                         attrs[new_k] = attrs.pop(k)
+                        current_k = new_k
                     if isinstance(v, ForwardRef):
-                        attrs[k] = v.resolve()
-                    elif isinstance(v, (RubyObject, dict, list, tuple)):
+                        attrs[current_k] = v.resolve()
+                        v = attrs[current_k]
+                    if isinstance(v, (RubyObject, dict, list, tuple)):
                         stack.append(v)
             continue
         if isinstance(node, dict):
@@ -101,7 +106,6 @@ def _patched_loads(raw, registry=None):
     in-place with the single TYPE_LINK branch modified.
     """
     import io
-    import re
 
     fd = io.BufferedReader(io.BytesIO(raw))
     if fd.read(1) != b"\x04":
@@ -127,7 +131,6 @@ def _walk(reader, in_ivar: bool):
     """Recursive walker that mirrors ``Reader.read`` but uses
     ``ForwardRef`` for unresolved TYPE_LINK targets.
     """
-    import io as _io
     from rubymarshal.constants import (
         TYPE_NIL, TYPE_TRUE, TYPE_FALSE, TYPE_IVAR,
         TYPE_STRING, TYPE_SYMBOL, TYPE_FIXNUM,
@@ -294,7 +297,7 @@ def _walk(reader, in_ivar: bool):
             class_name = class_symbol.name
             num_members = reader.read_long()
             members = [reader.read() for _ in range(num_members)]
-            python_class = reader.registry.get(class_name, _reader.Symbol)
+            python_class = reader.registry.get(class_name, RubyObject)
             if not issubclass(python_class, RubyObject):
                 raise ValueError(
                     "invalid class mapping for %r: %r should be a subclass of %r."

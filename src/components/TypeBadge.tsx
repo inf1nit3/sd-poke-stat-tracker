@@ -59,7 +59,3 @@ export function TypeBadge({ type, size = "md", style, dimmed = false }: TypeBadg
     </span>
   );
 }
-
-export function isKnownType(type: string): boolean {
-  return type in TYPE_COLORS;
-}

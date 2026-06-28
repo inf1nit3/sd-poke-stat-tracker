@@ -4,11 +4,10 @@ interface PokeballIconProps {
 }
 
 export function PokeballIcon({ size = 18, style }: PokeballIconProps) {
-  const s = size;
   return (
     <svg
-      width={s}
-      height={s}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       style={style}
       xmlns="http://www.w3.org/2000/svg"

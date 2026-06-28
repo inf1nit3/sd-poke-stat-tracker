@@ -1,10 +1,11 @@
 import { definePlugin, toaster } from "@decky/api";
 import { Focusable, ScrollPanel, PanelSection, PanelSectionRow } from "@decky/ui";
-import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { PokeballIcon } from "./components/PokeballIcon";
 import { TabBar, TabDef } from "./components/TabBar";
 import {
+  getState,
   refreshStatic,
   startPolling,
   stopPolling,
@@ -30,59 +31,64 @@ const TABS: TabDef[] = [
 function PluginContent() {
   const [active, setActive] = useState<TabId>("status");
   const theme = useStore((s) => s.theme);
-  const derivedLiveState = useStore((s) => {
-    const ls = s.liveState;
-    return {
-      inBattle: !!(ls?.battle_analysis && (ls.in_menu === false || ls.screen_state === "battle_active")),
-      showRestartBanner: ls?.mod_needs_restart === true && ls?.live_source !== "stream",
-    };
-  }, (a, b) => a.inBattle === b.inBattle && a.showRestartBanner === b.showRestartBanner);
+  const touchmenuEnabled = useStore((s) => s.settings?.touchmenu_enabled ?? true);
+  const inBattle = useStore((s) => !!s.liveState?.battle_analysis);
+  const showRestartBanner = useStore(
+    (s) => !!s.liveState?.mod_needs_restart && s.liveState?.live_source !== "stream"
+  );
 
-  const { inBattle, showRestartBanner } = derivedLiveState;
-
-  // --- Advanced Toasts ---
-  const enemyData = useStore((s) => s.liveState?.battle_analysis?.enemy, (a, b) => a?.name === b?.name);
-  const coachSuggestion = useStore((s) => s.liveState?.battle_analysis?.coach_suggestion, (a, b) => a?.suggested_pokemon === b?.suggested_pokemon);
-  const enemyStages = useStore((s) => s.liveState?.battle_analysis?.enemy?.stages, (a, b) => JSON.stringify(a) === JSON.stringify(b));
-
-  // 1. Battle Start / Enemy Switch
+  // Drive TouchMenu registration from the setting (not just plugin load).
   useEffect(() => {
-    if (inBattle && enemyData?.name) {
-      const typeStr = enemyData.types?.join("/") || "Unknown";
-      toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyData.name} (Type: ${typeStr})` });
+    if (touchmenuEnabled) {
+      registerTouchMenu();
+    } else {
+      unregisterTouchMenu();
     }
-  }, [enemyData?.name, inBattle]);
+  }, [touchmenuEnabled]);
 
-  // 2. Coach Suggestion
-  useEffect(() => {
-    if (inBattle && coachSuggestion?.suggested_pokemon) {
-      toaster.toast({ title: "💡 Coach Suggestion", body: `Switch to ${coachSuggestion.suggested_pokemon}! ${coachSuggestion.reason}` });
-    }
-  }, [coachSuggestion?.suggested_pokemon, inBattle]);
+  // --- Advanced Toasts (only fire on actual state transitions, not every poll) ---
+  const enemyName = useStore((s) => s.liveState?.battle_analysis?.enemy?.name);
+  const coachSuggestion = useStore((s) => s.liveState?.battle_analysis?.coach_suggestion?.suggested_pokemon);
+  const enemyHasBoosts = useStore((s) => {
+    const stages = s.liveState?.battle_analysis?.enemy?.stages;
+    return !!stages && stages.some((v: number) => v > 0);
+  });
+  const lastEnemyName = useRef<string | undefined>(undefined);
+  const lastCoach = useRef<string | undefined>(undefined);
+  const lastBoostWarned = useRef(false);
 
-  // 3. Stat Warning
+  // 1. Battle Start / Enemy Switch — only toast when the enemy name actually changes.
   useEffect(() => {
-    if (inBattle && enemyStages) {
-      const hasBoosts = enemyStages.some((s: number) => s > 0);
-      if (hasBoosts) {
-        toaster.toast({ title: "⚠️ Stat Warning", body: "Enemy stats are boosted! Be careful!" });
-      }
+    if (inBattle && enemyName && enemyName !== lastEnemyName.current) {
+      const types = getState().liveState?.battle_analysis?.enemy?.types;
+      const typeStr = types?.join("/") || "Unknown";
+      toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyName} (Type: ${typeStr})` });
     }
-  }, [enemyStages, inBattle]);
-  // -----------------------
+    lastEnemyName.current = enemyName;
+  }, [enemyName, inBattle]);
+
+  // 2. Coach Suggestion — only toast when the suggestion changes.
+  useEffect(() => {
+    if (inBattle && coachSuggestion && coachSuggestion !== lastCoach.current) {
+      const reason = getState().liveState?.battle_analysis?.coach_suggestion?.reason || "";
+      toaster.toast({ title: "Coach Suggestion", body: `Switch to ${coachSuggestion}! ${reason}` });
+    }
+    lastCoach.current = coachSuggestion;
+  }, [coachSuggestion, inBattle]);
+
+  // 3. Stat Warning — only toast once per boost transition.
+  useEffect(() => {
+    if (inBattle && enemyHasBoosts && !lastBoostWarned.current) {
+      toaster.toast({ title: "Stat Warning", body: "Enemy stats are boosted! Be careful!" });
+      lastBoostWarned.current = true;
+    } else if (!enemyHasBoosts) {
+      lastBoostWarned.current = false;
+    }
+  }, [enemyHasBoosts, inBattle]);
+  // -------------------------------------------------------------------------------
 
   useEffect(() => {
     refreshStatic();
-  }, []);
-
-  useEffect(() => {
-    startPolling();
-    return () => stopPolling();
-  }, []);
-
-  useEffect(() => {
-    registerTouchMenu();
-    return () => unregisterTouchMenu();
   }, []);
 
   const palette = theme?.palette ?? DEFAULT_PALETTE;
@@ -104,7 +110,7 @@ function PluginContent() {
             <PanelSectionRow>
               <div
                 style={{
-                  backgroundColor: "#e05858", // Red-ish for alert
+                  backgroundColor: "#e05858",
                   color: "#fff",
                   padding: "12px",
                   borderRadius: "4px",
@@ -114,7 +120,7 @@ function PluginContent() {
                   marginBottom: "8px"
                 }}
               >
-                Der Live-Tracker Mod wurde gerade automatisch installiert! Bitte starte dein Pokémon-Spiel einmal neu, um den Battle Analyzer zu aktivieren.
+                The live-tracker mod was just auto-installed. Please restart your Pokémon game once to activate the Battle Analyzer.
               </div>
             </PanelSectionRow>
           </PanelSection>
@@ -129,6 +135,13 @@ function PluginContent() {
 }
 
 export default definePlugin(() => {
+  // Start polling + register touch menu at plugin-load time (not when QAM
+  // panel opens). This ensures the in-game touch menu works even if the
+  // user never opens the Quick Access Menu, and live data stays fresh.
+  refreshStatic();
+  startPolling();
+  registerTouchMenu();
+
   return {
     name: "Pokémon Essentials Overlay",
     titleView: (

@@ -24,7 +24,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import psutil
 
@@ -324,14 +324,17 @@ class LiveStreamServer:
         on_state: Callable[[dict[str, Any]], None],
         host: str = _STREAM_HOST,
         port: int = _STREAM_PORT,
+        on_disconnect: Optional[Callable[[], None]] = None,
     ) -> None:
         self._on_state = on_state
+        self._on_disconnect = on_disconnect
         self._host = host
         self._port = port
         self._server: Optional[_socket.socket] = None
         self._accept_thread: Optional[threading.Thread] = None
         self._client_thread: Optional[threading.Thread] = None
         self._client: Optional[_socket.socket] = None
+        self._client_lock = threading.Lock()
         self._stop = threading.Event()
 
     @property
@@ -385,7 +388,8 @@ class LiveStreamServer:
             except OSError:
                 return
             self._close_client()
-            self._client = client
+            with self._client_lock:
+                self._client = client
             log.info(f"Live stream client connected: {addr}")
             self._client_thread = threading.Thread(
                 target=self._client_loop, args=(client,), daemon=True,
@@ -394,17 +398,18 @@ class LiveStreamServer:
             self._client_thread.start()
 
     def _close_client(self) -> None:
-        if self._client is not None:
-            try:
-                self._client.shutdown(_socket.SHUT_RDWR)
-            except OSError:
-                pass
-            try:
-                self._client.close()
-            except OSError:
-                pass
-            self._client = None
-        if self._client_thread is not None:
+        with self._client_lock:
+            if self._client is not None:
+                try:
+                    self._client.shutdown(_socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                try:
+                    self._client.close()
+                except OSError:
+                    pass
+                self._client = None
+        if self._client_thread is not None and self._client_thread is not threading.current_thread():
             self._client_thread.join(timeout=2.0)
             self._client_thread = None
 
@@ -420,7 +425,10 @@ class LiveStreamServer:
                     return
                 buf += data
                 if len(buf) > _MAX_LINE_BYTES:
-                    buf = b""  # discard runaway payload
+                    # Discard up to and including the next newline, retaining
+                    # any valid data after the oversized frame.
+                    idx = buf.find(b"\n")
+                    buf = buf[idx + 1:] if idx >= 0 else b""
                     continue
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
@@ -433,22 +441,26 @@ class LiveStreamServer:
                     self._dispatch(payload)
         finally:
             log.info("Live stream client disconnected")
+            if self._on_disconnect is not None:
+                try:
+                    self._on_disconnect()
+                except Exception as exc:
+                    log.error(f"on_disconnect callback failed: {exc}", exc_info=True)
 
-    def _dispatch(self, payload: dict[str, Any]) -> None:
+    def _dispatch(self, payload: Any) -> None:
         """Normalize the JSON payload and call the on_state callback."""
-        if payload.get("kind") != "live_state":
+        if not isinstance(payload, dict):
             return
-        party = payload.get("party") or []
-        normalized = {
-            "trainer_name": payload.get("trainer") or "",
-            "money": int(payload.get("money") or 0),
-            "badges": int(payload.get("badges") or 0),
-            "location_name": payload.get("map_name") or "",
-            "map_id": payload.get("map_id"),
-            "x": payload.get("x"),
-            "y": payload.get("y"),
-            "play_time_seconds": int(payload.get("play_time") or 0),
-            "party": [
+        try:
+            if payload.get("kind") != "live_state":
+                return
+            party = payload.get("party") or []
+            battle_enemies = payload.get("battle_enemies") or []
+            battle_player = payload.get("battle_player") or []
+            in_battle = bool(payload.get("in_battle", False))
+            in_menu = bool(payload.get("in_menu", False))
+
+            normalized_party = [
                 {
                     "species": p.get("species"),
                     "level": p.get("level"),
@@ -476,25 +488,191 @@ class LiveStreamServer:
                     "ev_spatk": None, "ev_spdef": None, "ev_speed": None,
                     "happiness": None,
                 }
-                for p in party
-            ],
-            "version": "live",
-            "essentials_version": None,
-            "party_count": len(party),
-            "parsed_at": payload.get("at"),
-            "source_path": f"<stream:{self._port}>",
-            "features": {
-                "ivs": False, "evs": False, "happiness": False,
-                "stats": True, "moves": True, "natures": False,
-                "abilities": False, "items": False, "type2": True,
-                "shiny": False, "gender": False,
-            },
-            "_live_source": "stream",
-        }
+                for p in party if isinstance(p, dict)
+            ]
+
+            battle_analysis = None
+            if in_battle and battle_enemies:
+                battle_analysis = self._compute_battle_analysis(
+                    battle_enemies, battle_player, normalized_party
+                )
+
+            normalized = {
+                "trainer_name": payload.get("trainer") or "",
+                "money": _safe_int(payload.get("money")),
+                "badges": _safe_int(payload.get("badges")),
+                "location_name": payload.get("map_name") or "",
+                "map_id": payload.get("map_id"),
+                "x": payload.get("x"),
+                "y": payload.get("y"),
+                "play_time_seconds": _safe_int(payload.get("play_time")),
+                "party": normalized_party,
+                "version": "live",
+                "essentials_version": None,
+                "party_count": len(normalized_party),
+                "parsed_at": payload.get("at"),
+                "source_path": f"<stream:{self._port}>",
+                "in_menu": in_menu,
+                "in_battle": in_battle,
+                "screen_state": "battle_active" if in_battle else ("menu" if in_menu else "overworld"),
+                "battle_analysis": battle_analysis,
+                "features": {
+                    "ivs": False, "evs": False, "happiness": False,
+                    "stats": True, "moves": True, "natures": False,
+                    "abilities": False, "items": False, "type2": True,
+                    "shiny": False, "gender": False,
+                },
+                "_live_source": "stream",
+            }
+        except Exception as exc:
+            log.error(f"Live stream _dispatch normalize failed: {exc}", exc_info=True)
+            return
         try:
             self._on_state(normalized)
         except Exception as exc:
             log.error(f"Live stream on_state callback failed: {exc}", exc_info=True)
+
+    @staticmethod
+    def _compute_battle_analysis(
+        enemies: list[dict[str, Any]],
+        players: list[dict[str, Any]],
+        party: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Build a battle_analysis payload for the frontend Battle Analyzer.
+
+        Uses the enemy's types + the player party's known moves to compute
+        a simple best-move suggestion and a coach suggestion (which party
+        member has the best type matchup against the enemy).
+        """
+        # Type effectiveness chart (Gen 6, 18 types). Multiplier of 0 = immune.
+        # This mirrors data/type_chart.json but is inlined here to avoid a
+        # circular import with the plugin's TypeChart engine.
+        _TYPE_CHART: dict[str, dict[str, float]] = {
+            "Normal": {}, "Fire": {"Fire": 0.5, "Water": 0.5, "Grass": 2, "Ice": 2, "Bug": 2, "Rock": 0.5, "Steel": 2, "Dragon": 0.5},
+            "Water": {"Fire": 2, "Water": 0.5, "Grass": 0.5, "Ground": 2, "Rock": 2, "Dragon": 0.5},
+            "Electric": {"Water": 2, "Electric": 0.5, "Grass": 0.5, "Ground": 0, "Flying": 2, "Dragon": 0.5},
+            "Grass": {"Fire": 0.5, "Water": 2, "Grass": 0.5, "Poison": 0.5, "Ground": 2, "Flying": 0.5, "Bug": 0.5, "Rock": 2, "Dragon": 0.5, "Steel": 0.5},
+            "Ice": {"Fire": 0.5, "Water": 0.5, "Grass": 2, "Ice": 0.5, "Ground": 2, "Flying": 2, "Dragon": 2, "Steel": 0.5},
+            "Fighting": {"Normal": 2, "Ice": 2, "Rock": 2, "Dark": 2, "Steel": 2, "Poison": 0.5, "Flying": 0.5, "Psychic": 0.5, "Bug": 0.5, "Ghost": 0, "Fairy": 0.5},
+            "Poison": {"Grass": 2, "Poison": 0.5, "Ground": 0.5, "Rock": 0.5, "Ghost": 0.5, "Steel": 0, "Fairy": 2},
+            "Ground": {"Fire": 2, "Electric": 2, "Grass": 0.5, "Poison": 2, "Flying": 0, "Bug": 0.5, "Rock": 2, "Steel": 2, "Dragon": 1},
+            "Flying": {"Electric": 0.5, "Grass": 2, "Fighting": 2, "Bug": 2, "Rock": 0.5, "Steel": 0.5, "Dragon": 1},
+            "Psychic": {"Fighting": 2, "Poison": 2, "Psychic": 0.5, "Dark": 0, "Steel": 0.5},
+            "Bug": {"Fire": 0.5, "Grass": 2, "Fighting": 0.5, "Poison": 0.5, "Flying": 0.5, "Psychic": 2, "Ghost": 0.5, "Dark": 2, "Steel": 0.5, "Fairy": 0.5},
+            "Rock": {"Fire": 2, "Ice": 2, "Fighting": 0.5, "Ground": 0.5, "Flying": 2, "Bug": 2, "Steel": 0.5},
+            "Ghost": {"Normal": 0, "Psychic": 2, "Ghost": 2, "Dark": 0.5},
+            "Dragon": {"Dragon": 2, "Steel": 0.5, "Fairy": 0},
+            "Dark": {"Fighting": 0.5, "Psychic": 2, "Ghost": 2, "Dark": 0.5, "Fairy": 0.5},
+            "Steel": {"Fire": 0.5, "Water": 0.5, "Electric": 0.5, "Ice": 2, "Rock": 2, "Steel": 0.5, "Fairy": 2},
+            "Fairy": {"Fire": 0.5, "Fighting": 2, "Poison": 0.5, "Dragon": 2, "Dark": 2, "Steel": 0.5},
+        }
+
+        def _eff_multiplier(attack_type: str, defender_types: list[str]) -> float:
+            chart = _TYPE_CHART.get(attack_type, {})
+            mult = 1.0
+            for dt in defender_types:
+                mult *= chart.get(dt, 1.0)
+            return mult
+
+        def _eff_label(mult: float) -> str:
+            if mult == 0:
+                return "immune"
+            if mult >= 2:
+                return "super_effective"
+            if mult < 1:
+                return "not_very_effective"
+            return "neutral"
+
+        enemy = enemies[0] if enemies else {}
+        enemy_types = [t for t in (enemy.get("type1"), enemy.get("type2")) if t]
+        if not enemy_types and enemy.get("types"):
+            enemy_types = list(enemy["types"])
+
+        # Build move list from the first player battler.
+        player_pokemon = players[0] if players else (party[0] if party else {})
+        player_moves_raw = player_pokemon.get("moves") or []
+        move_types: dict[str, str] = {}
+        # Try to load move types from the moves DB (best effort).
+        try:
+            from moves import MovesDB
+            _mdb = MovesDB.__new__(MovesDB)
+            _mdb._static = {}
+            _mdb._pbs = {}
+            _mdb._pbs_source = None
+            _mdb._loaded = False
+        except Exception:
+            _mdb = None
+
+        moves_list: list[dict[str, Any]] = []
+        best_move = ""
+        best_mult = 0.0
+        for m in player_moves_raw[:4]:
+            if not isinstance(m, str):
+                continue
+            # Heuristic type guess from name substrings.
+            m_upper = m.upper()
+            move_type = None
+            # Inline minimal heuristic — full MovesDB would require the plugin path.
+            _HEUR = [
+                ("THUNDER", "Electric"), ("BOLT", "Electric"), ("FIRE", "Fire"), ("FLAME", "Fire"),
+                ("WATER", "Water"), ("SURF", "Water"), ("LEAF", "Grass"), ("ICE", "Ice"),
+                ("PUNCH", "Fighting"), ("POISON", "Poison"), ("EARTH", "Ground"), ("FLY", "Flying"),
+                ("PSYCHIC", "Psychic"), ("BUG", "Bug"), ("ROCK", "Rock"), ("SHADOW", "Ghost"),
+                ("DRAGON", "Dragon"), ("BITE", "Dark"), ("IRON", "Steel"), ("FAIRY", "Fairy"),
+            ]
+            for sub, t in _HEUR:
+                if sub in m_upper:
+                    move_type = t
+                    break
+            if move_type is None:
+                move_type = "Normal"
+            mult = _eff_multiplier(move_type, enemy_types) if enemy_types else 1.0
+            moves_list.append({
+                "name": m,
+                "type": move_type,
+                "effectiveness_label": _eff_label(mult),
+            })
+            if mult > best_mult:
+                best_mult = mult
+                best_move = m
+
+        # Coach suggestion: which party member has the best type matchup vs enemy?
+        coach_suggestion = None
+        if enemy_types and party:
+            best_pokemon = None
+            best_score = -1.0
+            for p in party:
+                p_types = [t for t in (p.get("type1"), p.get("type2")) if t]
+                if not p_types:
+                    continue
+                # Score = max effectiveness of any party type vs enemy.
+                score = max(_eff_multiplier(pt, enemy_types) for pt in p_types)
+                if score > best_score:
+                    best_score = score
+                    best_pokemon = p.get("species") or "?"
+            if best_pokemon and best_score >= 2.0:
+                coach_suggestion = {
+                    "suggested_pokemon": best_pokemon,
+                    "reason": f"Super-effective ({best_score}×) vs {enemy.get('species', 'enemy')}",
+                }
+
+        return {
+            "enemy": {
+                "name": enemy.get("species") or "Unknown",
+                "hp": enemy.get("hp"),
+                "totalhp": enemy.get("max_hp"),
+                "hp_percent": (
+                    round((enemy.get("hp", 0) / enemy.get("max_hp", 1)) * 100, 1)
+                    if enemy.get("max_hp") and enemy.get("max_hp", 0) > 0 and enemy.get("hp") is not None
+                    else None
+                ),
+                "types": enemy_types,
+                "stages": enemy.get("stages") or [0, 0, 0, 0, 0, 0, 0],
+            },
+            "moves": moves_list,
+            "best_move": best_move,
+            "coach_suggestion": coach_suggestion,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -569,6 +747,16 @@ def _pid_alive(pid: int) -> bool:
         return True
     except (OSError, ProcessLookupError):
         return False
+
+
+def _safe_int(value: Any) -> int:
+    """Coerce a value to int, returning 0 on any failure."""
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _candidate_regions(pid: int) -> list[dict[str, str]]:
@@ -791,7 +979,9 @@ class LiveMemoryReader:
             chunk_size = min(_SCAN_CHUNK_BYTES, size - pos)
             data = read_process_memory(self._pid, start + pos, chunk_size)
             if not data:
-                pos += _SCAN_CHUNK_BYTES
+                # Advance by the requested chunk size (not len(data)) only
+                # when data is falsy — we have nothing to scan.
+                pos += chunk_size
                 continue
             search_from = 0
             while True:
@@ -817,7 +1007,8 @@ class LiveMemoryReader:
                     )
                     return blob
                 search_from = idx + len(_MARSHAL_HEADER)
-            pos += _SCAN_CHUNK_BYTES
+            # Advance by actual bytes read to handle short reads correctly.
+            pos += len(data)
         return None
 
     def _read_blob_at(self, region_start: str, header_offset: int) -> Optional[bytes]:
@@ -825,7 +1016,7 @@ class LiveMemoryReader:
             base = int(region_start, 16)
         except ValueError:
             return None
-        cap = 2 * 1024 * 1024
+        cap = min(2 * 1024 * 1024, _BLOB_CAP_BYTES)
         return read_process_memory(self._pid, base + header_offset, cap)
 
     def _try_parse(

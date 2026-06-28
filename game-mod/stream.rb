@@ -73,7 +73,7 @@ class PokeStatStream
       elsif obj.is_a?(Array)
         "[" + obj.map { |v| to_json(v) }.join(",") + "]"
       elsif obj.is_a?(String)
-        '"' + obj.gsub('\\', '\\\\').gsub('"', '\\"').gsub("\n", '\\n') + '"'
+        '"' + obj.gsub('\\', '\\\\').gsub('"', '\\"').gsub("\n", '\\n').gsub("\r", '\\r').gsub("\t", '\\t').gsub("\b", '\\b').gsub("\f", '\\f').gsub(/[\x00-\x1f]/) { |c| sprintf('\\u%04x', c.ord) } + '"'
       elsif obj.is_a?(Numeric)
         obj.to_s
       elsif obj == true
@@ -175,7 +175,7 @@ class PokeStatStream
 
     def safe_string(v)
       return nil if v.nil?
-      v.respond_to?(:to_s) ? v.to_s : v.to_s
+      v.to_s
     rescue StandardError
       nil
     end

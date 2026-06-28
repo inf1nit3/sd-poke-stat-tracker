@@ -7,7 +7,7 @@ import {
   DisplayOptions,
   PokemonCard,
 } from "../components/PokemonCard";
-import { refreshSave, retryRefreshStatic, useStore } from "../store";
+import { refreshSave, retryRefreshStatic, useStore, saveDataEqual } from "../store";
 
 function formatMoney(n: number): string {
   return `₽${n.toLocaleString("en-US")}`;
@@ -36,10 +36,7 @@ function timeAgo(epochSeconds: number): string {
 const MAX_PARTY_SLOTS = 6;
 
 export function PartyView() {
-  const data = useStore(
-    (s) => s.saveData,
-    (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  );
+  const data = useStore((s) => s.saveData, saveDataEqual);
   const settings = useStore((s) => s.settings);
   const [reloading, setReloading] = useState(false);
 

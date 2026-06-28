@@ -55,14 +55,6 @@ function subscribe(listener: () => void) {
   };
 }
 
-function getSnapshot() {
-  return state;
-}
-
-function getServerSnapshot() {
-  return initialState;
-}
-
 export function useStore<T>(
   selector: (s: StoreState) => T,
   equalityFn?: (a: T, b: T) => boolean
@@ -103,7 +95,7 @@ export function useStore<T>(
   }, []);
 
   const getServerSelection = useCallback(() => {
-    return selectorRef.current(getServerSnapshot());
+    return selectorRef.current(initialState);
   }, []);
 
   return useSyncExternalStore(subscribe, getSelection, getServerSelection);
@@ -250,4 +242,37 @@ export function stopPolling() {
 
 export function getState(): StoreState {
   return state;
+}
+
+/**
+ * Cheap equality function for SaveData — compares only the fields that
+ * uniquely identify a save state. Avoids JSON.stringify on every poll.
+ */
+export function saveDataEqual(a: SaveData | null, b: SaveData | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.parsed_at === b.parsed_at &&
+    a.source_path === b.source_path &&
+    a.party_count === b.party_count &&
+    a.trainer_name === b.trainer_name &&
+    a.error === b.error &&
+    a.money === b.money
+  );
+}
+
+/**
+ * Cheap equality for the party array — compares by length + each member's
+ * hp + status + species (the fields that change in-battle).
+ */
+export function partyEqual(a: any[] | undefined, b: any[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i], y = b[i];
+    if (x.hp !== y.hp || x.status !== y.status || x.species !== y.species || x.level !== y.level) {
+      return false;
+    }
+  }
+  return true;
 }

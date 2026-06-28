@@ -1,6 +1,6 @@
 import { Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
 import { CapabilitiesSummary } from "../components/PokemonCard";
-import { useStore, retryRefreshStatic } from "../store";
+import { useStore, retryRefreshStatic, partyEqual } from "../store";
 
 function StatusDot({ ok }: { ok: boolean }) {
   return (
@@ -35,8 +35,8 @@ export function HomeView() {
   const movesDb = useStore((s) => s.movesDatabase);
   const settings = useStore((s) => s.settings);
   const live = useStore((s) => s.liveState);
-  const party = useStore((s) => s.saveData?.party);
-  const faintedCount = party?.filter((p: any) => p.is_fainted).length ?? 0;
+  const party = useStore((s) => s.saveData?.party, partyEqual);
+  const faintedCount = party?.filter((p) => p.is_fainted).length ?? 0;
 
   if (!info) {
     return (
@@ -167,7 +167,7 @@ export function HomeView() {
                       lineHeight: 1.4
                     }}
                   >
-                    Live-Daten werden für diese Engine aktuell nicht unterstützt.
+                    Live data reading is not currently supported for this engine.
                   </div>
                 )}
                 <div>

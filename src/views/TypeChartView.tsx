@@ -1,4 +1,4 @@
-import { ButtonItem, Dropdown, Focusable, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
+import { ButtonItem, Dropdown, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
 import { useEffect, useMemo, useState } from "react";
 import { api, DefenseSummary, OffenseSummary } from "../api";
 import { useStore, retryRefreshStatic } from "../store";
@@ -39,6 +39,14 @@ export function TypeChartView() {
 
   useEffect(() => {
     if (!chart) return;
+    // Initialize defaults from the loaded chart (handles fan games without "Fire").
+    if (!chart.types.includes(attacker)) setAttacker(chart.types[0] ?? "Fire");
+    if (!chart.types.includes(def1)) setDef1(chart.types[0] ?? "Fire");
+  }, [chart]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!chart) return;
+    let cancelled = false;
     setLoading(true);
     setError(null);
     const promise =
@@ -47,7 +55,8 @@ export function TypeChartView() {
         : api.getOffenseSummary(attacker);
     promise
       .then((res) => {
-        if ("error" in res && res.error) {
+        if (cancelled) return;
+        if (res.error) {
           setError(res.error);
           setDefense(null);
           setOffense(null);
@@ -61,8 +70,9 @@ export function TypeChartView() {
           }
         }
       })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e: Error) => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [chart, mode, attacker, defenderPair]);
 
   if (!chart) {

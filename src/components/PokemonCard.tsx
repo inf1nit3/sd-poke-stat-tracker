@@ -1,5 +1,3 @@
-import { PanelSection, PanelSectionRow, Toggle } from "../decky-frontend-lib-shim";
-import { CSSProperties } from "react";
 import { PokemonSummary, SaveFeatures } from "../api";
 import { HealthBar } from "./HealthBar";
 import { TypeBadge } from "./TypeBadge";
@@ -485,7 +483,7 @@ export function CapabilitiesSummary({ features }: { features: SaveFeatures | nul
         color: "#888",
       }}
     >
-      {items.map(([label, value]) => (
+      {items.map(([label, _value]) => (
         <span
           key={label}
           style={{

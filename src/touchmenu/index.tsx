@@ -1,6 +1,16 @@
-import { PatchTouchMenu } from "@decky/ui";
+import * as DeckyUI from "@decky/ui";
 import { PokeballIcon } from "../components/PokeballIcon";
 import { TouchMenuContent } from "./TouchMenuContent";
+
+// PatchTouchMenu may not exist in all @decky/ui versions — access it
+// dynamically and guard at runtime.
+const PatchTouchMenu: ((opts: {
+  menuLabel?: string;
+  icon?: React.ReactNode;
+  content?: React.ReactNode;
+  onMenuClose?: () => void;
+}) => () => void) | undefined =
+  (DeckyUI as unknown as { PatchTouchMenu?: typeof PatchTouchMenu }).PatchTouchMenu;
 
 let unpatch: (() => void) | null = null;
 
