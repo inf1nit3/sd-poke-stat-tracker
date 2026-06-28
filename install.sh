@@ -42,9 +42,15 @@ green "  ✓ Plugin directory ready"
 blue "▶ Syncing plugin folder to Steam Deck…"
 if command -v rsync >/dev/null 2>&1; then
     rsync -a --delete \
+        --no-times --no-perms \
         --exclude='__pycache__' \
         --exclude='*.pyc' \
         --exclude='.DS_Store' \
+        --exclude='.git' \
+        --exclude='.venv' \
+        --exclude='node_modules' \
+        --exclude='.pytest_cache' \
+        --exclude='token-optimizer' \
         "$SCRIPT_DIR/" \
         "$DEST:~/homebrew/plugins/$PLUGIN_NAME/"
     green "  ✓ Synced via rsync"
