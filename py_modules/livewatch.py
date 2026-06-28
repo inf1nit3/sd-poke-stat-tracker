@@ -442,6 +442,7 @@ class LiveStreamServer:
 
     def _client_loop(self, client: _socket.socket) -> None:
         buf = b""
+        bytes_received = 0
         try:
             while not self._stop.is_set():
                 try:
@@ -449,7 +450,13 @@ class LiveStreamServer:
                 except OSError:
                     return
                 if not data:
+                    log.info(f"Stream client closed connection cleanly (received {bytes_received} bytes total)")
                     return
+                bytes_received += len(data)
+                if bytes_received <= 200:
+                    log.info(f"Stream received chunk: {len(data)} bytes, total={bytes_received}: {data[:200]!r}")
+                elif bytes_received < 1500:
+                    log.info(f"Stream received {bytes_received} bytes total so far")
                 buf += data
                 if len(buf) > _MAX_LINE_BYTES:
                     idx = buf.find(b"\n")
@@ -462,7 +469,7 @@ class LiveStreamServer:
                     try:
                         payload = _json.loads(line)
                     except _json.JSONDecodeError as e:
-                        log.debug(f"Stream JSON decode failed: {e}, line[:200]={line[:200]!r}")
+                        log.info(f"Stream JSON decode failed: {e}, line[:200]={line[:200]!r}")
                         continue
                     self._dispatch(payload)
         finally:
@@ -476,9 +483,11 @@ class LiveStreamServer:
     def _dispatch(self, payload: Any) -> None:
         """Normalize the JSON payload and call the on_state callback."""
         if not isinstance(payload, dict):
+            log.info(f"Stream payload not a dict: {type(payload).__name__}")
             return
         try:
             if payload.get("kind") != "live_state":
+                log.info(f"Stream payload kind={payload.get('kind')!r}, keys={list(payload.keys())[:10]}")
                 return
             party = payload.get("party") or []
             battle_enemies = payload.get("battle_enemies") or []
