@@ -48,7 +48,7 @@ function updateState(patch: Partial<StoreState>) {
   notify();
 }
 
-function subscribe(listener: () => void) {
+export function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -207,12 +207,27 @@ export function startPolling() {
   // to save battery on the Steam Deck.
   const fastMs = 1500;
   const slowMs = 5000;
-  refreshSave(false);
+  const maxBackoffMs = 60000;
+
+  // Initial fetch
+  api.getLiveSaveData().then((saveData) => { if (saveData) updateState({ saveData }) }).catch(() => {});
   refreshLiveState();
+  
   let consecutiveIdle = 0;
-  const tick = () => {
-    refreshSave(false);
-    refreshLiveState().then((live) => {
+  let errorCount = 0;
+  
+  const tick = async () => {
+    try {
+      const [saveData, live] = await Promise.all([
+        api.getLiveSaveData(),
+        api.getLiveState(),
+      ]);
+      
+      if (saveData) updateState({ saveData });
+      if (live) updateState({ liveState: live });
+      
+      errorCount = 0;
+      
       const lastAt = live?.last_live_event?.at ?? 0;
       const now = Date.now() / 1000;
       const sinceLast = now - lastAt;
@@ -221,12 +236,22 @@ export function startPolling() {
       } else {
         consecutiveIdle += 1;
       }
+      
       const next = consecutiveIdle > 4 ? slowMs : fastMs;
       if (pollTimer !== null) {
         clearTimeout(pollTimer);
         pollTimer = setTimeout(tick, next);
       }
-    });
+    } catch (e) {
+      console.error("[store] polling tick failed", e);
+      errorCount++;
+      const backoff = Math.min(maxBackoffMs, fastMs * Math.pow(2, errorCount));
+      console.log(`[store] backoff applied, next poll in ${backoff}ms`);
+      if (pollTimer !== null) {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(tick, backoff);
+      }
+    }
   };
   pollTimer = setTimeout(tick, fastMs);
   console.log(`[store] live frontend polling started (adaptive 1.5s/5s)`);

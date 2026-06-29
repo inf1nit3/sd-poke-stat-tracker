@@ -9,14 +9,19 @@ Phase 6: Live memory reading from the running game process.
 
 from __future__ import annotations
 
+import faulthandler
 import json
 import os
+import signal
 import sys
 import threading
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 import decky
+
+faulthandler.enable()
+faulthandler.register(signal.SIGUSR1, file=open("/tmp/plugin_traceback.log", "w", buffering=1))
 
 # Fix for Decky Loader: add plugin directory to sys.path so local imports
 # work. Use INSERT (not append) so the plugin's modules shadow any older
@@ -433,18 +438,34 @@ class Plugin:
             data: SaveData = await asyncio.to_thread(parse_save_file, path)
         except SaveParseError as exc:
             log.warning(f"Save parse error: {exc}")
-            return {
+            out = {
                 "error": "parse_failed",
                 "message": str(exc),
                 "path": path_str,
             }
+            with self._state_lock:
+                self._save_cache = out
+                self._save_cache_path = path_str
+                try:
+                    self._save_cache_at = path.stat().st_mtime
+                except OSError:
+                    self._save_cache_at = _time.time()
+            return out
         except Exception as exc:
             log.error(f"Unexpected save parse error: {exc}", exc_info=True)
-            return {
+            out = {
                 "error": "parse_failed",
                 "message": str(exc),
                 "path": path_str,
             }
+            with self._state_lock:
+                self._save_cache = out
+                self._save_cache_path = path_str
+                try:
+                    self._save_cache_at = path.stat().st_mtime
+                except OSError:
+                    self._save_cache_at = _time.time()
+            return out
 
         out = data.to_dict()
         with self._state_lock:
@@ -597,6 +618,23 @@ class Plugin:
             data = parse_save_file(path)
         except SaveParseError as exc:
             log.warning(f"Live save parse failed: {exc}")
+            with self._state_lock:
+                self._save_cache = {"error": "parse_failed", "message": str(exc), "path": str(path)}
+                self._save_cache_path = str(path)
+                try:
+                    self._save_cache_at = path.stat().st_mtime
+                except OSError:
+                    self._save_cache_at = _time.time()
+            return
+        except Exception as exc:
+            log.error(f"Unexpected live save parse error: {exc}", exc_info=True)
+            with self._state_lock:
+                self._save_cache = {"error": "parse_failed", "message": str(exc), "path": str(path)}
+                self._save_cache_path = str(path)
+                try:
+                    self._save_cache_at = path.stat().st_mtime
+                except OSError:
+                    self._save_cache_at = _time.time()
             return
         out = data.to_dict()
         last_save_changed = False

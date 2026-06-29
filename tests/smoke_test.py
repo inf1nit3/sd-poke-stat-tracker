@@ -331,7 +331,7 @@ check("has consecutiveIdle adaptive logic", "consecutiveIdle" in store_ts)
 header("M1: SettingsView themes once-only")
 sv = (REPO / "src" / "views" / "SettingsView.tsx").read_text()
 check("old [theme?.id] dep removed", "}, [theme?.id]);" not in sv)
-check("themesLoaded gate present", "themesLoaded" in sv)
+check("themes fetch guarded by length check (themes already loaded -> skip)", "if (themes.length > 0) return;" in sv)
 
 
 # ---------------------------------------------------------------------------

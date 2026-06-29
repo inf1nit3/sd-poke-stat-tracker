@@ -53,7 +53,7 @@ export function HealthBar({
     width: `${pct * 100}%`,
     height: "100%",
     background: fillColor,
-    transition: "width 200ms ease-out",
+    transition: "width 800ms cubic-bezier(0.25, 1, 0.5, 1), background-color 800ms ease",
   };
 
   const statusOverlayStyle: CSSProperties | undefined = status.color
@@ -68,6 +68,10 @@ export function HealthBar({
         pointerEvents: "none",
       }
     : undefined;
+
+  if (statusOverlayStyle) {
+    statusOverlayStyle.transition = "width 800ms cubic-bezier(0.25, 1, 0.5, 1)";
+  }
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>

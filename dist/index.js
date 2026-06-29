@@ -237,12 +237,24 @@ function startPolling() {
     // to save battery on the Steam Deck.
     const fastMs = 1500;
     const slowMs = 5000;
-    refreshSave(false);
+    const maxBackoffMs = 60000;
+    // Initial fetch
+    api.getLiveSaveData().then((saveData) => { if (saveData)
+        updateState({ saveData }); }).catch(() => { });
     refreshLiveState();
     let consecutiveIdle = 0;
-    const tick = () => {
-        refreshSave(false);
-        refreshLiveState().then((live) => {
+    let errorCount = 0;
+    const tick = async () => {
+        try {
+            const [saveData, live] = await Promise.all([
+                api.getLiveSaveData(),
+                api.getLiveState(),
+            ]);
+            if (saveData)
+                updateState({ saveData });
+            if (live)
+                updateState({ liveState: live });
+            errorCount = 0;
             const lastAt = live?.last_live_event?.at ?? 0;
             const now = Date.now() / 1000;
             const sinceLast = now - lastAt;
@@ -257,7 +269,17 @@ function startPolling() {
                 clearTimeout(pollTimer);
                 pollTimer = setTimeout(tick, next);
             }
-        });
+        }
+        catch (e) {
+            console.error("[store] polling tick failed", e);
+            errorCount++;
+            const backoff = Math.min(maxBackoffMs, fastMs * Math.pow(2, errorCount));
+            console.log(`[store] backoff applied, next poll in ${backoff}ms`);
+            if (pollTimer !== null) {
+                clearTimeout(pollTimer);
+                pollTimer = setTimeout(tick, backoff);
+            }
+        }
     };
     pollTimer = setTimeout(tick, fastMs);
     console.log(`[store] live frontend polling started (adaptive 1.5s/5s)`);
@@ -661,7 +683,7 @@ function HealthBar({ hp, maxHp, statusName, width = "100%", showLabel = true, })
         width: `${pct * 100}%`,
         height: "100%",
         background: fillColor,
-        transition: "width 200ms ease-out",
+        transition: "width 800ms cubic-bezier(0.25, 1, 0.5, 1), background-color 800ms ease",
     };
     const statusOverlayStyle = status.color
         ? {
@@ -675,6 +697,9 @@ function HealthBar({ hp, maxHp, statusName, width = "100%", showLabel = true, })
             pointerEvents: "none",
         }
         : undefined;
+    if (statusOverlayStyle) {
+        statusOverlayStyle.transition = "width 800ms cubic-bezier(0.25, 1, 0.5, 1)";
+    }
     return (window.SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6, width: "100%" }, children: [window.SP_JSX.jsxs("div", { style: wrapperStyle, children: [window.SP_JSX.jsx("div", { style: fillStyle }), statusOverlayStyle && window.SP_JSX.jsx("div", { style: statusOverlayStyle })] }), showLabel && (window.SP_JSX.jsxs("div", { style: {
                     fontSize: 11,
                     color: "#bbb",
@@ -922,6 +947,36 @@ function TypeLookupTouchMenu() {
                         }, children: ["Generation ", typeChart.generation, " type chart"] })] }))] }));
 }
 
+function CoachModeWidget() {
+    const analysis = useStore((s) => s.liveState?.battle_analysis);
+    const coach_suggestion = analysis?.coach_suggestion;
+    if (!coach_suggestion)
+        return null;
+    return (window.SP_JSX.jsxs("div", { style: {
+            padding: "8px",
+            backgroundColor: "rgba(255, 204, 0, 0.15)",
+            border: "1px solid rgba(255, 204, 0, 0.5)",
+            borderRadius: "4px",
+            marginBottom: "8px",
+        }, children: [window.SP_JSX.jsx("div", { style: { color: "#ffcc00", fontWeight: "bold", fontSize: "12px", marginBottom: "2px" }, children: "COACH SUGGESTION" }), window.SP_JSX.jsxs("div", { style: { fontSize: "13px", color: "#fff" }, children: ["Switch to ", window.SP_JSX.jsx("strong", { children: coach_suggestion.suggested_pokemon })] }), window.SP_JSX.jsx("div", { style: { fontSize: "11px", color: "#ddd", marginTop: "2px" }, children: coach_suggestion.reason })] }));
+}
+function NuzlockeCounterWidget() {
+    const party = useStore((s) => s.saveData?.party);
+    if (!party)
+        return null;
+    const faintedCount = party.filter((p) => p.is_fainted).length;
+    return (window.SP_JSX.jsxs("div", { style: {
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px",
+            backgroundColor: "rgba(0,0,0,0.3)",
+            borderRadius: "4px",
+            marginBottom: "8px",
+            fontSize: "12px",
+            fontWeight: "bold",
+        }, children: [window.SP_JSX.jsx("span", { style: { color: "#ddd" }, children: "Fainted (Nuzlocke):" }), window.SP_JSX.jsx("span", { style: { color: faintedCount > 0 ? "#e05858" : "#5eba7d" }, children: faintedCount })] }));
+}
 const TABS$1 = [
     { id: "party", label: "Party" },
     { id: "types", label: "Type Lookup" },
@@ -941,7 +996,7 @@ function TouchMenuContent() {
                     gap: 6,
                     paddingBottom: 4,
                     borderBottom: "1px solid #2a2a2a",
-                }, children: TABS$1.map((t) => (window.SP_JSX.jsx(TabButton, { active: tab === t.id, onClick: () => setTab(t.id), children: t.label }, t.id))) }), tab === "party" && window.SP_JSX.jsx(PartyTouchMenu, {}), tab === "types" && window.SP_JSX.jsx(TypeLookupTouchMenu, {}), tab === "moves" && window.SP_JSX.jsx(MoveLookupTouchMenu, {})] }));
+                }, children: TABS$1.map((t) => (window.SP_JSX.jsx(TabButton, { active: tab === t.id, onClick: () => setTab(t.id), children: t.label }, t.id))) }), window.SP_JSX.jsx(CoachModeWidget, {}), window.SP_JSX.jsx(NuzlockeCounterWidget, {}), tab === "party" && window.SP_JSX.jsx(PartyTouchMenu, {}), tab === "types" && window.SP_JSX.jsx(TypeLookupTouchMenu, {}), tab === "moves" && window.SP_JSX.jsx(MoveLookupTouchMenu, {})] }));
 }
 function TabButton({ active, onClick, children, }) {
     return (window.SP_JSX.jsx("button", { onClick: onClick, style: {
@@ -2024,6 +2079,41 @@ function BattleAnalyzerView() {
                 })] }) }));
 }
 
+let lastEnemyName = undefined;
+let lastCoach = undefined;
+let lastBoostWarned = false;
+let unsubscribeToasts = null;
+function initGlobalToasts() {
+    unsubscribeToasts = subscribe(() => {
+        const s = getState();
+        const inBattle = !!s.liveState?.battle_analysis;
+        const enemyName = s.liveState?.battle_analysis?.enemy?.name;
+        const coachSuggestion = s.liveState?.battle_analysis?.coach_suggestion?.suggested_pokemon;
+        const stages = s.liveState?.battle_analysis?.enemy?.stages;
+        const enemyHasBoosts = !!stages && stages.some((v) => v > 0);
+        // 1. Battle Start / Enemy Switch
+        if (inBattle && enemyName && enemyName !== lastEnemyName) {
+            const types = s.liveState?.battle_analysis?.enemy?.types;
+            const typeStr = types?.join("/") || "Unknown";
+            toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyName} (Type: ${typeStr})` });
+        }
+        lastEnemyName = enemyName;
+        // 2. Coach Suggestion
+        if (inBattle && coachSuggestion && coachSuggestion !== lastCoach) {
+            const reason = s.liveState?.battle_analysis?.coach_suggestion?.reason || "";
+            toaster.toast({ title: "Coach Suggestion", body: `Switch to ${coachSuggestion}! ${reason}` });
+        }
+        lastCoach = coachSuggestion;
+        // 3. Stat Warning
+        if (inBattle && enemyHasBoosts && !lastBoostWarned) {
+            toaster.toast({ title: "Stat Warning", body: "Enemy stats are boosted! Be careful!" });
+            lastBoostWarned = true;
+        }
+        else if (!enemyHasBoosts) {
+            lastBoostWarned = false;
+        }
+    });
+}
 const TABS = [
     { id: "status", label: "Status" },
     { id: "typechart", label: "Type Chart" },
@@ -2045,44 +2135,6 @@ function PluginContent() {
             unregisterTouchMenu();
         }
     }, [touchmenuEnabled]);
-    // --- Advanced Toasts (only fire on actual state transitions, not every poll) ---
-    const enemyName = useStore((s) => s.liveState?.battle_analysis?.enemy?.name);
-    const coachSuggestion = useStore((s) => s.liveState?.battle_analysis?.coach_suggestion?.suggested_pokemon);
-    const enemyHasBoosts = useStore((s) => {
-        const stages = s.liveState?.battle_analysis?.enemy?.stages;
-        return !!stages && stages.some((v) => v > 0);
-    });
-    const lastEnemyName = window.SP_REACT.useRef(undefined);
-    const lastCoach = window.SP_REACT.useRef(undefined);
-    const lastBoostWarned = window.SP_REACT.useRef(false);
-    // 1. Battle Start / Enemy Switch — only toast when the enemy name actually changes.
-    window.SP_REACT.useEffect(() => {
-        if (inBattle && enemyName && enemyName !== lastEnemyName.current) {
-            const types = getState().liveState?.battle_analysis?.enemy?.types;
-            const typeStr = types?.join("/") || "Unknown";
-            toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyName} (Type: ${typeStr})` });
-        }
-        lastEnemyName.current = enemyName;
-    }, [enemyName, inBattle]);
-    // 2. Coach Suggestion — only toast when the suggestion changes.
-    window.SP_REACT.useEffect(() => {
-        if (inBattle && coachSuggestion && coachSuggestion !== lastCoach.current) {
-            const reason = getState().liveState?.battle_analysis?.coach_suggestion?.reason || "";
-            toaster.toast({ title: "Coach Suggestion", body: `Switch to ${coachSuggestion}! ${reason}` });
-        }
-        lastCoach.current = coachSuggestion;
-    }, [coachSuggestion, inBattle]);
-    // 3. Stat Warning — only toast once per boost transition.
-    window.SP_REACT.useEffect(() => {
-        if (inBattle && enemyHasBoosts && !lastBoostWarned.current) {
-            toaster.toast({ title: "Stat Warning", body: "Enemy stats are boosted! Be careful!" });
-            lastBoostWarned.current = true;
-        }
-        else if (!enemyHasBoosts) {
-            lastBoostWarned.current = false;
-        }
-    }, [enemyHasBoosts, inBattle]);
-    // -------------------------------------------------------------------------------
     window.SP_REACT.useEffect(() => {
         refreshStatic();
     }, []);
@@ -2106,6 +2158,7 @@ var index = definePlugin(() => {
     refreshStatic();
     startPolling();
     registerTouchMenu();
+    initGlobalToasts();
     return {
         name: "Pokémon Essentials Overlay",
         titleView: (window.SP_JSX.jsxs("div", { style: {
@@ -2119,6 +2172,8 @@ var index = definePlugin(() => {
         onDismount() {
             unregisterTouchMenu();
             stopPolling();
+            if (unsubscribeToasts)
+                unsubscribeToasts();
             console.log("[pokemon-overlay] dismounted");
         },
     };

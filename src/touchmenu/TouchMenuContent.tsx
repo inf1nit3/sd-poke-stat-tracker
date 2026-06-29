@@ -2,6 +2,57 @@ import { useState } from "react";
 import { MoveLookupTouchMenu } from "./MoveLookupTouchMenu";
 import { PartyTouchMenu } from "./PartyTouchMenu";
 import { TypeLookupTouchMenu } from "./TypeLookupTouchMenu";
+import { useStore } from "../store";
+
+function CoachModeWidget() {
+  const analysis = useStore((s) => s.liveState?.battle_analysis);
+  const coach_suggestion = analysis?.coach_suggestion;
+  
+  if (!coach_suggestion) return null;
+  
+  return (
+    <div style={{
+      padding: "8px",
+      backgroundColor: "rgba(255, 204, 0, 0.15)",
+      border: "1px solid rgba(255, 204, 0, 0.5)",
+      borderRadius: "4px",
+      marginBottom: "8px",
+    }}>
+      <div style={{ color: "#ffcc00", fontWeight: "bold", fontSize: "12px", marginBottom: "2px" }}>
+        COACH SUGGESTION
+      </div>
+      <div style={{ fontSize: "13px", color: "#fff" }}>
+        Switch to <strong>{coach_suggestion.suggested_pokemon}</strong>
+      </div>
+      <div style={{ fontSize: "11px", color: "#ddd", marginTop: "2px" }}>
+        {coach_suggestion.reason}
+      </div>
+    </div>
+  );
+}
+
+function NuzlockeCounterWidget() {
+  const party = useStore((s) => s.saveData?.party);
+  if (!party) return null;
+  const faintedCount = party.filter((p) => p.is_fainted).length;
+  
+  return (
+    <div style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "8px",
+      backgroundColor: "rgba(0,0,0,0.3)",
+      borderRadius: "4px",
+      marginBottom: "8px",
+      fontSize: "12px",
+      fontWeight: "bold",
+    }}>
+      <span style={{ color: "#ddd" }}>Fainted (Nuzlocke):</span>
+      <span style={{ color: faintedCount > 0 ? "#e05858" : "#5eba7d" }}>{faintedCount}</span>
+    </div>
+  );
+}
 
 type Tab = "party" | "types" | "moves";
 
@@ -43,6 +94,9 @@ export function TouchMenuContent() {
           </TabButton>
         ))}
       </div>
+
+      <CoachModeWidget />
+      <NuzlockeCounterWidget />
 
       {tab === "party" && <PartyTouchMenu />}
       {tab === "types" && <TypeLookupTouchMenu />}

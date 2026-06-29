@@ -1,16 +1,56 @@
 import { definePlugin, toaster } from "@decky/api";
 import { Focusable, ScrollPanel, PanelSection, PanelSectionRow } from "@decky/ui";
-import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { PokeballIcon } from "./components/PokeballIcon";
 import { TabBar, TabDef } from "./components/TabBar";
 import {
+  subscribe,
   getState,
   refreshStatic,
   startPolling,
   stopPolling,
   useStore,
 } from "./store";
+
+let lastEnemyName: string | undefined = undefined;
+let lastCoach: string | undefined = undefined;
+let lastBoostWarned = false;
+let unsubscribeToasts: (() => void) | null = null;
+
+function initGlobalToasts() {
+  unsubscribeToasts = subscribe(() => {
+    const s = getState();
+    const inBattle = !!s.liveState?.battle_analysis;
+    const enemyName = s.liveState?.battle_analysis?.enemy?.name;
+    const coachSuggestion = s.liveState?.battle_analysis?.coach_suggestion?.suggested_pokemon;
+    const stages = s.liveState?.battle_analysis?.enemy?.stages;
+    const enemyHasBoosts = !!stages && stages.some((v: number) => v > 0);
+
+    // 1. Battle Start / Enemy Switch
+    if (inBattle && enemyName && enemyName !== lastEnemyName) {
+      const types = s.liveState?.battle_analysis?.enemy?.types;
+      const typeStr = types?.join("/") || "Unknown";
+      toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyName} (Type: ${typeStr})` });
+    }
+    lastEnemyName = enemyName;
+
+    // 2. Coach Suggestion
+    if (inBattle && coachSuggestion && coachSuggestion !== lastCoach) {
+      const reason = s.liveState?.battle_analysis?.coach_suggestion?.reason || "";
+      toaster.toast({ title: "Coach Suggestion", body: `Switch to ${coachSuggestion}! ${reason}` });
+    }
+    lastCoach = coachSuggestion;
+
+    // 3. Stat Warning
+    if (inBattle && enemyHasBoosts && !lastBoostWarned) {
+      toaster.toast({ title: "Stat Warning", body: "Enemy stats are boosted! Be careful!" });
+      lastBoostWarned = true;
+    } else if (!enemyHasBoosts) {
+      lastBoostWarned = false;
+    }
+  });
+}
 import { DEFAULT_PALETTE, paletteToCssVars } from "./theme";
 import { registerTouchMenu, unregisterTouchMenu } from "./touchmenu";
 import { HomeView } from "./views/HomeView";
@@ -46,46 +86,7 @@ function PluginContent() {
     }
   }, [touchmenuEnabled]);
 
-  // --- Advanced Toasts (only fire on actual state transitions, not every poll) ---
-  const enemyName = useStore((s) => s.liveState?.battle_analysis?.enemy?.name);
-  const coachSuggestion = useStore((s) => s.liveState?.battle_analysis?.coach_suggestion?.suggested_pokemon);
-  const enemyHasBoosts = useStore((s) => {
-    const stages = s.liveState?.battle_analysis?.enemy?.stages;
-    return !!stages && stages.some((v: number) => v > 0);
-  });
-  const lastEnemyName = useRef<string | undefined>(undefined);
-  const lastCoach = useRef<string | undefined>(undefined);
-  const lastBoostWarned = useRef(false);
 
-  // 1. Battle Start / Enemy Switch — only toast when the enemy name actually changes.
-  useEffect(() => {
-    if (inBattle && enemyName && enemyName !== lastEnemyName.current) {
-      const types = getState().liveState?.battle_analysis?.enemy?.types;
-      const typeStr = types?.join("/") || "Unknown";
-      toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyName} (Type: ${typeStr})` });
-    }
-    lastEnemyName.current = enemyName;
-  }, [enemyName, inBattle]);
-
-  // 2. Coach Suggestion — only toast when the suggestion changes.
-  useEffect(() => {
-    if (inBattle && coachSuggestion && coachSuggestion !== lastCoach.current) {
-      const reason = getState().liveState?.battle_analysis?.coach_suggestion?.reason || "";
-      toaster.toast({ title: "Coach Suggestion", body: `Switch to ${coachSuggestion}! ${reason}` });
-    }
-    lastCoach.current = coachSuggestion;
-  }, [coachSuggestion, inBattle]);
-
-  // 3. Stat Warning — only toast once per boost transition.
-  useEffect(() => {
-    if (inBattle && enemyHasBoosts && !lastBoostWarned.current) {
-      toaster.toast({ title: "Stat Warning", body: "Enemy stats are boosted! Be careful!" });
-      lastBoostWarned.current = true;
-    } else if (!enemyHasBoosts) {
-      lastBoostWarned.current = false;
-    }
-  }, [enemyHasBoosts, inBattle]);
-  // -------------------------------------------------------------------------------
 
   useEffect(() => {
     refreshStatic();
@@ -141,6 +142,7 @@ export default definePlugin(() => {
   refreshStatic();
   startPolling();
   registerTouchMenu();
+  initGlobalToasts();
 
   return {
     name: "Pokémon Essentials Overlay",
@@ -166,6 +168,7 @@ export default definePlugin(() => {
     onDismount() {
       unregisterTouchMenu();
       stopPolling();
+      if (unsubscribeToasts) unsubscribeToasts();
       console.log("[pokemon-overlay] dismounted");
     },
   };

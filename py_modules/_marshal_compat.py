@@ -50,8 +50,14 @@ class ForwardRef:
 def _resolve_forward_refs(root: Any) -> None:
     """Walk the parsed tree and resolve ``ForwardRef`` proxies in place."""
     stack: List[Any] = [root]
+    visited = set()
     while stack:
         node = stack.pop()
+        node_id = id(node)
+        if node_id in visited:
+            continue
+        visited.add(node_id)
+        
         if isinstance(node, ForwardRef):
             node.resolve()
             continue
@@ -79,14 +85,16 @@ def _resolve_forward_refs(root: Any) -> None:
                     k = new_k
                 if isinstance(v, ForwardRef):
                     node[k] = v.resolve()
-                elif isinstance(v, (RubyObject, dict, list, tuple)):
+                    v = node[k]
+                if isinstance(v, (RubyObject, dict, list, tuple)):
                     stack.append(v)
             continue
         if isinstance(node, (list, tuple)):
             for i, v in enumerate(node):
                 if isinstance(v, ForwardRef):
                     node[i] = v.resolve()
-                elif isinstance(v, (RubyObject, dict, list, tuple)):
+                    v = node[i]
+                if isinstance(v, (RubyObject, dict, list, tuple)):
                     stack.append(v)
 
 
