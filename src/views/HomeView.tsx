@@ -46,38 +46,32 @@ export function HomeView() {
             onActivate={() => {}}
             style={{
               color: "#e0a458",
-              fontSize: 12,
-              padding: "8px 0",
+              fontSize: "14px",
+              padding: "12px",
+              backgroundColor: "rgba(224, 164, 88, 0.1)",
+              borderRadius: "6px",
+              lineHeight: "1.4",
             }}
           >
-            Plugin data isn't loaded yet. The Decky Loader may be
-            reloading the plugin in the background.
+            Plugin data isn't loaded yet. The Decky Loader may be reloading the plugin in the background.
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
           <Focusable
-            onActivate={() => {}}
+            onActivate={() => retryRefreshStatic()}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              padding: "4px 0",
+              justifyContent: "center",
+              gap: "8px",
+              padding: "12px",
+              marginTop: "12px",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              borderRadius: "6px",
+              cursor: "pointer",
             }}
           >
-            <span style={{ fontSize: 13, color: "#969696" }}>Loading…</span>
-            <span
-              style={{
-                fontSize: 11,
-                color: "#56b4e9",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-              onClick={() => {
-                retryRefreshStatic();
-              }}
-            >
-              Reload
-            </span>
+            <span style={{ fontSize: "14px", color: "#fff", fontWeight: 500 }}>Reload Data</span>
           </Focusable>
         </PanelSectionRow>
       </PanelSection>
@@ -93,23 +87,19 @@ export function HomeView() {
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 4,
-              padding: "4px 0",
+              gap: "6px",
+              padding: "8px",
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              borderRadius: "8px",
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 600 }}>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fff" }}>
               {String(info.name)}{" "}
-              <span style={{ color: "#969696", fontWeight: 400 }}>
+              <span style={{ color: "rgba(255, 255, 255, 0.5)", fontWeight: "normal", fontSize: "14px" }}>
                 v{String(info.version)}
               </span>
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "#969696",
-                lineHeight: 1.4,
-              }}
-            >
+            <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", lineHeight: "1.5" }}>
               {String(info.description)}
             </div>
           </Focusable>
@@ -121,169 +111,141 @@ export function HomeView() {
           <Focusable
             onActivate={() => {}}
             style={{
-              fontSize: 12,
+              fontSize: "13px",
               display: "flex",
               flexDirection: "column",
-              gap: 6,
-              padding: "4px 0",
+              gap: "10px",
+              padding: "12px",
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              borderRadius: "8px",
             }}
           >
-            <div>
+            <div style={{ display: "flex", alignItems: "center" }}>
               <StatusDot ok={info.initialized} />
-              {info.initialized ? "Backend ready" : "Backend not initialized"}
+              <span style={{ color: "#fff" }}>{info.initialized ? "Backend ready" : "Backend not initialized"}</span>
             </div>
-            <div>
+            <div style={{ display: "flex", alignItems: "center" }}>
               <StatusDot ok={info.type_chart_loaded} />
-              {info.type_chart_loaded
-                ? `Type chart loaded (${info.type_chart_types} types)`
-                : "Type chart not loaded"}
+              <span style={{ color: "#fff" }}>
+                {info.type_chart_loaded ? `Type chart loaded (${info.type_chart_types} types)` : "Type chart not loaded"}
+              </span>
             </div>
-            <div>
+            <div style={{ display: "flex", alignItems: "center" }}>
               <StatusDot ok={movesDb?.loaded ?? false} />
-              {movesDb?.loaded
-                ? movesDb.pbs_source
-                  ? `Moves DB: ${movesDb.merged_count} (PBS loaded)`
-                  : `Moves DB: ${movesDb.static_count} static only`
-                : "Moves DB not loaded"}
+              <span style={{ color: "#fff" }}>
+                {movesDb?.loaded
+                  ? movesDb.pbs_source
+                    ? `Moves DB: ${movesDb.merged_count} (PBS loaded)`
+                    : `Moves DB: ${movesDb.static_count} static only`
+                  : "Moves DB not loaded"}
+              </span>
             </div>
             {live && (
               <>
-                <div>
+                <div style={{ display: "flex", alignItems: "center" }}>
                   <StatusDot ok={live.game_running} />
-                  {live.game_running
-                    ? `Game running: ${live.detected_game_name || String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
-                    : "No game process detected"}
+                  <span style={{ color: "#fff" }}>
+                    {live.game_running
+                      ? `Game running: ${live.detected_game_name || String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
+                      : "No game process detected"}
+                  </span>
                 </div>
                 {live.game_running && live.stream_status && (
-                  <div style={{ marginTop: 4, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                    <div style={{ fontSize: 10, color: "#777", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 }}>
+                  <div style={{ marginTop: "6px", paddingTop: "10px", borderTop: "1px solid rgba(255, 255, 255, 0.1)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "bold" }}>
                       Live Injection Status
                     </div>
-                    <div>
+                    <div style={{ display: "flex", alignItems: "center" }}>
                       <StatusDot ok={live.stream_status.listening} />
-                      {live.stream_status.listening
-                        ? "Stream server listening on 127.0.0.1:9988"
-                        : "Stream server not started"}
+                      <span style={{ color: "#fff" }}>
+                        {live.stream_status.listening ? "Stream server listening (127.0.0.1:9988)" : "Stream server not started"}
+                      </span>
                     </div>
-                    <div>
+                    <div style={{ display: "flex", alignItems: "center" }}>
                       <StatusDot ok={live.stream_status.connected} />
-                      {live.stream_status.connected
-                        ? `Game mod connected${live.stream_status.last_data_trainer ? ` (trainer: ${live.stream_status.last_data_trainer})` : ""}`
-                        : "Game mod not connected"}
+                      <span style={{ color: "#fff" }}>
+                        {live.stream_status.connected
+                          ? `Game mod connected${live.stream_status.last_data_trainer ? ` (Trainer: ${live.stream_status.last_data_trainer})` : ""}`
+                          : "Game mod not connected"}
+                      </span>
                     </div>
                     {live.stream_status.total_frames > 0 ? (
-                      <div>
+                      <div style={{ display: "flex", alignItems: "center" }}>
                         <StatusDot ok={true} />
-                        {`Injection active — ${live.stream_status.total_frames} frames received` +
-                          (live.stream_status.last_data_at
-                            ? ` · last ${timeAgo(live.stream_status.last_data_at)}`
-                            : "")}
+                        <span style={{ color: "#fff" }}>
+                          {`Injection active — ${live.stream_status.total_frames} frames` +
+                            (live.stream_status.last_data_at ? ` · last ${timeAgo(live.stream_status.last_data_at)}` : "")}
+                        </span>
                       </div>
                     ) : (
-                      <div>
+                      <div style={{ display: "flex", alignItems: "center" }}>
                         <StatusDot ok={false} />
-                        {live.stream_status.listening
-                          ? "Waiting for game mod data…"
-                          : "Injection not started"}
+                        <span style={{ color: "#fff" }}>
+                          {live.stream_status.listening ? "Waiting for game mod data…" : "Injection not started"}
+                        </span>
                       </div>
                     )}
                   </div>
                 )}
-                <div>
+                <div style={{ display: "flex", alignItems: "center", marginTop: live.game_running && live.stream_status ? "6px" : "0" }}>
                   <StatusDot ok={live.watcher_active} />
-                  {live.watcher_active
-                    ? `Save watcher active${
-                        live.last_live_event?.at
-                          ? ` · last event ${timeAgo(live.last_live_event.at)}`
-                          : ""
-                      }`
-                    : "Save watcher inactive"}
+                  <span style={{ color: "#fff" }}>
+                    {live.watcher_active
+                      ? `Save watcher active${live.last_live_event?.at ? ` · last event ${timeAgo(live.last_live_event.at)}` : ""}`
+                      : "Save watcher inactive"}
+                  </span>
                 </div>
                 {settings?.live_memory_enabled && (
-                  <div>
+                  <div style={{ display: "flex", alignItems: "center" }}>
                     <StatusDot ok={live.live_source === "memory"} />
-                    {live.live_source === "memory"
-                      ? `Live memory reading active (pid ${live.active_process?.pid ?? "?"})`
-                      : `Live memory idle · ${live.memory_failure_log?.length ? `last: ${live.memory_failure_log[live.memory_failure_log.length - 1]}` : "disk fallback"}`}
+                    <span style={{ color: "#fff" }}>
+                      {live.live_source === "memory"
+                        ? `Live memory reading active (pid ${live.active_process?.pid ?? "?"})`
+                        : `Live memory idle · ${live.memory_failure_log?.length ? `last: ${live.memory_failure_log[live.memory_failure_log.length - 1]}` : "disk fallback"}`}
+                    </span>
                   </div>
                 )}
               </>
             )}
             {saveData && !saveData.error && saveData.features && (
-              <div
-                style={{
-                  marginTop: 4,
-                  paddingTop: 6,
-                  borderTop: "1px solid rgba(255,255,255,0.05)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#777",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                    marginBottom: 4,
-                  }}
-                >
+              <div style={{ marginTop: "6px", paddingTop: "10px", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "bold", marginBottom: "8px" }}>
                   Save features ({saveData.version})
                 </div>
                 <CapabilitiesSummary features={saveData.features} />
               </div>
             )}
-            {party && (
-              <div
-                style={{
-                  marginTop: 8,
-                  backgroundColor: "rgba(0,0,0,0.2)",
-                  color: "#ddd",
-                  padding: "8px 12px",
-                  borderRadius: "4px",
-                  fontSize: "13px",
-                  fontWeight: "bold",
-                  display: "flex",
-                  justifyContent: "space-between"
-                }}
-              >
-                <span>Fainted Pokémon (Nuzlocke):</span>
-                <span style={{ color: faintedCount > 0 ? "#e05858" : "#5eba7d" }}>{faintedCount}</span>
-              </div>
-            )}
           </Focusable>
         </PanelSectionRow>
-      </PanelSection>
-
-      <PanelSection title="Roadmap">
-        <PanelSectionRow>
-          <Focusable
-            onActivate={() => {}}
-            style={{
-              fontSize: 12,
-              color: "#969696",
-              lineHeight: 1.6,
-            }}
-          >
-            <div>
-              <span style={{ color: "#5eba7d" }}>●</span> Phase 1 — Foundation
-            </div>
-            <div>
-              <span style={{ color: "#5eba7d" }}>●</span> Phase 2 — Interactive
-              type chart
-            </div>
-            <div>
-              <span style={{ color: "#5eba7d" }}>●</span> Phase 3 — Save-file
-              parser &amp; party status
-            </div>
-            <div>
-              <span style={{ color: "#5eba7d" }}>●</span> Phase 4 — In-game
-              TouchMenu overlay
-            </div>
-            <div>
-              <span style={{ color: "#5eba7d" }}>●</span> Phase 5 — Live PBS,
-              IV/EV, dynamic UI, themes, watcher
-            </div>
-          </Focusable>
-        </PanelSectionRow>
+        
+        {party && (
+          <PanelSectionRow>
+            <Focusable
+              style={{
+                marginTop: "8px",
+                backgroundColor: "rgba(0, 0, 0, 0.3)",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "bold",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}
+            >
+              <span style={{ color: "rgba(255, 255, 255, 0.8)" }}>Fainted Pokémon (Nuzlocke):</span>
+              <span style={{ 
+                color: faintedCount > 0 ? "#e05858" : "#5eba7d",
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                padding: "4px 10px",
+                borderRadius: "12px",
+                fontSize: "13px"
+              }}>
+                {faintedCount}
+              </span>
+            </Focusable>
+          </PanelSectionRow>
+        )}
       </PanelSection>
     </>
   );

@@ -19,10 +19,12 @@ export function TabBar({ tabs, activeId, onChange }: TabBarProps) {
       style={{
         display: "flex",
         flexDirection: "row",
+        backgroundColor: "rgba(0, 0, 0, 0.2)",
+        borderRadius: "8px",
+        padding: "4px",
+        marginBottom: "12px",
+        marginTop: "8px",
         gap: "4px",
-        padding: "8px 0 6px 0",
-        borderBottom: "1px solid #2a2a2a",
-        marginBottom: "4px",
       }}
     >
       {tabs.map((tab) => {
@@ -33,16 +35,20 @@ export function TabBar({ tabs, activeId, onChange }: TabBarProps) {
             onOKActionDescription={tab.label}
             onOKButton={() => !tab.disabled && onChange(tab.id)}
             style={{
-              padding: "6px 10px",
-              background: active ? "rgba(255,255,255,0.08)" : "transparent",
-              color: tab.disabled ? "#555" : active ? "#fff" : "#969696",
-              borderRadius: "4px",
+              flex: 1,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "8px 0",
+              background: active ? "rgba(255, 255, 255, 0.15)" : "transparent",
+              color: tab.disabled ? "rgba(255, 255, 255, 0.3)" : active ? "#fff" : "rgba(255, 255, 255, 0.7)",
+              borderRadius: "6px",
               cursor: tab.disabled ? "not-allowed" : "pointer",
-              fontSize: "12px",
+              fontSize: "13px",
               fontWeight: active ? 600 : 500,
-              borderBottom: active ? "2px solid #5eba7d" : "2px solid transparent",
-              transition: "color 120ms, background 120ms",
+              transition: "all 150ms ease",
               outline: "none",
+              boxShadow: active ? "0 2px 4px rgba(0,0,0,0.2)" : "none",
             }}
           >
             {tab.label}
@@ -52,3 +58,4 @@ export function TabBar({ tabs, activeId, onChange }: TabBarProps) {
     </Focusable>
   );
 }
+

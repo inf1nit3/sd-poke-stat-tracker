@@ -102,26 +102,27 @@ function PluginContent() {
   );
 
   return (
-    <Focusable style={{ display: "flex", flexDirection: "column", ...themeStyle }}>
+    <Focusable style={{ display: "flex", flexDirection: "column", height: "100%", padding: "0 4px", ...themeStyle }}>
       <TabBar
         tabs={TABS}
         activeId={active}
         onChange={(id) => setActive(id as TabId)}
       />
-      <ScrollPanel>
+      <ScrollPanel style={{ paddingRight: "4px" }}>
         {showRestartBanner && (
           <PanelSection>
             <PanelSectionRow>
               <div
                 style={{
-                  backgroundColor: "#e05858",
-                  color: "#fff",
+                  backgroundColor: "rgba(224, 88, 88, 0.2)",
+                  color: "#ff7f7f",
                   padding: "12px",
-                  borderRadius: "4px",
+                  borderRadius: "8px",
                   fontSize: "13px",
                   lineHeight: "1.4",
                   fontWeight: "bold",
-                  marginBottom: "8px"
+                  marginBottom: "8px",
+                  border: "1px solid rgba(224, 88, 88, 0.4)"
                 }}
               >
                 The live-tracker mod was just auto-installed. Please restart your Pokémon game once to activate the Battle Analyzer.
