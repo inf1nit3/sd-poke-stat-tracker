@@ -12,6 +12,13 @@ import {
   stopPolling,
   useStore,
 } from "./store";
+import { DEFAULT_PALETTE, paletteToCssVars } from "./theme";
+import { registerTouchMenu, unregisterTouchMenu } from "./touchmenu";
+import { HomeView } from "./views/HomeView";
+import { PartyView } from "./views/PartyView";
+import { SettingsView } from "./views/SettingsView";
+import { TypeChartView } from "./views/TypeChartView";
+import { BattleAnalyzerView } from "./views/BattleAnalyzerView";
 
 let lastEnemyName: string | undefined = undefined;
 let lastCoach: string | undefined = undefined;
@@ -19,6 +26,9 @@ let lastBoostWarned = false;
 let unsubscribeToasts: (() => void) | null = null;
 
 function initGlobalToasts() {
+  if (unsubscribeToasts) {
+    unsubscribeToasts();
+  }
   unsubscribeToasts = subscribe(() => {
     const s = getState();
     const inBattle = !!s.liveState?.battle_analysis;
@@ -51,13 +61,6 @@ function initGlobalToasts() {
     }
   });
 }
-import { DEFAULT_PALETTE, paletteToCssVars } from "./theme";
-import { registerTouchMenu, unregisterTouchMenu } from "./touchmenu";
-import { HomeView } from "./views/HomeView";
-import { PartyView } from "./views/PartyView";
-import { SettingsView } from "./views/SettingsView";
-import { TypeChartView } from "./views/TypeChartView";
-import { BattleAnalyzerView } from "./views/BattleAnalyzerView";
 
 type TabId = "status" | "typechart" | "party" | "settings";
 

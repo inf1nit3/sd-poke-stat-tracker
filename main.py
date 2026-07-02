@@ -21,7 +21,8 @@ from typing import Any, Callable, Optional
 import decky
 
 faulthandler.enable()
-faulthandler.register(signal.SIGUSR1, file=open("/tmp/plugin_traceback.log", "w", buffering=1))
+_TRACE_FILE = open("/tmp/plugin_traceback.log", "w", buffering=1)
+faulthandler.register(signal.SIGUSR1, file=_TRACE_FILE)
 
 # Fix for Decky Loader: add plugin directory to sys.path so local imports
 # work. Use INSERT (not append) so the plugin's modules shadow any older
@@ -201,6 +202,8 @@ class Plugin:
         self._memory_pid: Optional[int] = None
         self._live_source: str = "disk"  # "memory" | "disk" | "stream"
         self._memory_failure_log: list[str] = []
+        self._restarting_memory: bool = False
+        self._mod_needs_restart: bool = False
         # Game-mod TCP stream (most reliable live source when the
         # game's Plugins/ folder has our stream.rb hook installed).
         self._stream_server: Optional[LiveStreamServer] = None
@@ -213,6 +216,10 @@ class Plugin:
             self._load_settings()
             self._load_type_chart()
             self._try_auto_load_pbs()
+            
+            # Run auto-installer in background
+            threading.Thread(target=self._run_auto_installer_bg, daemon=True, name="AutoInstaller").start()
+
             if self._settings.get("watcher_enabled", True):
                 self._start_watcher()
             if self._settings.get("live_memory_enabled", False):
@@ -228,6 +235,26 @@ class Plugin:
         except Exception as exc:
             log.error(f"Failed to initialize plugin: {exc}", exc_info=True)
             self._initialized = False
+
+    def _run_auto_installer_bg(self) -> None:
+        """Runs the game mod auto-installer in a background thread."""
+        try:
+            import sys
+            scripts_dir = str(PLUGIN_DIR / "scripts")
+            if scripts_dir not in sys.path:
+                sys.path.insert(0, scripts_dir)
+            import install_game_mod
+            
+            game_dir = install_game_mod.find_game_dir()
+            if game_dir and (game_dir / "Plugins").is_dir():
+                plugin_dir = game_dir / "Plugins" / install_game_mod.PLUGIN_NAME
+                if not plugin_dir.is_dir():
+                    log.info(f"Auto-installing stream mod to {game_dir}")
+                    if install_game_mod.install(game_dir):
+                        with self._state_lock:
+                            self._mod_needs_restart = True
+        except Exception as exc:
+            log.warning(f"Background auto-installer failed: {exc}")
 
     async def _unload(self) -> None:
         """Called once when the plugin is unloaded."""
@@ -269,8 +296,10 @@ class Plugin:
         SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
         tmp_path = SETTINGS_PATH.with_suffix(".json.tmp")
         try:
+            with self._state_lock:
+                settings_copy = dict(self._settings)
             with tmp_path.open("w", encoding="utf-8") as fh:
-                json.dump(self._settings, fh, indent=2, ensure_ascii=False)
+                json.dump(settings_copy, fh, indent=2, ensure_ascii=False)
             os.replace(tmp_path, SETTINGS_PATH)
         except OSError as exc:
             log.error(f"Could not persist settings: {exc}", exc_info=True)
@@ -403,6 +432,23 @@ class Plugin:
         import asyncio
         return await asyncio.to_thread(list_save_files)
 
+    def _cache_parse_error(self, path: Path, exc: Exception) -> dict[str, Any]:
+        import time as _time
+        path_str = str(path)
+        out = {
+            "error": "parse_failed",
+            "message": str(exc),
+            "path": path_str,
+        }
+        with self._state_lock:
+            self._save_cache = out
+            self._save_cache_path = path_str
+            try:
+                self._save_cache_at = path.stat().st_mtime
+            except OSError:
+                self._save_cache_at = _time.time()
+        return out
+
     async def get_save_data(self, force_reload: bool = False) -> dict[str, Any]:
         """Parse the active save file and return a normalized dict.
 
@@ -422,50 +468,28 @@ class Plugin:
             return {"error": "no_save_file_found", "path": None}
 
         path_str = str(path)
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            mtime = 0
+
         with self._state_lock:
             if (
                 not force_reload
                 and self._save_cache is not None
                 and self._save_cache_path == path_str
             ):
-                try:
-                    if path.stat().st_mtime <= self._save_cache_at:
-                        return self._save_cache
-                except OSError:
-                    pass
+                if mtime and mtime <= self._save_cache_at:
+                    return self._save_cache
 
         try:
             data: SaveData = await asyncio.to_thread(parse_save_file, path)
         except SaveParseError as exc:
             log.warning(f"Save parse error: {exc}")
-            out = {
-                "error": "parse_failed",
-                "message": str(exc),
-                "path": path_str,
-            }
-            with self._state_lock:
-                self._save_cache = out
-                self._save_cache_path = path_str
-                try:
-                    self._save_cache_at = path.stat().st_mtime
-                except OSError:
-                    self._save_cache_at = _time.time()
-            return out
+            return self._cache_parse_error(path, exc)
         except Exception as exc:
             log.error(f"Unexpected save parse error: {exc}", exc_info=True)
-            out = {
-                "error": "parse_failed",
-                "message": str(exc),
-                "path": path_str,
-            }
-            with self._state_lock:
-                self._save_cache = out
-                self._save_cache_path = path_str
-                try:
-                    self._save_cache_at = path.stat().st_mtime
-                except OSError:
-                    self._save_cache_at = _time.time()
-            return out
+            return self._cache_parse_error(path, exc)
 
         out = data.to_dict()
         with self._state_lock:
@@ -486,8 +510,13 @@ class Plugin:
         """Parse a specific save file (ignores cache and override)."""
         if not isinstance(path, str) or not path:
             raise TypeError("path must be a non-empty string")
+        if not path.endswith(".rxdata"):
+            return {"error": "parse_failed", "message": "Invalid file extension", "path": path}
+        resolved = str(Path(path).resolve())
+        if not resolved.startswith("/home/deck/"):
+            return {"error": "parse_failed", "message": "Path traversal blocked", "path": path}
         try:
-            data = parse_save_file(path)
+            data = parse_save_file(resolved)
         except SaveParseError as exc:
             return {"error": "parse_failed", "message": str(exc), "path": path}
         return data.to_dict()
@@ -591,12 +620,8 @@ class Plugin:
         """
         with self._state_lock:
             if self._cached_save_path is not None:
-                # Verify the cached path still exists.
-                cached = self._cached_save_path
-            else:
-                cached = None
-        if cached is not None and cached.is_file():
-            return cached
+                return self._cached_save_path
+
         # Cache miss or file gone — re-resolve (this does the filesystem walk).
         override = self._settings.get("save_path_override")
         found = find_save_file(override if override else None)
@@ -607,34 +632,24 @@ class Plugin:
     def _on_watcher_change(self, path: Path) -> None:
         import time as _time
 
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            mtime = 0
+
         with self._state_lock:
             if self._save_cache is not None and self._save_cache_path == str(path):
-                try:
-                    if path.stat().st_mtime <= self._save_cache_at:
-                        return
-                except OSError:
-                    pass
+                if mtime and mtime <= self._save_cache_at:
+                    return
         try:
             data = parse_save_file(path)
         except SaveParseError as exc:
             log.warning(f"Live save parse failed: {exc}")
-            with self._state_lock:
-                self._save_cache = {"error": "parse_failed", "message": str(exc), "path": str(path)}
-                self._save_cache_path = str(path)
-                try:
-                    self._save_cache_at = path.stat().st_mtime
-                except OSError:
-                    self._save_cache_at = _time.time()
+            self._cache_parse_error(path, exc)
             return
         except Exception as exc:
             log.error(f"Unexpected live save parse error: {exc}", exc_info=True)
-            with self._state_lock:
-                self._save_cache = {"error": "parse_failed", "message": str(exc), "path": str(path)}
-                self._save_cache_path = str(path)
-                try:
-                    self._save_cache_at = path.stat().st_mtime
-                except OSError:
-                    self._save_cache_at = _time.time()
+            self._cache_parse_error(path, exc)
             return
         out = data.to_dict()
         last_save_changed = False
@@ -767,6 +782,7 @@ class Plugin:
             self._save_cache_path = f"<stream:9988>"
             self._save_cache_at = now
             self._live_source = "stream"
+            self._mod_needs_restart = False
             self._last_live_event = {
                 "kind": "stream_update",
                 "at": now,
@@ -801,6 +817,10 @@ class Plugin:
             log.info("Live memory reader: game process gone, stopping")
             # Schedule stop+restart on a separate thread to avoid self-join
             # deadlock (this callback runs on the reader's own worker thread).
+            with self._lifecycle_lock:
+                if self._restarting_memory:
+                    return
+                self._restarting_memory = True
             threading.Thread(
                 target=self._handle_memory_reader_process_gone,
                 daemon=True,
@@ -815,16 +835,20 @@ class Plugin:
         Runs on a dedicated thread so we never join the reader's own worker
         thread (which would deadlock).
         """
-        import time as _t
-        self._stop_memory_reader()
-        _t.sleep(2.0)
-        if self._shutting_down:
-            return
-        if not self._settings.get("live_memory_enabled", False):
-            return
-        procs = find_game_processes()
-        if procs:
-            self._start_memory_reader()
+        try:
+            import time as _t
+            self._stop_memory_reader()
+            _t.sleep(2.0)
+            if self._shutting_down:
+                return
+            if not self._settings.get("live_memory_enabled", False):
+                return
+            procs = find_game_processes()
+            if procs:
+                self._start_memory_reader()
+        finally:
+            with self._lifecycle_lock:
+                self._restarting_memory = False
 
     def _refresh_memory_reader_pid(self) -> None:
         """Re-detect the game PID (handles restart) and update the reader."""
@@ -854,7 +878,7 @@ class Plugin:
         # Look for "Game.exe" in the cmdline and extract the parent directory name.
         # Patterns: ".../Vanguard 4.0.3/Game.exe" or "Z:\home\deck\Downloads\Vanguard 4.0.3\Game.exe"
         import re
-        m = re.search(r'[\\/\\\\]([^\\/\\\\]+)[\\/\\\\]Game\.exe', cmdline, re.IGNORECASE)
+        m = re.search(r'[\\/]([^\\/]+)[\\/]Game\.exe', cmdline, re.IGNORECASE)
         if m:
             return m.group(1)
         # Fallback: look for known Pokémon fan-game names in cmdline
@@ -881,6 +905,7 @@ class Plugin:
             live_source = self._live_source
             memory_pid = self._memory_pid
             memory_failure_log = list(self._memory_failure_log)
+            mod_needs_restart = self._mod_needs_restart
             last_live_event = dict(self._last_live_event) if self._last_live_event else {}
             save_cache = self._save_cache
             save_cache_path = self._save_cache_path
@@ -908,6 +933,7 @@ class Plugin:
             "memory_reader_active": memory_active,
             "memory_pid": memory_pid,
             "memory_failure_log": memory_failure_log,
+            "mod_needs_restart": mod_needs_restart,
             "last_live_event": last_live_event,
             "last_save_data": save_cache,
             "last_save_path": save_cache_path,

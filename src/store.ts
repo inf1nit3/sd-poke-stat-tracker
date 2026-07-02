@@ -8,6 +8,7 @@ import {
   SaveData,
   Theme,
   TypeChartData,
+  PokemonSummary,
 } from "./api";
 
 export interface StoreState {
@@ -33,6 +34,7 @@ const initialState: StoreState = {
 let state: StoreState = initialState;
 const listeners = new Set<() => void>();
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
+let pollGeneration = 0;
 
 function notify() {
   for (const l of listeners) l();
@@ -64,15 +66,14 @@ export function useStore<T>(
   const eqRef = useRef(equalityFn);
   eqRef.current = equalityFn;
 
-  const cache = useRef<{ state: StoreState; selection: T } | null>(null);
+  const cache = useRef<{ state: StoreState; selection: T; selector: (s: StoreState) => T } | null>(null);
 
   const getSelection = useCallback(() => {
     const currentState = getState();
     const currentSelector = selectorRef.current;
 
-    // If the state hasn't changed, return the cached selection.
-    // (Assumes the selector is a pure function of state).
-    if (cache.current && cache.current.state === currentState) {
+    // If the state hasn't changed and the selector function hasn't changed, return the cached selection.
+    if (cache.current && cache.current.state === currentState && cache.current.selector === currentSelector) {
       return cache.current.selection;
     }
 
@@ -87,10 +88,11 @@ export function useStore<T>(
 
     if (cache.current && isEq) {
       cache.current.state = currentState;
+      cache.current.selector = currentSelector;
       return cache.current.selection;
     }
 
-    cache.current = { state: currentState, selection: newSelection };
+    cache.current = { state: currentState, selection: newSelection, selector: currentSelector };
     return newSelection;
   }, []);
 
@@ -201,6 +203,8 @@ export async function applySettingsPatch(patch: Partial<PluginSettings>) {
 
 export function startPolling() {
   stopPolling();
+  pollGeneration++;
+  const currentGen = pollGeneration;
   // Backend SaveFileWatcher (mtime poll) fires within ~0.3s of any save, so
   // a fast 1.5s frontend poll is the right cadence while the game is
   // actively playing. If we haven't seen a live event in a while, back off
@@ -217,11 +221,13 @@ export function startPolling() {
   let errorCount = 0;
   
   const tick = async () => {
+    if (pollGeneration !== currentGen) return;
     try {
       const [saveData, live] = await Promise.all([
         api.getLiveSaveData(),
         api.getLiveState(),
       ]);
+      if (pollGeneration !== currentGen) return;
       
       if (saveData) updateState({ saveData });
       if (live) updateState({ liveState: live });
@@ -231,33 +237,33 @@ export function startPolling() {
       const lastAt = live?.last_live_event?.at ?? 0;
       const now = Date.now() / 1000;
       const sinceLast = now - lastAt;
-      if (lastAt > 0 && sinceLast < 10) {
+      
+      // If no game is running, drop to a very slow polling rate (30s) to save battery.
+      if (!live?.game_running) {
+        consecutiveIdle = 99; // force slow poll
+      } else if (lastAt > 0 && sinceLast < 10) {
         consecutiveIdle = 0;
       } else {
         consecutiveIdle += 1;
       }
       
-      const next = consecutiveIdle > 4 ? slowMs : fastMs;
-      if (pollTimer !== null) {
-        clearTimeout(pollTimer);
-        pollTimer = setTimeout(tick, next);
-      }
+      const next = !live?.game_running ? 30000 : (consecutiveIdle > 4 ? slowMs : fastMs);
+      pollTimer = setTimeout(tick, next);
     } catch (e) {
       console.error("[store] polling tick failed", e);
+      if (pollGeneration !== currentGen) return;
       errorCount++;
       const backoff = Math.min(maxBackoffMs, fastMs * Math.pow(2, errorCount));
       console.log(`[store] backoff applied, next poll in ${backoff}ms`);
-      if (pollTimer !== null) {
-        clearTimeout(pollTimer);
-        pollTimer = setTimeout(tick, backoff);
-      }
+      pollTimer = setTimeout(tick, backoff);
     }
   };
   pollTimer = setTimeout(tick, fastMs);
-  console.log(`[store] live frontend polling started (adaptive 1.5s/5s)`);
+  console.log(`[store] live frontend polling started`);
 }
 
 export function stopPolling() {
+  pollGeneration++;
   if (pollTimer !== null) {
     clearTimeout(pollTimer);
     pollTimer = null;
@@ -282,7 +288,8 @@ export function saveDataEqual(a: SaveData | null, b: SaveData | null): boolean {
     a.party_count === b.party_count &&
     a.trainer_name === b.trainer_name &&
     a.error === b.error &&
-    a.money === b.money
+    a.money === b.money &&
+    partyEqual(a.party, b.party)
   );
 }
 
@@ -290,7 +297,7 @@ export function saveDataEqual(a: SaveData | null, b: SaveData | null): boolean {
  * Cheap equality for the party array — compares by length + each member's
  * hp + status + species (the fields that change in-battle).
  */
-export function partyEqual(a: any[] | undefined, b: any[] | undefined): boolean {
+export function partyEqual(a: PokemonSummary[] | undefined, b: PokemonSummary[] | undefined): boolean {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
