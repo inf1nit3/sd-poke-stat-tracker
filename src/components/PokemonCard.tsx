@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { PokemonSummary, SaveFeatures } from "../api";
 import { HealthBar } from "./HealthBar";
 import { TypeBadge } from "./TypeBadge";
@@ -93,7 +94,7 @@ function resolveDisplay(
   };
 }
 
-export function PokemonCard({ pokemon: p, features, forced }: PokemonCardProps) {
+export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, forced }: PokemonCardProps) {
   const display = resolveDisplay(p, features, forced);
   const displayName = p.nickname || p.species;
   const statusColor = STATUS_COLORS[p.status_name] ?? "#888";
@@ -344,7 +345,7 @@ export function PokemonCard({ pokemon: p, features, forced }: PokemonCardProps) 
       )}
     </div>
   );
-}
+});
 
 function StatBox({ label, value }: { label: string; value: number | null }) {
   return (

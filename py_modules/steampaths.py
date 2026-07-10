@@ -22,6 +22,22 @@ def candidate_steam_roots() -> list[Path]:
         roots.append(flatpak)
     return [r for r in roots if r.is_dir()]
 
+def candidate_non_steam_roots() -> list[Path]:
+    """Return common Wine prefix roots for non-Steam launchers (Heroic, Lutris, Bottles)."""
+    home = Path.home()
+    roots = [
+        # Heroic Games Launcher prefixes
+        home / "Games" / "Heroic" / "Prefixes",
+        home / ".var" / "app" / "com.heroicgameslauncher.hgl" / "config" / "heroic" / "tools" / "proton",
+        # Lutris default prefixes
+        home / "Games",
+        home / ".wine",
+        # Bottles default prefixes
+        home / ".var" / "app" / "com.usebottles.bottles" / "data" / "bottles" / "bottles",
+        home / ".local" / "share" / "bottles" / "bottles",
+    ]
+    return [r for r in roots if r.is_dir()]
+
 
 def wine_prefix_search_roots(compat_root: Path) -> list[Path]:
     """Return likely document/program directories inside a Wine prefix."""
@@ -35,6 +51,12 @@ def wine_prefix_search_roots(compat_root: Path) -> list[Path]:
         pfx_root / "users" / "steamuser" / "AppData" / "Local",
         pfx_root / "users" / "steamuser" / "Saved Games",
         pfx_root / "users" / "steamuser",
+        # Default Wine user 'deck' or generic user
+        pfx_root / "users" / "deck" / "Documents",
+        pfx_root / "users" / "deck" / "Saved Games",
+        pfx_root / "users" / "deck" / "AppData" / "Roaming",
+        pfx_root / "users" / "crossover" / "Documents", # for Bottles sometimes
+        pfx_root / "users" / "Public" / "Documents",
         pfx_root / "Program Files",
         pfx_root,
     ]

@@ -91,15 +91,24 @@ class TypeChart:
     def generation(self) -> int:
         return self._generation
 
-    def get_type_chart(self) -> dict[str, Any]:
+    def get_type_chart(self, generation_override: int | None = None) -> dict[str, Any]:
         """Return the full type chart for the frontend."""
+        gen = generation_override if generation_override else self._generation
+        
+        mults = {atk: dict(row) for atk, row in self._multipliers.items()}
+        
+        # Patch Gen 5 differences
+        if gen <= 5:
+            if "Dark" in mults and "Steel" in mults["Dark"]:
+                mults["Dark"]["Steel"] = 0.5
+            if "Ghost" in mults and "Steel" in mults["Ghost"]:
+                mults["Ghost"]["Steel"] = 0.5
+
         return {
             "types": list(self._types),
             "colors": dict(self._colors),
-            "multipliers": {
-                atk: dict(row) for atk, row in self._multipliers.items()
-            },
-            "generation": self._generation,
+            "multipliers": mults,
+            "generation": gen,
             "loaded": self._loaded,
         }
 
@@ -111,7 +120,7 @@ class TypeChart:
         return None
 
     def get_matchup(
-        self, attacker: str, defender_types: list[str]
+        self, attacker: str, defender_types: list[str], generation_override: int | None = None
     ) -> dict[str, Any]:
         """Multiplier for a single attack against a 1- or 2-type defender."""
         atk = self._validate_type(attacker)
@@ -125,10 +134,15 @@ class TypeChart:
         cleaned_defenders = cleaned_defenders[:2]
         if not cleaned_defenders:
             return {"error": "at least one valid defender type required"}
+            
+        gen = generation_override if generation_override else self._generation
+        
         mult = 1.0
         breakdown: list[dict[str, Any]] = []
         for dfnd in cleaned_defenders:
             m = self._multipliers.get(atk, {}).get(dfnd, 1.0)
+            if gen <= 5 and dfnd == "Steel" and atk in ("Dark", "Ghost"):
+                m = 0.5
             mult *= m
             breakdown.append({"defender": dfnd, "multiplier": m})
         return {
@@ -138,17 +152,22 @@ class TypeChart:
             "breakdown": breakdown,
         }
 
-    def get_defense_summary(self, defender_types: list[str]) -> dict[str, Any]:
-        """For a (possibly dual-typed) defender, which types hit for which multipliers?"""
-        cleaned: list[str] = []
+    def get_defense_summary(
+        self, defender_types: list[str], generation_override: int | None = None
+    ) -> dict[str, Any]:
+        """Calculate multipliers for all possible attacking types against defender(s)."""
+        cleaned_defenders: list[str] = []
         for d in defender_types or []:
             v = self._validate_type(d if isinstance(d, str) else "")
             if v is not None:
-                cleaned.append(v)
-        cleaned = cleaned[:2]
-        if not cleaned:
+                cleaned_defenders.append(v)
+        cleaned_defenders = cleaned_defenders[:2]
+        if not cleaned_defenders:
             return {"error": "at least one valid defender type required"}
-        buckets: dict[str, list[str]] = {
+            
+        gen = generation_override if generation_override else self._generation
+        
+        summary: dict[str, list[str]] = {
             "quadruple": [],
             "double": [],
             "neutral": [],
@@ -157,48 +176,57 @@ class TypeChart:
             "immune": [],
         }
         for atk in self._types:
-            mult = 1.0
-            for dfnd in cleaned:
-                mult *= self._multipliers.get(atk, {}).get(dfnd, 1.0)
-            if mult == 4.0:
-                buckets["quadruple"].append(atk)
-            elif mult == 2.0:
-                buckets["double"].append(atk)
-            elif mult == 1.0:
-                buckets["neutral"].append(atk)
-            elif mult == 0.5:
-                buckets["half"].append(atk)
-            elif mult == 0.25:
-                buckets["quarter"].append(atk)
-            elif mult == 0.0:
-                buckets["immune"].append(atk)
+            m = 1.0
+            for dfnd in cleaned_defenders:
+                val = self._multipliers.get(atk, {}).get(dfnd, 1.0)
+                if gen <= 5 and dfnd == "Steel" and atk in ("Dark", "Ghost"):
+                    val = 0.5
+                m *= val
+            if m >= 4.0:
+                summary["quadruple"].append(atk)
+            elif m >= 2.0:
+                summary["double"].append(atk)
+            elif m == 1.0:
+                summary["neutral"].append(atk)
+            elif m > 0.25:
+                summary["half"].append(atk)
+            elif m > 0.0:
+                summary["quarter"].append(atk)
+            else:
+                summary["immune"].append(atk)
         return {
-            "defenders": cleaned,
-            "summary": buckets,
+            "defenders": cleaned_defenders,
+            "summary": summary,
         }
 
-    def get_offense_summary(self, attacker: str) -> dict[str, Any]:
-        """For a single attacking type, which defender types does it hit super/resist/immune?"""
+    def get_offense_summary(self, attacker: str, generation_override: int | None = None) -> dict[str, Any]:
+        """Summarise what this attacking type is effective/weak against."""
         atk = self._validate_type(attacker)
         if atk is None:
             return {"error": f"unknown attacker type: {attacker!r}"}
-        buckets: dict[str, list[str]] = {
-            "super_effective": [],
-            "not_very_effective": [],
-            "no_effect": [],
+            
+        gen = generation_override if generation_override else self._generation
+        
+        summary: dict[str, list[str]] = {
+            "double": [],
             "neutral": [],
+            "half": [],
+            "immune": [],
         }
+        row = self._multipliers.get(atk, {})
         for dfnd in self._types:
-            m = self._multipliers.get(atk, {}).get(dfnd, 1.0)
-            if m == 2.0:
-                buckets["super_effective"].append(dfnd)
-            elif m == 0.5:
-                buckets["not_very_effective"].append(dfnd)
-            elif m == 0.0:
-                buckets["no_effect"].append(dfnd)
+            m = row.get(dfnd, 1.0)
+            if gen <= 5 and dfnd == "Steel" and atk in ("Dark", "Ghost"):
+                m = 0.5
+            if m >= 2.0:
+                summary["double"].append(dfnd)
+            elif m == 1.0:
+                summary["neutral"].append(dfnd)
+            elif m > 0.0:
+                summary["half"].append(dfnd)
             else:
-                buckets["neutral"].append(dfnd)
+                summary["immune"].append(dfnd)
         return {
             "attacker": atk,
-            "summary": buckets,
+            "summary": summary,
         }

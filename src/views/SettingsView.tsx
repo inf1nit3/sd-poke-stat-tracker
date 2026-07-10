@@ -279,6 +279,16 @@ export function SettingsView() {
     }
   }, []);
 
+  const setTypeChartGen = useCallback(async (v: number) => {
+    try {
+      await applySettingsPatch({ type_chart_gen: v });
+      setStatusMsg(`Type chart set to Gen ${v === 9 ? "6+ (Modern)" : "5 (Classic)"}.`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatusError(msg);
+    }
+  }, []);
+
   const setLiveMemory = useCallback(async (v: boolean) => {
     try {
       await applySettingsPatch({ live_memory_enabled: v });
@@ -401,6 +411,17 @@ export function SettingsView() {
             label="Compact mode (auto-hide empty sections)"
             checked={settings.compact_mode}
             onChange={setCompactMode}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <Dropdown
+            menuLabel="Type Chart Generation"
+            selectedOption={settings.type_chart_gen ?? 9}
+            onChange={(opt) => setTypeChartGen(opt.data as number)}
+            rgOptions={[
+              { data: 9, label: "Gen 6+ (Modern: Fairy, Steel nerfed)" },
+              { data: 5, label: "Gen 2-5 (Classic: No Fairy, Steel resists Dark/Ghost)" },
+            ]}
           />
         </PanelSectionRow>
       </PanelSection>

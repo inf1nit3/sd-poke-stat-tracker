@@ -72,6 +72,12 @@ from themes import ThemeManager
 from typechart import TypeChart
 
 import decky_plugin
+import functools
+
+@functools.lru_cache(maxsize=4)
+def _cached_parse_save_file(path_str: str, mtime: float) -> dict[str, Any]:
+    from saveparser import parse_save_file
+    return parse_save_file(path_str).to_dict()
 
 DATA_DIR: Path = PLUGIN_DIR / "data"
 TYPE_CHART_PATH: Path = DATA_DIR / "type_chart.json"
@@ -95,6 +101,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "theme": "default",
     "compact_mode": True,
     "watcher_enabled": True,
+    "type_chart_gen": 9,
     # Live-memory reading is currently experimental (see livewatch.py
     # module docstring) — it scans /proc/<pid>/mem for Marshal headers
     # every ~3s but cannot find valid blobs in a running RPG Maker XP /
@@ -293,14 +300,18 @@ class Plugin:
             self._settings.update(_coerce_settings(loaded))
 
     def _save_settings(self) -> None:
+        import filelock
         SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
         tmp_path = SETTINGS_PATH.with_suffix(".json.tmp")
+        lock_path = SETTINGS_PATH.with_suffix(".json.lock")
         try:
             with self._state_lock:
                 settings_copy = dict(self._settings)
-            with tmp_path.open("w", encoding="utf-8") as fh:
-                json.dump(settings_copy, fh, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, SETTINGS_PATH)
+            
+            with filelock.FileLock(str(lock_path), timeout=5):
+                with tmp_path.open("w", encoding="utf-8") as fh:
+                    json.dump(settings_copy, fh, indent=2, ensure_ascii=False)
+                os.replace(tmp_path, SETTINGS_PATH)
         except OSError as exc:
             log.error(f"Could not persist settings: {exc}", exc_info=True)
             if tmp_path.exists():
@@ -346,23 +357,27 @@ class Plugin:
 
     async def get_type_chart(self) -> dict[str, Any]:
         """Return the full type chart (types, colors, multipliers)."""
-        return self._type_chart_engine.get_type_chart()
+        gen = self._settings.get("type_chart_gen", 9)
+        return self._type_chart_engine.get_type_chart(generation_override=gen)
 
     async def get_matchup(
         self, attacker: str, defender_types: list[str]
     ) -> dict[str, Any]:
         """Return the STAB-aware multiplier for attacker vs. defender_types."""
-        return self._type_chart_engine.get_matchup(attacker, defender_types)
+        gen = self._settings.get("type_chart_gen", 9)
+        return self._type_chart_engine.get_matchup(attacker, defender_types, generation_override=gen)
 
     async def get_defense_summary(
         self, defender_types: list[str]
     ) -> dict[str, Any]:
         """Return all attacking types bucketed by effectiveness vs. defender_types."""
-        return self._type_chart_engine.get_defense_summary(defender_types)
+        gen = self._settings.get("type_chart_gen", 9)
+        return self._type_chart_engine.get_defense_summary(defender_types, generation_override=gen)
 
     async def get_offense_summary(self, attacker: str) -> dict[str, Any]:
         """Return what this attacking type is good/bad/immune against."""
-        return self._type_chart_engine.get_offense_summary(attacker)
+        gen = self._settings.get("type_chart_gen", 9)
+        return self._type_chart_engine.get_offense_summary(attacker, generation_override=gen)
 
     async def get_settings(self) -> dict[str, Any]:
         """Return the current settings dict."""
@@ -483,15 +498,14 @@ class Plugin:
                     return self._save_cache
 
         try:
-            data: SaveData = await asyncio.to_thread(parse_save_file, path)
+            from saveparser import SaveParseError
+            out = await asyncio.to_thread(_cached_parse_save_file, path_str, mtime)
         except SaveParseError as exc:
             log.warning(f"Save parse error: {exc}")
             return self._cache_parse_error(path, exc)
         except Exception as exc:
             log.error(f"Unexpected save parse error: {exc}", exc_info=True)
             return self._cache_parse_error(path, exc)
-
-        out = data.to_dict()
         with self._state_lock:
             self._save_cache = out
             self._save_cache_path = path_str
@@ -594,10 +608,8 @@ class Plugin:
         with self._lifecycle_lock:
             if self._watcher is not None:
                 return
-            # Lower floor than before — 0.3s polling feels live without
-            # burning CPU. Saves happen on every Pokemon Center visit,
-            # battle end, and menu save, so 0.3s gives near-instant updates.
-            interval = max(0.3, min(2.0, self._settings.get("scan_interval_seconds", 30) / 10))
+            # Increased floor to 2.0s to reduce power draw.
+            interval = max(2.0, min(5.0, self._settings.get("scan_interval_seconds", 30) / 10))
             self._watcher = SaveFileWatcher(
                 path_provider=self._resolve_active_save_cached,
                 on_change=self._on_watcher_change,

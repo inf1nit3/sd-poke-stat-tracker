@@ -130,9 +130,17 @@ def _patched_loads(raw, registry=None):
         return _walk(reader, in_ivar)
 
     reader.read = walker  # type: ignore[assignment]
-    root = walker()
-    _resolve_forward_refs(root)
-    return root
+    import sys
+    old_limit = sys.getrecursionlimit()
+    
+    try:
+        # Bump recursion limit for deeply nested Ruby Marshal dumps (e.g. List[List] tief verschachtelt)
+        sys.setrecursionlimit(max(old_limit, 5000))
+        root = walker()
+        _resolve_forward_refs(root)
+        return root
+    finally:
+        sys.setrecursionlimit(old_limit)
 
 
 def _walk(reader, in_ivar: bool):

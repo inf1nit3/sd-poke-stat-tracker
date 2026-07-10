@@ -18,7 +18,7 @@ from typing import Optional
 
 import psutil
 
-from steampaths import candidate_steam_roots, wine_prefix_search_roots
+from steampaths import candidate_steam_roots, candidate_non_steam_roots, wine_prefix_search_roots
 
 log = logging.getLogger("pokemon-overlay.savepath")
 
@@ -84,10 +84,38 @@ def _looks_like_game(proc: psutil.Process) -> bool:
         return False
     return any(h in cmdline for h in LIKELY_GAME_PROCESS_HINTS)
 
+_cached_save_pid: Optional[int] = None
+_cached_save_path: Optional[Path] = None
+
+def _check_cached_process() -> Optional[Path]:
+    global _cached_save_pid, _cached_save_path
+    if _cached_save_pid is None or _cached_save_path is None:
+        return None
+    
+    try:
+        os.kill(_cached_save_pid, 0)
+        proc = psutil.Process(_cached_save_pid)
+        if _process_excluded(proc):
+            return None
+        files = proc.open_files()
+        for f in files:
+            p = Path(f.path)
+            if p == _cached_save_path and _is_readable(p):
+                return p
+    except (OSError, psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        pass
+    
+    _cached_save_pid = None
+    _cached_save_path = None
+    return None
 
 def _find_via_open_files() -> Optional[Path]:
     """Inspect open file handles of running processes for a save file."""
-    candidates: list[Path] = []
+    cached = _check_cached_process()
+    if cached:
+        return cached
+
+    candidates: list[tuple[Path, int]] = []
     for proc in psutil.process_iter():
         if _process_excluded(proc):
             continue
@@ -100,11 +128,17 @@ def _find_via_open_files() -> Optional[Path]:
         for f in files:
             p = Path(f.path)
             if p.name in SAVENAMES and _is_readable(p):
-                candidates.append(p)
+                candidates.append((p, proc.pid))
     if not candidates:
         return None
-    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return candidates[0]
+    candidates.sort(key=lambda item: item[0].stat().st_mtime, reverse=True)
+    best_path, best_pid = candidates[0]
+    
+    global _cached_save_pid, _cached_save_path
+    _cached_save_pid = best_pid
+    _cached_save_path = best_path
+    
+    return best_path
 
 
 # Steam path helpers imported from steampaths module (see Fix #6).
@@ -126,6 +160,8 @@ def _safe_walk_find(root: Path, names: tuple[str, ...]) -> list[Path]:
 
 def _scan_wine_prefixes() -> list[Path]:
     out: list[Path] = []
+    
+    # 1. Steam Compatdata
     for steamapps in candidate_steam_roots():
         compat = steamapps / "compatdata"
         if not compat.is_dir():
@@ -137,6 +173,20 @@ def _scan_wine_prefixes() -> list[Path]:
                 if not search_root.is_dir():
                     continue
                 out.extend(_safe_walk_find(search_root, SAVENAMES))
+                
+    # 2. Non-Steam Prefix Roots (Heroic, Lutris, Bottles)
+    for pfx_base in candidate_non_steam_roots():
+        # Heroic uses pfx directly or inside folders
+        for search_root in wine_prefix_search_roots(pfx_base):
+            if search_root.is_dir():
+                out.extend(_safe_walk_find(search_root, SAVENAMES))
+        
+        # Bottles/Lutris prefixes often have 'pfx' inside game folders
+        for pfx_dir in pfx_base.glob("*/pfx"):
+            for search_root in wine_prefix_search_roots(pfx_dir.parent):
+                if search_root.is_dir():
+                    out.extend(_safe_walk_find(search_root, SAVENAMES))
+
     return out
 
 

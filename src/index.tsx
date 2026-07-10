@@ -101,6 +101,9 @@ function PluginContent() {
     [palette]
   );
 
+  // Prevent flash of default theme before backend settings load
+  if (theme === null && !inBattle) return null;
+
   return (
     <Focusable style={{ display: "flex", flexDirection: "column", height: "100%", padding: "0 4px", ...themeStyle }}>
       <TabBar
@@ -108,7 +111,7 @@ function PluginContent() {
         activeId={active}
         onChange={(id) => setActive(id as TabId)}
       />
-      <ScrollPanel style={{ paddingRight: "4px" }}>
+      <ScrollPanel>
         {showRestartBanner && (
           <PanelSection>
             <PanelSectionRow>

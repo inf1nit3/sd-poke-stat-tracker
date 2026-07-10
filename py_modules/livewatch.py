@@ -240,20 +240,23 @@ class SaveFileWatcher:
 
     def _run(self) -> None:
         while not self._stop.is_set():
+            has_path = False
             try:
-                self._check()
+                has_path = self._check()
             except Exception as exc:
                 log.error(f"Save watcher iteration failed: {exc}", exc_info=True)
-            self._stop.wait(self._interval)
+            
+            sleep_time = self._interval if has_path else 5.0
+            self._stop.wait(sleep_time)
 
-    def _check(self) -> None:
+    def _check(self) -> bool:
         with self._lock:
             path = self._path_provider()
             if path is None or not path.is_file():
                 self._last_path = None
                 self._last_mtime = 0.0
                 self._last_size = 0
-                return
+                return False
             try:
                 stat = path.stat()
             except OSError:
@@ -274,6 +277,7 @@ class SaveFileWatcher:
                 self._on_change(path)
             except Exception as exc:
                 log.error(f"on_change callback failed: {exc}", exc_info=True)
+        return True
 
     def notify_save_loaded(self, path: Path) -> None:
         """Tell the watcher about a save that was just parsed, so it
