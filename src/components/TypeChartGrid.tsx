@@ -40,7 +40,7 @@ export function DefenseGrid({ defenders, summary }: DefenseGridProps) {
       <div style={{ fontSize: "12px", color: "#969696" }}>
         Defender:{" "}
         {defenders.map((d, i) => (
-          <span key={d} style={{ marginRight: "4px" }}>
+          <span key={`${d}-${i}`} style={{ marginRight: "4px" }}>
             <TypeBadge type={d} size="sm" />
             {i < defenders.length - 1 ? " /" : ""}
           </span>

@@ -35,6 +35,10 @@ let state: StoreState = initialState;
 const listeners = new Set<() => void>();
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 let pollGeneration = 0;
+// Set while a forced (explicit) save refresh is in flight. Poll ticks skip
+// their saveData write during that window so a stale backend-cache response
+// that resolves late can't clobber the fresh parse.
+let saveRefreshInFlight = false;
 
 function notify() {
   for (const l of listeners) l();
@@ -159,11 +163,14 @@ export async function refreshTheme() {
 }
 
 export async function refreshSave(force = false) {
+  saveRefreshInFlight = true;
   try {
     const saveData = await api.getSaveData(force);
     updateState({ saveData });
   } catch (e) {
     console.error("[store] refreshSave failed", e);
+  } finally {
+    saveRefreshInFlight = false;
   }
 }
 
@@ -214,7 +221,7 @@ export function startPolling() {
   const maxBackoffMs = 60000;
 
   // Initial fetch
-  api.getLiveSaveData().then((saveData) => { if (saveData) updateState({ saveData }) }).catch(() => {});
+  api.getLiveSaveData().then((saveData) => { if (saveData && !saveRefreshInFlight) updateState({ saveData }) }).catch(() => {});
   refreshLiveState();
   
   let consecutiveIdle = 0;
@@ -229,7 +236,7 @@ export function startPolling() {
       ]);
       if (pollGeneration !== currentGen) return;
       
-      if (saveData) updateState({ saveData });
+      if (saveData && !saveRefreshInFlight) updateState({ saveData });
       if (live) updateState({ liveState: live });
       
       errorCount = 0;

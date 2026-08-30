@@ -260,7 +260,9 @@ class SaveFileWatcher:
             try:
                 stat = path.stat()
             except OSError:
-                return
+                # File vanished mid-poll (e.g. game is rewriting it) —
+                # keep prior state and retry next tick.
+                return False
             mtime = stat.st_mtime
             size = stat.st_size
             path_changed = self._last_path != path
@@ -841,7 +843,12 @@ class LiveMemoryReader:
             if blob is not None:
                 result = self._try_parse(blob, parse_fn)
                 if result is not None:
-                    self._emit(result, region_start=region_start, header_offset=header_offset)
+                    self._emit(
+                        result,
+                        blob=blob,
+                        region_start=region_start,
+                        header_offset=header_offset,
+                    )
                     return
             # Fast path failed — drop the cache and do a full scan.
             self._known_offset = None

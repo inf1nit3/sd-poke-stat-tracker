@@ -849,9 +849,13 @@ def _parse_and_extract(
                 continue
             try:
                 if attr in ("@x", "@real_x"):
-                    x = int(raw)
+                    # @real_x is the smooth-scroll coordinate (@x * 128);
+                    # only use it as a fallback when @x is absent.
+                    if x is None:
+                        x = int(raw)
                 else:
-                    y = int(raw)
+                    if y is None:
+                        y = int(raw)
             except (TypeError, ValueError):
                 pass
     elif isinstance(game_player, dict):

@@ -36,6 +36,53 @@ def _eff_label(mult: float) -> str:
         return "not_very_effective"
     return "neutral"
 
+def _normalize_stages(raw: Any) -> list[int]:
+    """Normalize battler stat stages to ``[Atk, Def, SpA, SpD, Spe]``.
+
+    The Ruby mod forwards ``battler.stages`` verbatim, and the shape
+    depends on the Essentials version:
+    - v18 and earlier: an 8-element Array ordered
+      ``[HP, ATK, DEF, SPEED, SPATK, SPDEF, ACCURACY, EVASION]``.
+    - v19+: a Hash keyed by stat name (``:ATTACK`` …), which the mod's
+      custom JSON serializer emits as a plain object.
+    The frontend expects a fixed 5-element numeric array, so both shapes
+    are mapped here rather than letting a Hash reach ``stages.map``.
+    """
+    out = [0, 0, 0, 0, 0]
+    if isinstance(raw, dict):
+        key_map = {
+            "attack": 0,
+            "def": 1, "defense": 1,
+            "spatk": 2, "specialattack": 2, "special_attack": 2,
+            "spdef": 3, "specialdefense": 3, "special_defense": 3,
+            "speed": 4,
+        }
+        for k, v in raw.items():
+            idx = key_map.get(str(k).replace("_", "").lower())
+            if idx is None:
+                continue
+            try:
+                out[idx] = int(v)
+            except (TypeError, ValueError):
+                pass
+    elif isinstance(raw, (list, tuple)):
+        if len(raw) >= 6:
+            # v18 array: pick ATK(1), DEF(2), SPATK(4), SPDEF(5), SPE(3).
+            for pos, src in enumerate((1, 2, 4, 5, 3)):
+                try:
+                    out[pos] = int(raw[src])
+                except (TypeError, ValueError, IndexError):
+                    pass
+        else:
+            # Unknown short array — assume already [Atk, Def, SpA, SpD, Spe].
+            for i in range(min(5, len(raw))):
+                try:
+                    out[i] = int(raw[i])
+                except (TypeError, ValueError):
+                    pass
+    return out
+
+
 def compute_battle_analysis(
     enemies: list[dict[str, Any]],
     players: list[dict[str, Any]],
@@ -98,8 +145,9 @@ def compute_battle_analysis(
                 "reason": f"Super-effective ({best_score}×) vs {enemy.get('species', 'enemy')}",
             }
 
-    # Extract stages from the battler payload
-    stages = enemy.get("stages") or [0, 0, 0, 0, 0, 0, 0]
+    # Extract stages from the battler payload (handles v18 arrays and
+    # v19+ Hashes — see _normalize_stages).
+    stages = _normalize_stages(enemy.get("stages"))
 
     return {
         "enemy": {

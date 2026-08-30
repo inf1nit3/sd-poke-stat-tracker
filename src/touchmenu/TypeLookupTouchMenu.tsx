@@ -29,18 +29,25 @@ export function TypeLookupTouchMenu() {
 
   useEffect(() => {
     if (!attacker) return;
+    let cancelled = false;
     setSummary(null);
     setError(null);
     api
       .getOffenseSummary(attacker)
       .then((s) => {
+        if (cancelled) return;
         if ("error" in s && s.error) {
           setError(s.error);
         } else {
           setSummary(s);
         }
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [attacker]);
 
   if (!typeChart) {

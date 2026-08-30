@@ -5,7 +5,11 @@ from _marshal_compat import loads
 
 def test_deeply_nested_list():
     import sys
-    sys.setrecursionlimit(2000)
+    # Upstream rubymarshal's writer needs more frames per nesting level on
+    # Python 3.12+ than on older interpreters; 2000 was no longer enough
+    # to even serialize the 1500-deep structure below (the failure happened
+    # in writes(), before the loader under test ever ran).
+    sys.setrecursionlimit(10000)
     
     # Create a deeply nested list
     root = []

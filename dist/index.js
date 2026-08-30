@@ -84,6 +84,10 @@ let state = initialState;
 const listeners = new Set();
 let pollTimer = null;
 let pollGeneration = 0;
+// Set while a forced (explicit) save refresh is in flight. Poll ticks skip
+// their saveData write during that window so a stale backend-cache response
+// that resolves late can't clobber the fresh parse.
+let saveRefreshInFlight = false;
 function notify() {
     for (const l of listeners)
         l();
@@ -188,12 +192,16 @@ async function refreshTheme() {
     }
 }
 async function refreshSave(force = false) {
+    saveRefreshInFlight = true;
     try {
         const saveData = await api.getSaveData(force);
         updateState({ saveData });
     }
     catch (e) {
         console.error("[store] refreshSave failed", e);
+    }
+    finally {
+        saveRefreshInFlight = false;
     }
 }
 async function refreshMoves() {
@@ -242,7 +250,7 @@ function startPolling() {
     const slowMs = 5000;
     const maxBackoffMs = 60000;
     // Initial fetch
-    api.getLiveSaveData().then((saveData) => { if (saveData)
+    api.getLiveSaveData().then((saveData) => { if (saveData && !saveRefreshInFlight)
         updateState({ saveData }); }).catch(() => { });
     refreshLiveState();
     let consecutiveIdle = 0;
@@ -257,7 +265,7 @@ function startPolling() {
             ]);
             if (pollGeneration !== currentGen)
                 return;
-            if (saveData)
+            if (saveData && !saveRefreshInFlight)
                 updateState({ saveData });
             if (live)
                 updateState({ liveState: live });
@@ -544,15 +552,10 @@ function MoveLookupTouchMenu() {
             setLoading(false); });
         return () => { cancelled = true; };
     }, [selectedMove]);
-    if (!saveData || saveData.error) {
-        return (window.SP_JSX.jsx("div", { style: {
-                padding: 24,
-                textAlign: "center",
-                color: "#888",
-                fontSize: 13,
-            }, children: "Load a save first to see party moves." }));
-    }
-    const party = saveData.party || [];
+    // Hooks must run unconditionally (before any early return) — otherwise
+    // the hook count changes when saveData transitions null → loaded and
+    // React throws "Rendered more hooks than during the previous render".
+    const party = saveData?.party ?? [];
     const partyMoves = window.SP_REACT.useMemo(() => {
         const out = [];
         for (const p of party) {
@@ -563,6 +566,14 @@ function MoveLookupTouchMenu() {
         }
         return out;
     }, [party]);
+    if (!saveData || saveData.error) {
+        return (window.SP_JSX.jsx("div", { style: {
+                padding: 24,
+                textAlign: "center",
+                color: "#888",
+                fontSize: 13,
+            }, children: "Load a save first to see party moves." }));
+    }
     return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [window.SP_JSX.jsxs("div", { style: {
                     display: "flex",
                     alignItems: "center",
@@ -900,11 +911,14 @@ function TypeLookupTouchMenu() {
     window.SP_REACT.useEffect(() => {
         if (!attacker)
             return;
+        let cancelled = false;
         setSummary(null);
         setError(null);
         api
             .getOffenseSummary(attacker)
             .then((s) => {
+            if (cancelled)
+                return;
             if ("error" in s && s.error) {
                 setError(s.error);
             }
@@ -912,7 +926,13 @@ function TypeLookupTouchMenu() {
                 setSummary(s);
             }
         })
-            .catch((e) => setError(e.message));
+            .catch((e) => {
+            if (!cancelled)
+                setError(e.message);
+        });
+        return () => {
+            cancelled = true;
+        };
     }, [attacker]);
     if (!typeChart) {
         return (window.SP_JSX.jsx("div", { style: {
@@ -1496,9 +1516,9 @@ function PartyView() {
                                 }, children: data.path })] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reload, disabled: reloading, children: "Try again" })] }));
     }
     const compactMode = settings?.compact_mode ?? true;
-    return (window.SP_JSX.jsx(PartyContent, { data: data, reloading: reloading, onReload: reload, autoRefreshSeconds: settings?.scan_interval_seconds ?? 30, forced: compactMode ? undefined : DEFAULT_DISPLAY }));
+    return (window.SP_JSX.jsx(PartyContent, { data: data, reloading: reloading, onReload: reload, forced: compactMode ? undefined : DEFAULT_DISPLAY }));
 }
-function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }) {
+function PartyContent({ data, reloading, onReload, forced, }) {
     const party = data.party || [];
     const slots = Array.from({ length: MAX_PARTY_SLOTS }).map((_, i) => party[i] || null);
     return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs(window.DFL.PanelSection, { title: data.trainer_name || "Trainer", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { onActivate: () => { }, style: {
@@ -1506,7 +1526,7 @@ function PartyContent({ data, reloading, onReload, autoRefreshSeconds, forced, }
                                 gridTemplateColumns: "1fr 1fr",
                                 gap: 4,
                                 fontSize: 12,
-                            }, children: [window.SP_JSX.jsx(Stat, { label: "Money", value: formatMoney(data.money) }), window.SP_JSX.jsx(Stat, { label: "Badges", value: String(data.badges) }), window.SP_JSX.jsx(Stat, { label: "Location", value: data.location_name || `Map #${data.map_id ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Position", value: `${data.x ?? "?"}, ${data.y ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Play time", value: formatPlayTime(data.play_time_seconds) }), window.SP_JSX.jsx(Stat, { label: "Version", value: data.version })] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { onActivate: () => { }, style: { fontSize: 11, color: "#777" }, children: ["Updated ", timeAgo(data.parsed_at), " \u00B7 auto-refresh every", " ", Math.max(5, autoRefreshSeconds), "s"] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: onReload, disabled: reloading, children: reloading ? "Reloading…" : "Reload from disk" })] }), data.features && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Detected features", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { onActivate: () => { }, children: window.SP_JSX.jsx(CapabilitiesSummary, { features: data.features }) }) }) })), window.SP_JSX.jsx(window.DFL.PanelSection, { title: `Party (${party.length}/${MAX_PARTY_SLOTS})`, children: slots.map((p, i) => p ? (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(PokemonCard, { pokemon: p, features: data.features, forced: forced }) }, `slot-${i}`)) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { onActivate: () => { }, style: {
+                            }, children: [window.SP_JSX.jsx(Stat, { label: "Money", value: formatMoney(data.money) }), window.SP_JSX.jsx(Stat, { label: "Badges", value: String(data.badges) }), window.SP_JSX.jsx(Stat, { label: "Location", value: data.location_name || `Map #${data.map_id ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Position", value: `${data.x ?? "?"}, ${data.y ?? "?"}` }), window.SP_JSX.jsx(Stat, { label: "Play time", value: formatPlayTime(data.play_time_seconds) }), window.SP_JSX.jsx(Stat, { label: "Version", value: data.version })] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { onActivate: () => { }, style: { fontSize: 11, color: "#777" }, children: ["Updated ", timeAgo(data.parsed_at), " \u00B7 auto-refresh active while the game runs"] }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: onReload, disabled: reloading, children: reloading ? "Reloading…" : "Reload from disk" })] }), data.features && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Detected features", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { onActivate: () => { }, children: window.SP_JSX.jsx(CapabilitiesSummary, { features: data.features }) }) }) })), window.SP_JSX.jsx(window.DFL.PanelSection, { title: `Party (${party.length}/${MAX_PARTY_SLOTS})`, children: slots.map((p, i) => p ? (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(PokemonCard, { pokemon: p, features: data.features, forced: forced }) }, `slot-${i}`)) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { onActivate: () => { }, style: {
                             padding: 10,
                             background: "rgba(255,255,255,0.02)",
                             borderRadius: 6,
@@ -1772,6 +1792,14 @@ function SettingsView() {
         }
     }, []);
     const scanDebounce = window.SP_REACT.useRef(null);
+    // Clear a pending debounce on unmount so it can't fire after the user
+    // has left the Settings view.
+    window.SP_REACT.useEffect(() => {
+        return () => {
+            if (scanDebounce.current)
+                clearTimeout(scanDebounce.current);
+        };
+    }, []);
     const setScanInterval = window.SP_REACT.useCallback((v) => {
         const clamped = Math.max(5, v);
         if (scanDebounce.current)
@@ -1848,7 +1876,7 @@ function SettingsView() {
     return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Save resolution", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active save" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all" }, children: resolved?.path || "— no save found —" }) }), resolved?.using_override && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 10, color: "#777" }, children: "(using manual override)" }) })), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Manual override", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#888", lineHeight: 1.4 }, children: "If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Path to save file", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }) }), settings.save_path_override && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }) }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Auto-detect options", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Auto-scan running processes and Wine prefixes", checked: settings.auto_scan_enabled, onChange: setAutoScan }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Display", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Compact mode (auto-hide empty sections)", checked: settings.compact_mode, onChange: setCompactMode }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type Chart Generation", selectedOption: settings.type_chart_gen ?? 9, onChange: (opt) => setTypeChartGen(opt.data), rgOptions: [
                                 { data: 9, label: "Gen 6+ (Modern: Fairy, Steel nerfed)" },
                                 { data: 5, label: "Gen 2-5 (Classic: No Fairy, Steel resists Dark/Ghost)" },
-                            ] }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Theme", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active theme" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: theme ? theme.palette.accent : "#888" }, children: theme ? theme.name : "Loading…" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), rgOptions: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PBS moves database", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active PBS source" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }, children: movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 10, color: "#777" }, children: movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }) }), movesDb?.pbs_source && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }) }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "TouchMenu overlay", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Enable in-game touch menu", checked: settings.touchmenu_enabled, onChange: setTouchmenu }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Live memory reading", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#888", lineHeight: 1.4 }, children: "When the game is running, read party state directly from the game's process memory. Updates arrive every ~1s without waiting for the game to save to disk. Opt-in: the disk watcher still runs as a fallback if memory reading fails." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Read live data from game process memory", checked: Boolean(settings?.live_memory_enabled), onChange: setLiveMemory }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Polling", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { style: { fontSize: 11, color: "#888" }, children: ["Backend live watcher checks the disk every", " ", window.SP_JSX.jsx("strong", { style: { color: "#ccc" }, children: Math.max(5, settings.scan_interval_seconds) }), " ", "units. The UI will always update instantly when changes occur."] }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Interval (seconds)", value: scanIntervalInput, onChange: (e) => {
+                            ] }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Theme", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active theme" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: theme ? theme.palette.accent : "#888" }, children: theme ? theme.name : "Loading…" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), rgOptions: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PBS moves database", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active PBS source" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }, children: movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 10, color: "#777" }, children: movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }) }), movesDb?.pbs_source && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }) }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "TouchMenu overlay", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Enable in-game touch menu", checked: settings.touchmenu_enabled, onChange: setTouchmenu }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Live memory reading", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#888", lineHeight: 1.4 }, children: "When the game is running, read party state directly from the game's process memory. Updates arrive every ~1s without waiting for the game to save to disk. Opt-in: the disk watcher still runs as a fallback if memory reading fails." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Read live data from game process memory", checked: Boolean(settings?.live_memory_enabled), onChange: setLiveMemory }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Polling", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "#888" }, children: "The backend save watcher checks the disk every 2\u20135 seconds (derived from the interval below). UI updates arrive within seconds of any save." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Interval (seconds)", value: scanIntervalInput, onChange: (e) => {
                                 const n = parseInt(e.target.value, 10);
                                 setScanIntervalInput(e.target.value);
                                 if (!isNaN(n))
@@ -1881,7 +1909,7 @@ const BUCKET_COLORS = {
     immune: "#444",
 };
 function DefenseGrid({ defenders, summary }) {
-    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Defender:", " ", defenders.map((d, i) => (window.SP_JSX.jsxs("span", { style: { marginRight: "4px" }, children: [window.SP_JSX.jsx(TypeBadge, { type: d, size: "sm" }), i < defenders.length - 1 ? " /" : ""] }, d)))] }), BUCKET_ORDER.filter((b) => (summary[b] || []).length > 0).map((bucket) => {
+    return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [window.SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#969696" }, children: ["Defender:", " ", defenders.map((d, i) => (window.SP_JSX.jsxs("span", { style: { marginRight: "4px" }, children: [window.SP_JSX.jsx(TypeBadge, { type: d, size: "sm" }), i < defenders.length - 1 ? " /" : ""] }, `${d}-${i}`)))] }), BUCKET_ORDER.filter((b) => (summary[b] || []).length > 0).map((bucket) => {
                 const types = summary[bucket] || [];
                 return (window.SP_JSX.jsxs("div", { style: {
                         padding: "6px 8px",
@@ -2154,9 +2182,27 @@ function PluginContent() {
     }, []);
     const palette = theme?.palette ?? DEFAULT_PALETTE;
     const themeStyle = window.SP_REACT.useMemo(() => paletteToCssVars(palette), [palette]);
-    // Prevent flash of default theme before backend settings load
-    if (theme === null && !inBattle)
-        return null;
+    // Prevent flash of default theme before backend settings load. If the
+    // backend is still unreachable after refreshStatic's retries, show a
+    // retry panel instead of a permanently blank plugin (which would also
+    // hide the per-view "Reload Data" fallbacks).
+    if (theme === null && !inBattle) {
+        return (window.SP_JSX.jsxs(window.DFL.Focusable, { style: {
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                gap: "10px",
+                padding: "20px",
+                ...themeStyle,
+            }, children: [window.SP_JSX.jsx(PokeballIcon, { size: 28 }), window.SP_JSX.jsx("span", { style: { color: "#e0a458", fontSize: "13px", textAlign: "center", lineHeight: 1.4 }, children: "Plugin data isn't loaded yet. The backend may still be starting up." }), window.SP_JSX.jsx(window.DFL.Focusable, { onActivate: () => retryRefreshStatic(), style: {
+                        padding: "8px 20px",
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                    }, children: window.SP_JSX.jsx("span", { style: { fontSize: "13px", color: "#fff", fontWeight: 500 }, children: "Reload Data" }) })] }));
+    }
     return (window.SP_JSX.jsxs(window.DFL.Focusable, { style: { display: "flex", flexDirection: "column", height: "100%", padding: "0 4px", ...themeStyle }, children: [window.SP_JSX.jsx(TabBar, { tabs: TABS, activeId: active, onChange: (id) => setActive(id) }), window.SP_JSX.jsxs(window.DFL.ScrollPanel, { children: [showRestartBanner && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: {
                                     backgroundColor: "rgba(224, 88, 88, 0.2)",
                                     color: "#ff7f7f",

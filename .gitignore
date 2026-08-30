@@ -13,6 +13,7 @@ venv/
 
 # Runtime-generated data (user settings, cache)
 data/settings.json
+data/settings.json.lock
 data/cache/
 
 # Decky runtime logs (kept at repo root for quick access; not source)

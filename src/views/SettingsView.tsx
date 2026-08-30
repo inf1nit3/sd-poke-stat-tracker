@@ -241,6 +241,13 @@ export function SettingsView() {
   }, []);
 
   const scanDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Clear a pending debounce on unmount so it can't fire after the user
+  // has left the Settings view.
+  useEffect(() => {
+    return () => {
+      if (scanDebounce.current) clearTimeout(scanDebounce.current);
+    };
+  }, []);
   const setScanInterval = useCallback((v: number) => {
     const clamped = Math.max(5, v);
     if (scanDebounce.current) clearTimeout(scanDebounce.current);
@@ -521,9 +528,9 @@ export function SettingsView() {
       <PanelSection title="Polling">
         <PanelSectionRow>
           <Focusable style={{ fontSize: 11, color: "#888" }}>
-            Backend live watcher checks the disk every{" "}
-            <strong style={{ color: "#ccc" }}>{Math.max(5, settings.scan_interval_seconds)}</strong>
-            {" "}units. The UI will always update instantly when changes occur.
+            The backend save watcher checks the disk every 2–5 seconds
+            (derived from the interval below). UI updates arrive within
+            seconds of any save.
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>

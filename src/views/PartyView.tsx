@@ -128,7 +128,6 @@ export function PartyView() {
       data={data}
       reloading={reloading}
       onReload={reload}
-      autoRefreshSeconds={settings?.scan_interval_seconds ?? 30}
       forced={compactMode ? undefined : DEFAULT_DISPLAY}
     />
   );
@@ -138,13 +137,11 @@ function PartyContent({
   data,
   reloading,
   onReload,
-  autoRefreshSeconds,
   forced,
 }: {
   data: SaveData;
   reloading: boolean;
   onReload: () => void;
-  autoRefreshSeconds: number;
   forced: DisplayOptions | undefined;
 }) {
   const party = data.party || [];
@@ -178,8 +175,7 @@ function PartyContent({
         </PanelSectionRow>
         <PanelSectionRow>
           <Focusable onActivate={() => {}} style={{ fontSize: 11, color: "#777" }}>
-            Updated {timeAgo(data.parsed_at)} · auto-refresh every{" "}
-            {Math.max(5, autoRefreshSeconds)}s
+            Updated {timeAgo(data.parsed_at)} · auto-refresh active while the game runs
           </Focusable>
         </PanelSectionRow>
         <ButtonItem layout="below" onClick={onReload} disabled={reloading}>

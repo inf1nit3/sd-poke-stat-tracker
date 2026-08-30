@@ -56,6 +56,23 @@ export function MoveLookupTouchMenu() {
     return () => { cancelled = true; };
   }, [selectedMove]);
 
+  // Hooks must run unconditionally (before any early return) — otherwise
+  // the hook count changes when saveData transitions null → loaded and
+  // React throws "Rendered more hooks than during the previous render".
+  const party = saveData?.party ?? [];
+  const partyMoves = useMemo(
+    () => {
+      const out: { move: string; owner: string }[] = [];
+      for (const p of party) {
+        for (const m of p.moves) {
+          if (m) out.push({ move: m, owner: p.nickname || p.species });
+        }
+      }
+      return out;
+    },
+    [party]
+  );
+
   if (!saveData || saveData.error) {
     return (
       <div
@@ -70,20 +87,6 @@ export function MoveLookupTouchMenu() {
       </div>
     );
   }
-
-  const party = saveData.party || [];
-  const partyMoves = useMemo(
-    () => {
-      const out: { move: string; owner: string }[] = [];
-      for (const p of party) {
-        for (const m of p.moves) {
-          if (m) out.push({ move: m, owner: p.nickname || p.species });
-        }
-      }
-      return out;
-    },
-    [party]
-  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

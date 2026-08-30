@@ -527,7 +527,10 @@ class Plugin:
         if not path.endswith(".rxdata"):
             return {"error": "parse_failed", "message": "Invalid file extension", "path": path}
         resolved = str(Path(path).resolve())
-        if not resolved.startswith("/home/deck/"):
+        # Restrict to the current user's home (works for "deck" on Steam
+        # Deck and any other user/dev machine) instead of a hardcoded path.
+        home = str(Path.home())
+        if not (resolved == home or resolved.startswith(home + os.sep)):
             return {"error": "parse_failed", "message": "Path traversal blocked", "path": path}
         try:
             data = parse_save_file(resolved)
@@ -921,11 +924,23 @@ class Plugin:
             last_live_event = dict(self._last_live_event) if self._last_live_event else {}
             save_cache = self._save_cache
             save_cache_path = self._save_cache_path
+        # Capture the stream server reference under the lifecycle lock:
+        # _stop_memory_reader() can null it concurrently from another thread.
+        with self._lifecycle_lock:
+            stream_server = self._stream_server
         # Stream status from the LiveStreamServer
-        stream_status = self._stream_server.status if self._stream_server else {
+        stream_status = stream_server.status if stream_server is not None else {
             "listening": False, "connected": False, "last_data_at": 0.0,
             "last_data_trainer": None, "total_frames": 0,
         }
+        # Battle analysis lives inside the normalized save payload the
+        # stream pipeline produces; surface it at the top level so the
+        # frontend's LiveState selector (liveState.battle_analysis) works.
+        battle_analysis = (
+            save_cache.get("battle_analysis")
+            if isinstance(save_cache, dict)
+            else None
+        )
         detected_game = self._extract_game_name(active_proc)
         return {
             "game_running": bool(processes),
@@ -949,6 +964,12 @@ class Plugin:
             "last_live_event": last_live_event,
             "last_save_data": save_cache,
             "last_save_path": save_cache_path,
+            "in_menu": bool(save_cache.get("in_menu")) if isinstance(save_cache, dict) else False,
+            "in_battle": bool(save_cache.get("in_battle")) if isinstance(save_cache, dict) else False,
+            "screen_state": (
+                save_cache.get("screen_state") if isinstance(save_cache, dict) else None
+            ),
+            "battle_analysis": battle_analysis,
             "stream_status": stream_status,
         }
 

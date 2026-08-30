@@ -8,6 +8,7 @@ import {
   subscribe,
   getState,
   refreshStatic,
+  retryRefreshStatic,
   startPolling,
   stopPolling,
   useStore,
@@ -101,8 +102,42 @@ function PluginContent() {
     [palette]
   );
 
-  // Prevent flash of default theme before backend settings load
-  if (theme === null && !inBattle) return null;
+  // Prevent flash of default theme before backend settings load. If the
+  // backend is still unreachable after refreshStatic's retries, show a
+  // retry panel instead of a permanently blank plugin (which would also
+  // hide the per-view "Reload Data" fallbacks).
+  if (theme === null && !inBattle) {
+    return (
+      <Focusable
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          gap: "10px",
+          padding: "20px",
+          ...themeStyle,
+        }}
+      >
+        <PokeballIcon size={28} />
+        <span style={{ color: "#e0a458", fontSize: "13px", textAlign: "center", lineHeight: 1.4 }}>
+          Plugin data isn't loaded yet. The backend may still be starting up.
+        </span>
+        <Focusable
+          onActivate={() => retryRefreshStatic()}
+          style={{
+            padding: "8px 20px",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ fontSize: "13px", color: "#fff", fontWeight: 500 }}>Reload Data</span>
+        </Focusable>
+      </Focusable>
+    );
+  }
 
   return (
     <Focusable style={{ display: "flex", flexDirection: "column", height: "100%", padding: "0 4px", ...themeStyle }}>
