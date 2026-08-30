@@ -229,6 +229,11 @@ class Plugin:
 
             if self._settings.get("watcher_enabled", True):
                 self._start_watcher()
+            # The stream server backs the auto-installed game mod, so it
+            # runs unconditionally (not gated behind live_memory_enabled —
+            # previously it never started with default settings, making the
+            # whole stream pipeline dead on arrival).
+            self._start_stream_server()
             if self._settings.get("live_memory_enabled", False):
                 self._start_memory_reader()
             self._initialized = True
@@ -293,7 +298,11 @@ class Plugin:
         if SETTINGS_PATH.is_file():
             try:
                 with SETTINGS_PATH.open("r", encoding="utf-8") as fh:
-                    loaded = json.load(fh)
+                    raw = json.load(fh)
+                # Hand-edited settings.json can be valid JSON but not an
+                # object; don't let that crash plugin startup.
+                if isinstance(raw, dict):
+                    loaded = raw
             except (json.JSONDecodeError, OSError) as exc:
                 log.warning(f"Could not read settings.json: {exc}")
         with self._state_lock:
@@ -307,12 +316,14 @@ class Plugin:
         try:
             with self._state_lock:
                 settings_copy = dict(self._settings)
-            
+
             with filelock.FileLock(str(lock_path), timeout=5):
                 with tmp_path.open("w", encoding="utf-8") as fh:
                     json.dump(settings_copy, fh, indent=2, ensure_ascii=False)
                 os.replace(tmp_path, SETTINGS_PATH)
-        except OSError as exc:
+        except (OSError, filelock.Timeout) as exc:
+            # filelock.Timeout does not derive from OSError — without it a
+            # contended lock would crash the caller (e.g. update_settings).
             log.error(f"Could not persist settings: {exc}", exc_info=True)
             if tmp_path.exists():
                 try:
@@ -499,7 +510,14 @@ class Plugin:
 
         try:
             from saveparser import SaveParseError
-            out = await asyncio.to_thread(_cached_parse_save_file, path_str, mtime)
+            if force_reload:
+                # Bypass both cache layers: the instance cache check above
+                # AND _cached_parse_save_file's lru_cache, which would
+                # otherwise return the stale entry whenever mtime is
+                # unchanged — exactly when a user hits "Reload".
+                out = (await asyncio.to_thread(parse_save_file, path_str)).to_dict()
+            else:
+                out = await asyncio.to_thread(_cached_parse_save_file, path_str, mtime)
         except SaveParseError as exc:
             log.warning(f"Save parse error: {exc}")
             return self._cache_parse_error(path, exc)
@@ -571,6 +589,16 @@ class Plugin:
         import asyncio
         if not isinstance(path, str) or not path:
             raise TypeError("path must be a non-empty string")
+        # Only PBS text files are meaningful here; mirrors the .rxdata
+        # extension guard on get_save_data_from_path.
+        if not path.endswith(".txt"):
+            return {
+                "loaded": False,
+                "count": 0,
+                "source": path,
+                "database": self._moves_db.to_api(),
+                "error": "invalid_extension",
+            }
         count = await asyncio.to_thread(self._moves_db.load_pbs, path)
         return {
             "loaded": count > 0,
@@ -698,29 +726,35 @@ class Plugin:
 
     # --- Phase 6: live memory reading ---------------------------------
 
-    def _start_memory_reader(self) -> None:
-        """Start the live-data stack: TCP stream server + memory reader.
+    def _start_stream_server(self) -> None:
+        """Start the game-mod TCP stream server if it isn't running yet.
 
-        Falls back gracefully if no game is running: the disk watcher
-        continues to provide data on save events. The stream server
-        binds once and accepts connections from the game mod (which
-        reconnects automatically after restart). The memory reader
-        is best-effort and may find nothing — see livewatch.py.
+        The stream is the most reliable live source and the mod is
+        auto-installed into the game, so the server runs unconditionally
+        (independent of the experimental live-memory toggle). Cost is
+        one bound socket + one accept thread on 127.0.0.1.
+        """
+        with self._lifecycle_lock:
+            if self._shutting_down or self._stream_server is not None:
+                return
+            server = LiveStreamServer(
+                on_state=self._on_stream_state,
+                on_disconnect=self._on_stream_disconnect,
+            )
+            if server.start():
+                self._stream_server = server
+            else:
+                log.warning("Live stream server failed to bind; continuing disk-only")
+
+    def _start_memory_reader(self) -> None:
+        """Start the live memory reader (experimental, opt-in).
+
+        Falls back gracefully if no game is running. The disk watcher
+        and the stream server keep working regardless.
         """
         with self._lifecycle_lock:
             if self._shutting_down:
                 return
-            # 1) TCP stream server — most reliable source when the
-            #    game-mod is installed.
-            if self._stream_server is None:
-                self._stream_server = LiveStreamServer(
-                    on_state=self._on_stream_state,
-                    on_disconnect=self._on_stream_disconnect,
-                )
-                if not self._stream_server.start():
-                    log.warning("Live stream server failed to bind, falling back to disk only")
-                    self._stream_server = None
-            # 2) Memory reader — experimental, usually finds nothing.
             if self._memory_reader is not None:
                 return
             procs = find_game_processes()
@@ -753,9 +787,9 @@ class Plugin:
                     self._memory_reader.stop()
                 self._memory_reader = None
             self._memory_pid = None
-            if self._stream_server is not None:
-                self._stream_server.stop()
-                self._stream_server = None
+            # Note: the stream server is intentionally left running — it
+            # is unconditional infrastructure now, not part of the
+            # experimental memory reader. _unload() stops it.
 
     def _on_memory_update(self, payload: dict[str, Any]) -> None:
         """A live memory scan produced a fresh save. Update the cache

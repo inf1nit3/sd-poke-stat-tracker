@@ -122,7 +122,7 @@ class PokeStatStream
         map_name: $game_map && $game_map.respond_to?(:name) ? safe_string($game_map.name) : nil,
         x: $game_player ? safe_int($game_player.x) : nil,
         y: $game_player ? safe_int($game_player.y) : nil,
-        play_time: $PokemonGlobal ? safe_int($PokemonGlobal.play_time) : 0,
+        play_time: $PokemonGlobal ? safe_play_time($PokemonGlobal.play_time) : 0,
         in_menu: scene_is_menu?,
         in_battle: in_battle,
         battle_enemies: battle_enemies,
@@ -144,7 +144,11 @@ class PokeStatStream
       if pkmn.respond_to?(:moves) && pkmn.moves
         pkmn.moves.each do |m|
           break if moves.size >= 4
-          if m.is_a?(PokeBattle_Move)
+          # PokeBattle_Move only exists in Essentials v18 and earlier;
+          # referencing it on v19+/v20 raises NameError, which the
+          # caller's rescue would swallow and empty the whole battler
+          # list. Guard with defined? so both versions work.
+          if defined?(PokeBattle_Move) && m.is_a?(PokeBattle_Move)
             moves << (m.respond_to?(:id) ? safe_string(m.id) : m.to_s)
           elsif m.respond_to?(:id)
             moves << safe_string(m.id)
@@ -183,6 +187,23 @@ class PokeStatStream
     def safe_int(v)
       return 0 if v.nil?
       Integer(v)
+    rescue StandardError
+      0
+    end
+
+    # $PokemonGlobal.play_time is a formatted "hh:mm:ss" String in
+    # Essentials (safe_int would coerce it to 0). Convert to seconds;
+    # numeric values pass through unchanged.
+    def safe_play_time(v)
+      return 0 if v.nil?
+      return v.to_i if v.is_a?(Numeric)
+      s = v.to_s
+      if s =~ /\A(\d+):(\d+):(\d+)\z/
+        return Regexp.last_match(1).to_i * 3600 +
+               Regexp.last_match(2).to_i * 60 +
+               Regexp.last_match(3).to_i
+      end
+      Integer(s)
     rescue StandardError
       0
     end

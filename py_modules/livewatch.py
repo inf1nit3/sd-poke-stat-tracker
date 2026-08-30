@@ -756,8 +756,9 @@ class LiveMemoryReader:
         self._stop = threading.Event()
         self._cooldown_until: float = 0.0
         self._consecutive_failures: int = 0
-        # Cached (region_start, header_offset) of last successful scan.
-        self._known_offset: Optional[tuple[str, int]] = None
+        # Cached (region_start, header_offset, region_end) of the last
+        # successful scan.
+        self._known_offset: Optional[tuple[str, int, str]] = None
         # CRC32 of the last blob we accepted, used to short-circuit
         # duplicate parses of the same byte range.
         self._last_blob_hash: int = 0
@@ -838,8 +839,8 @@ class LiveMemoryReader:
 
         # Try the cached offset first (fast path).
         if self._known_offset is not None:
-            region_start, header_offset = self._known_offset
-            blob = self._read_blob_at(region_start, header_offset)
+            region_start, header_offset, region_end = self._known_offset
+            blob = self._read_blob_at(region_start, header_offset, region_end)
             if blob is not None:
                 result = self._try_parse(blob, parse_fn)
                 if result is not None:
@@ -848,6 +849,7 @@ class LiveMemoryReader:
                         blob=blob,
                         region_start=region_start,
                         header_offset=header_offset,
+                        region_end=region_end,
                     )
                     return
             # Fast path failed — drop the cache and do a full scan.
@@ -917,19 +919,30 @@ class LiveMemoryReader:
                         blob=blob,
                         region_start=region["start"],
                         header_offset=blob_start,
+                        region_end=region["end"],
                     )
                     return blob
                 search_from = idx + len(_MARSHAL_HEADER)
-            # Advance by actual bytes read to handle short reads correctly.
-            pos += len(data)
+            # Advance by actual bytes read to handle short reads correctly,
+            # keeping a 1-byte overlap so a Marshal header straddling the
+            # chunk boundary (1 byte in each chunk) is still found.
+            pos += max(1, len(data) - (len(_MARSHAL_HEADER) - 1))
         return None
 
-    def _read_blob_at(self, region_start: str, header_offset: int) -> Optional[bytes]:
+    def _read_blob_at(
+        self, region_start: str, header_offset: int, region_end: str
+    ) -> Optional[bytes]:
         try:
             base = int(region_start, 16)
+            end = int(region_end, 16)
         except ValueError:
             return None
-        cap = min(2 * 1024 * 1024, _BLOB_CAP_BYTES)
+        # Cap at the region's end: /proc/<pid>/mem reads that cross into
+        # unmapped space fail entirely, so an uncapped 2 MB read would
+        # always fail for blobs living near the end of a mapping.
+        cap = min(end - (base + header_offset), _BLOB_CAP_BYTES)
+        if cap <= 0:
+            return None
         return read_process_memory(self._pid, base + header_offset, cap)
 
     def _try_parse(
@@ -958,13 +971,14 @@ class LiveMemoryReader:
         blob: bytes,
         region_start: str,
         header_offset: int,
+        region_end: str,
     ) -> None:
         import zlib
 
         sample = bytes(blob[:4096])
         self._last_blob_hash = zlib.crc32(sample) & 0xFFFFFFFF
         self._consecutive_failures = 0
-        self._known_offset = (region_start, header_offset)
+        self._known_offset = (region_start, header_offset, region_end)
 
         # Convert the parsed SaveData to a plain dict if it isn't already.
         if hasattr(result, "to_dict"):
