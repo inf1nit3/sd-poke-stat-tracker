@@ -468,7 +468,10 @@ class LiveStreamServer:
                 if len(buf) > _MAX_LINE_BYTES:
                     idx = buf.find(b"\n")
                     buf = buf[idx + 1:] if idx >= 0 else b""
-                    continue
+                    # No continue here: the remainder after the oversized
+                    # line may already contain complete frames that must
+                    # be dispatched immediately, not parked until the
+                    # next recv().
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
                     if not line.strip():
@@ -482,6 +485,12 @@ class LiveStreamServer:
                     self._dispatch(payload)
         finally:
             log.info("Live stream client disconnected")
+            # Only tear down state if we're still the registered client —
+            # a replacement client may already own the slot.
+            with self._client_lock:
+                if self._client is client:
+                    self._client = None
+                    self._stream_connected = False
             if self._on_disconnect is not None:
                 try:
                     self._on_disconnect()

@@ -115,7 +115,10 @@ class TypeChart:
     def _validate_type(self, type_name: str) -> str | None:
         if not isinstance(type_name, str):
             return None
-        if type_name in self._multipliers and type_name in self._types:
+        # Membership in the type list is sufficient: a type that only
+        # appears as a defender column (no attacker row of its own in a
+        # partial chart) is still a valid lookup target.
+        if type_name in self._types:
             return type_name
         return None
 

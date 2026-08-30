@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 log = logging.getLogger("pokemon-overlay.pbsparser")
 
@@ -75,7 +75,12 @@ def parse_pbs_text(text: str) -> list[dict[str, str]]:
         if current is None:
             continue
         key, _, value = stripped.partition("=")
-        current[key.strip()] = value.strip()
+        key = key.strip()
+        # A line like "=orphan" yields an empty key; keep it out of the
+        # section instead of storing an unusable "" entry.
+        if not key:
+            continue
+        current[key] = value.strip()
     if current is not None:
         sections.append(current)
     return sections

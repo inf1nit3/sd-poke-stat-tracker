@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from rubymarshal.classes import RubyObject, Symbol
+from rubymarshal.classes import RubyObject, RubyString, Symbol
 from rubymarshal.reader import loads as marshal_loads
 
 log = logging.getLogger("pokemon-overlay.saveparser")
@@ -546,8 +546,12 @@ def _parse_pokemon(obj: Any, save_path: Optional[Path] = None) -> Optional[Pokem
     if isinstance(moves_raw, (list, tuple)):
         for m in moves_raw:
             n: Any = None
-            if isinstance(m, (Symbol, str)):
+            if isinstance(m, (Symbol, str, RubyString)):
                 # v16/v17 store moves as Symbols or strings directly.
+                # RubyString: rubymarshal deserializes every Ruby string
+                # as its own class (not a Python str), so plain names
+                # must be handled here or they'd fall into the v21
+                # object branch below and get dropped.
                 n = _symbol_name(m)
             elif isinstance(m, int):
                 n = str(m)
