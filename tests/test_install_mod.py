@@ -112,6 +112,26 @@ def test_missing_source_returns_none(monkeypatch, game_dir, tmp_path):
     assert igm.install(game_dir) is None
 
 
+def test_force_with_missing_sources_keeps_existing_install(monkeypatch, mod_src, game_dir, tmp_path):
+    # Regression (round 12): force-reinstall wiped the target BEFORE the
+    # source dirs were validated — a broken repo destroyed the working
+    # install and then errored out. Validation must come first.
+    igm.install(game_dir)
+    plugin_dir = game_dir / "Plugins" / igm.PLUGIN_NAME
+    assert (plugin_dir / "stream.rb").is_file()
+    monkeypatch.setattr(igm, "GAME_MOD_SRC", tmp_path / "does_not_exist")
+    assert igm.install(game_dir, force=True) is None
+    assert (plugin_dir / "stream.rb").is_file()
+
+
+def test_force_with_missing_meta_keeps_existing_install(monkeypatch, mod_src, game_dir, tmp_path):
+    igm.install(game_dir)
+    plugin_dir = game_dir / "Plugins" / igm.PLUGIN_NAME
+    monkeypatch.setattr(igm, "META_SRC", tmp_path / "no_meta.txt")
+    assert igm.install(game_dir, force=True) is None
+    assert (plugin_dir / "meta.txt").is_file()
+
+
 def test_hidden_files_not_deployed(mod_src, game_dir):
     (mod_src / ".DS_Store").write_bytes(b"junk")
     igm.install(game_dir)

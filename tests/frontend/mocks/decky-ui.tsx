@@ -8,6 +8,7 @@ import type { CSSProperties, ReactNode } from "react";
 export interface FocusableProps {
   children?: ReactNode;
   onOKButton?: () => void;
+  onActivate?: () => void;
   onOKActionDescription?: string;
   focusWithinClassName?: string;
   style?: CSSProperties;
@@ -18,12 +19,13 @@ export interface FocusableProps {
 export function Focusable({
   children,
   onOKButton,
+  onActivate,
   style,
   onClick,
   ...rest
 }: FocusableProps) {
   return (
-    <div onClick={onOKButton ?? onClick} style={style} {...rest}>
+    <div onClick={onOKButton ?? onActivate ?? onClick} style={style} {...rest}>
       {children}
     </div>
   );
@@ -69,6 +71,38 @@ export function ButtonItem({
       {children}
     </button>
   );
+}
+
+export function Dropdown({
+  menuLabel,
+  selectedOption,
+  onChange,
+  rgOptions,
+}: {
+  menuLabel?: string;
+  selectedOption?: string;
+  onChange?: (opt: { data: string; label: string }) => void;
+  rgOptions?: Array<{ data: string; label: string }>;
+}) {
+  return (
+    <div data-menu-label={menuLabel} data-selected={selectedOption}>
+      {(rgOptions ?? []).map((opt) => (
+        <button
+          key={opt.data}
+          type="button"
+          data-dropdown-option={opt.data}
+          disabled={opt.data === selectedOption}
+          onClick={() => onChange?.(opt)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function Spinner() {
+  return <div role="status" aria-label="Loading" />;
 }
 
 export const findModuleExport = () => undefined;

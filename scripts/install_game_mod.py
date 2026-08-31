@@ -148,15 +148,17 @@ def install(game_dir: Path, *, force: bool = False) -> str:
     fresh copy.
     """
     plugin_dir = game_dir / "Plugins" / PLUGIN_NAME
-    _remove_legacy_poke_plugins(game_dir / "Plugins")
-    if plugin_dir.is_dir() and force:
-        shutil.rmtree(plugin_dir)
+    # Validate sources BEFORE any destructive step: a force-reinstall with
+    # a broken repo must not wipe the user's working plugin install.
     if not GAME_MOD_SRC.is_dir():
         print(f"ERROR: missing {GAME_MOD_SRC}")
         return None
     if not META_SRC.is_file():
         print(f"ERROR: missing {META_SRC}")
         return None
+    _remove_legacy_poke_plugins(game_dir / "Plugins")
+    if plugin_dir.is_dir() and force:
+        shutil.rmtree(plugin_dir)
 
     sources = [
         src for src in sorted(GAME_MOD_SRC.iterdir())
