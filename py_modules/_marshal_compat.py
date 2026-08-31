@@ -239,9 +239,9 @@ def _walk(reader, in_ivar: bool):
             result = reader.read_symlink()
         elif token == TYPE_LINK:
             link_id = reader.read_long()
-            if link_id > len(reader.objects):
+            if link_id < 0 or link_id >= len(reader.objects):
                 raise ValueError(
-                    "invalid link destination: %d should be lower than %d or equal."
+                    "invalid link destination: %d should be lower than %d."
                     % (link_id, len(reader.objects))
                 )
             target = reader.objects[link_id]
