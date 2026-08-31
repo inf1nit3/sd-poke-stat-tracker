@@ -485,13 +485,17 @@ class LiveStreamServer:
                     self._dispatch(payload)
         finally:
             log.info("Live stream client disconnected")
-            # Only tear down state if we're still the registered client —
-            # a replacement client may already own the slot.
+            # Only tear down state (and fire on_disconnect) if we're still
+            # the registered client — a replacement client may already own
+            # the slot, and a spurious disconnect would wrongly demote the
+            # plugin's live-source priority while the new client streams.
+            was_owner = False
             with self._client_lock:
                 if self._client is client:
                     self._client = None
                     self._stream_connected = False
-            if self._on_disconnect is not None:
+                    was_owner = True
+            if was_owner and self._on_disconnect is not None:
                 try:
                     self._on_disconnect()
                 except Exception as exc:

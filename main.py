@@ -690,6 +690,23 @@ class Plugin:
             self._cached_save_path = found
         return found
 
+    # A stream counts as actively sending if it delivered a frame within
+    # this window; older than that, disk updates take over again.
+    _STREAM_STALE_SECONDS: float = 15.0
+
+    def _stream_currently_fresh(self) -> bool:
+        """True if the stream server exists and delivered data recently."""
+        with self._lifecycle_lock:
+            server = self._stream_server
+        if server is None:
+            return False
+        status = server.status
+        if not status.get("connected"):
+            return False
+        import time as _time
+        last = status.get("last_data_at") or 0.0
+        return (_time.time() - last) < self._STREAM_STALE_SECONDS
+
     def _on_watcher_change(self, path: Path) -> None:
         import time as _time
 
@@ -724,9 +741,13 @@ class Plugin:
             if self._settings.get("last_save_path") != str(path):
                 self._settings["last_save_path"] = str(path)
                 last_save_changed = True
-            # Disk watcher takes priority demotion: if a stream was previously
-            # active but is no longer sending, disk updates should resume.
-            self._live_source = "disk"
+            # Disk watcher takes priority demotion: if a stream was
+            # previously active but is no longer sending, disk updates
+            # should resume. While the stream is still fresh, keep it as
+            # the live source so memory/disk updates cannot overwrite the
+            # stream's lower-latency payload.
+            if not self._stream_currently_fresh():
+                self._live_source = "disk"
             self._last_live_event = {
                 "kind": "save_modified",
                 "path": str(path),

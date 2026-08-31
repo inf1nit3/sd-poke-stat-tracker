@@ -5,6 +5,7 @@ ghost-save-cache regression from round 5), moves/PBS endpoints,
 themes, and the process-introspection endpoints with stubbed backends.
 """
 import asyncio
+import time
 from pathlib import Path
 from typing import ClassVar
 
@@ -283,3 +284,72 @@ def test_find_save_path_without_override(plugin, tmp_path, monkeypatch):
     out = asyncio.run(plugin.find_save_path())
     assert out["using_override"] is False
     assert out["path"] == str(scanned)
+
+
+# --- _on_watcher_change live-source demotion (round 8) ------------------------------
+
+class _FakeParsed:
+    def __init__(self) -> None:
+        self.trainer_name = "Red"
+        self.party = [1, 2, 3]
+
+    def to_dict(self):
+        return {"trainer_name": "Red", "party": []}
+
+
+class _FakeStreamServer:
+    def __init__(self, connected: bool, last_data_at: float) -> None:
+        self._status = {
+            "connected": connected,
+            "last_data_at": last_data_at,
+            "listening": True,
+        }
+
+    @property
+    def status(self):
+        return self._status
+
+
+def _run_watcher_change(plugin, monkeypatch, save_path):
+    monkeypatch.setattr(main, "parse_save_file", lambda p: _FakeParsed())
+    monkeypatch.setattr(plugin, "_save_settings", lambda: None)
+    plugin._on_watcher_change(save_path)
+
+
+def test_watcher_change_keeps_stream_source_while_fresh(plugin, tmp_path, monkeypatch):
+    """Regression (round 8): a disk autosave while the stream is actively
+    sending must not demote the live source to disk — memory updates
+    would then be allowed to overwrite fresher stream data."""
+    save = tmp_path / "Game.rxdata"
+    save.write_bytes(b"x")
+    plugin._live_source = "stream"
+    plugin._stream_server = _FakeStreamServer(True, time.time())
+    _run_watcher_change(plugin, monkeypatch, save)
+    assert plugin._live_source == "stream"
+
+
+def test_watcher_change_demotes_stale_stream(plugin, tmp_path, monkeypatch):
+    save = tmp_path / "Game.rxdata"
+    save.write_bytes(b"x")
+    plugin._live_source = "stream"
+    plugin._stream_server = _FakeStreamServer(True, time.time() - 60.0)
+    _run_watcher_change(plugin, monkeypatch, save)
+    assert plugin._live_source == "disk"
+
+
+def test_watcher_change_demotes_without_stream_server(plugin, tmp_path, monkeypatch):
+    save = tmp_path / "Game.rxdata"
+    save.write_bytes(b"x")
+    plugin._live_source = "stream"
+    plugin._stream_server = None
+    _run_watcher_change(plugin, monkeypatch, save)
+    assert plugin._live_source == "disk"
+
+
+def test_watcher_change_demotes_disconnected_stream(plugin, tmp_path, monkeypatch):
+    save = tmp_path / "Game.rxdata"
+    save.write_bytes(b"x")
+    plugin._live_source = "stream"
+    plugin._stream_server = _FakeStreamServer(False, time.time())
+    _run_watcher_change(plugin, monkeypatch, save)
+    assert plugin._live_source == "disk"
