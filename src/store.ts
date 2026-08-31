@@ -183,9 +183,14 @@ export async function refreshMoves() {
   }
 }
 
-export async function refreshLiveState(): Promise<LiveState | null> {
+export async function refreshLiveState(
+  expectedGen?: number
+): Promise<LiveState | null> {
   try {
     const liveState = await api.getLiveState();
+    // Guard used by startPolling: a late answer from a previous
+    // start/stop cycle must not clobber the new cycle's data.
+    if (expectedGen !== undefined && pollGeneration !== expectedGen) return null;
     updateState({ liveState });
     return liveState;
   } catch (e) {
@@ -220,9 +225,13 @@ export function startPolling() {
   const slowMs = 5000;
   const maxBackoffMs = 60000;
 
-  // Initial fetch
-  api.getLiveSaveData().then((saveData) => { if (saveData && !saveRefreshInFlight) updateState({ saveData }) }).catch(() => {});
-  refreshLiveState();
+  // Initial fetch — capture the generation so stale answers from a
+  // previous start/stop cycle can't clobber newer tick data.
+  refreshLiveState(currentGen);
+  api.getLiveSaveData().then((saveData) => {
+    if (pollGeneration !== currentGen) return;
+    if (saveData && !saveRefreshInFlight) updateState({ saveData });
+  }).catch(() => {});
   
   let consecutiveIdle = 0;
   let errorCount = 0;

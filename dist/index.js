@@ -213,9 +213,13 @@ async function refreshMoves() {
         console.error("[store] refreshMoves failed", e);
     }
 }
-async function refreshLiveState() {
+async function refreshLiveState(expectedGen) {
     try {
         const liveState = await api.getLiveState();
+        // Guard used by startPolling: a late answer from a previous
+        // start/stop cycle must not clobber the new cycle's data.
+        if (expectedGen !== undefined && pollGeneration !== expectedGen)
+            return null;
         updateState({ liveState });
         return liveState;
     }
@@ -249,10 +253,15 @@ function startPolling() {
     const fastMs = 1500;
     const slowMs = 5000;
     const maxBackoffMs = 60000;
-    // Initial fetch
-    api.getLiveSaveData().then((saveData) => { if (saveData && !saveRefreshInFlight)
-        updateState({ saveData }); }).catch(() => { });
-    refreshLiveState();
+    // Initial fetch — capture the generation so stale answers from a
+    // previous start/stop cycle can't clobber newer tick data.
+    refreshLiveState(currentGen);
+    api.getLiveSaveData().then((saveData) => {
+        if (pollGeneration !== currentGen)
+            return;
+        if (saveData && !saveRefreshInFlight)
+            updateState({ saveData });
+    }).catch(() => { });
     let consecutiveIdle = 0;
     let errorCount = 0;
     const tick = async () => {

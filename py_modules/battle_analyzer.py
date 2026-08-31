@@ -95,18 +95,20 @@ def compute_battle_analysis(
 
     player_pokemon = players[0] if players else (party[0] if party else {})
     player_moves_raw = player_pokemon.get("moves") or []
+    # Cap the *valid* moves at 4 — capping the raw list first would let a
+    # single junk entry (None/int from a mod glitch) swallow real moves.
+    valid_moves = [m for m in player_moves_raw if isinstance(m, str)][:4]
 
     moves_list: list[dict[str, Any]] = []
     best_move = ""
     best_mult = 0.0
-    for m in player_moves_raw[:4]:
-        if not isinstance(m, str):
-            continue
+    for m in valid_moves:
         m_upper = m.upper()
         move_type = None
         _HEUR = [
             ("THUNDER", "Electric"), ("BOLT", "Electric"), ("FIRE", "Fire"), ("FLAME", "Fire"),
-            ("WATER", "Water"), ("SURF", "Water"), ("LEAF", "Grass"), ("ICE", "Ice"),
+            ("WATER", "Water"), ("SURF", "Water"), ("LEAF", "Grass"), ("VINE", "Grass"),
+            ("SOLAR", "Grass"), ("ICE", "Ice"),
             ("PUNCH", "Fighting"), ("POISON", "Poison"), ("EARTH", "Ground"), ("FLY", "Flying"),
             ("PSYCHIC", "Psychic"), ("BUG", "Bug"), ("ROCK", "Rock"), ("SHADOW", "Ghost"),
             ("DRAGON", "Dragon"), ("BITE", "Dark"), ("IRON", "Steel"), ("FAIRY", "Fairy"),

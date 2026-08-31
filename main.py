@@ -661,12 +661,24 @@ class Plugin:
         """Return the cached save path, or resolve + cache it on first call.
 
         This avoids re-walking the entire Steam library on every watcher poll
-        tick (0.3-2s). The cache is invalidated when settings change or when
-        the watcher detects a path change.
+        tick (0.3-2s). The cache is invalidated when the file behind it
+        disappears (deleted save, new game) or when settings change.
         """
         with self._state_lock:
-            if self._cached_save_path is not None:
-                return self._cached_save_path
+            cached = self._cached_save_path
+        if cached is not None:
+            # One stat per watcher tick is cheap; without it the watcher
+            # would stare at a ghost path forever after the save file
+            # was deleted or the game switched to a different slot.
+            try:
+                if cached.is_file():
+                    return cached
+            except OSError:
+                pass
+            with self._state_lock:
+                # Only invalidate if nobody re-populated it meanwhile.
+                if self._cached_save_path is cached:
+                    self._cached_save_path = None
 
         # Cache miss or file gone — re-resolve (this does the filesystem walk).
         override = self._settings.get("save_path_override")
