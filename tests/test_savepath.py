@@ -158,6 +158,30 @@ def test_scan_wine_prefixes_empty_steamapps(tmp_path, monkeypatch):
     assert _scan_wine_prefixes() == []
 
 
+def test_scan_wine_prefixes_finds_sdcard_library_save(tmp_path, monkeypatch):
+    """Regression (round 9): games installed to a second Steam library
+    (SD card) recorded in libraryfolders.vdf must be scanned — previously
+    only the three default library locations were searched."""
+    home = tmp_path / "home"
+    default = home / ".steam" / "steam" / "steamapps"
+    (default / "compatdata").mkdir(parents=True)
+    sd = tmp_path / "SDCard" / "SteamLibrary"
+    save = (
+        sd / "steamapps" / "compatdata" / "42" / "pfx" / "drive_c"
+        / "users" / "steamuser" / "Documents" / "Game.rxdata"
+    )
+    save.parent.mkdir(parents=True)
+    save.write_bytes(b"save")
+    (default / "libraryfolders.vdf").write_text(
+        f'"libraryfolders"\n{{\n\t"0"\n\t{{\n\t\t"path"\t\t"{sd}"\n\t}}\n}}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    monkeypatch.setattr(savepath, "candidate_non_steam_roots", list)
+    out = _scan_wine_prefixes()
+    assert save in out
+
+
 # --- find_save_file --------------------------------------------------------------
 
 def test_find_save_file_readable_override_wins(tmp_path, monkeypatch):

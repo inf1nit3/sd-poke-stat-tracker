@@ -90,3 +90,22 @@ def test_first_candidate_wins_for_overlapping_files(tmp_path, monkeypatch):
     # Native candidates are collected before compatdata ones.
     assert out["moves"] == native / "moves.txt"
     assert wine.exists()
+
+
+def test_scan_includes_vdf_library_pbs(tmp_path, monkeypatch):
+    """Regression (round 9): PBS files in a second Steam library (SD card)
+    recorded in libraryfolders.vdf must be discovered."""
+    home = tmp_path / "home"
+    default = home / ".steam" / "steam" / "steamapps"
+    (default / "compatdata").mkdir(parents=True)
+    sd = tmp_path / "SDCard" / "SteamLibrary"
+    pbs = sd / "steamapps" / "common" / "SDGame" / "PBS"
+    pbs.mkdir(parents=True)
+    (pbs / "moves.txt").write_text("[TACKLE]\nName = Tackle\n", encoding="utf-8")
+    (default / "libraryfolders.vdf").write_text(
+        f'"libraryfolders"\n{{\n\t"0"\n\t{{\n\t\t"path"\t\t"{sd}"\n\t}}\n}}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    out = find_pbs_files()
+    assert out["moves"] == pbs / "moves.txt"

@@ -7,11 +7,40 @@ out of sync when new paths need to be supported.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
+def _parse_library_folders_vdf(vdf_path: Path) -> list[Path]:
+    """Extract library paths from Steam's ``libraryfolders.vdf``.
+
+    Handles the modern format (``"path"`` keys inside numbered blocks)
+    and the legacy format (numeric keys mapping directly to paths).
+    Best effort: malformed lines are skipped, not fatal.
+    """
+    out: list[Path] = []
+    try:
+        text = vdf_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return out
+    # Modern format: "path"    "/run/media/mmcblk0p1/SteamLibrary"
+    for m in re.finditer(r'"path"\s+"([^"]+)"', text):
+        out.append(Path(m.group(1).replace("\\\\", "\\")))
+    # Legacy format: "1"    "/mnt/games/SteamLibrary"
+    for m in re.finditer(r'"(\d+)"\s+"([^"]+)"', text):
+        value = m.group(2)
+        if value.startswith("/"):
+            out.append(Path(value.replace("\\\\", "\\")))
+    return out
+
+
 def candidate_steam_roots() -> list[Path]:
-    """Return all existing Steam ``steamapps`` directories on this system."""
+    """Return all existing Steam ``steamapps`` directories on this system.
+
+    Includes additional libraries recorded in ``libraryfolders.vdf``
+    (SD card, second drive, ...) — without them, games installed outside
+    the default library locations are invisible to every downstream scan.
+    """
     home = Path.home()
     roots = [
         home / ".steam" / "steam" / "steamapps",
@@ -20,7 +49,28 @@ def candidate_steam_roots() -> list[Path]:
     flatpak = home / ".var" / "app" / "com.valvesoftware.Steam" / "data" / "Steam" / "steamapps"
     if flatpak.is_dir():
         roots.append(flatpak)
-    return [r for r in roots if r.is_dir()]
+
+    out: list[Path] = []
+    seen: set[Path] = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        key = root.resolve()
+        if key not in seen:
+            seen.add(key)
+            out.append(root)
+        vdf = root / "libraryfolders.vdf"
+        if not vdf.is_file():
+            continue
+        for lib in _parse_library_folders_vdf(vdf):
+            steamapps = lib / "steamapps"
+            if not steamapps.is_dir():
+                continue
+            key = steamapps.resolve()
+            if key not in seen:
+                seen.add(key)
+                out.append(steamapps)
+    return out
 
 def candidate_non_steam_roots() -> list[Path]:
     """Return common Wine prefix roots for non-Steam launchers (Heroic, Lutris, Bottles)."""
