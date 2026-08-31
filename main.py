@@ -197,6 +197,11 @@ class Plugin:
         self._save_cache: dict[str, Any] | None = None
         self._save_cache_path: str | None = None
         self._save_cache_at: float = 0.0
+        # Wall-clock timestamp recorded at every cache write. Unlike
+        # _save_cache_at (which holds the file mtime for disk-sourced
+        # caches) this is always directly comparable to time.time(), so
+        # memory updates cannot be blocked by a skewed/future mtime.
+        self._save_cache_at_wall: float = 0.0
         self._watcher: Optional[SaveFileWatcher] = None
         self._watcher_callback_id: int = 0
         self._last_live_event: dict[str, Any] = {}
@@ -290,6 +295,7 @@ class Plugin:
             self._save_cache = None
             self._save_cache_path = None
             self._save_cache_at = 0.0
+            self._save_cache_at_wall = 0.0
             self._cached_save_path = None
             self._initialized = False
 
@@ -479,6 +485,7 @@ class Plugin:
                 self._save_cache_at = path.stat().st_mtime
             except OSError:
                 self._save_cache_at = _time.time()
+            self._save_cache_at_wall = _time.time()
         return out
 
     async def get_save_data(self, force_reload: bool = False) -> dict[str, Any]:
@@ -530,6 +537,7 @@ class Plugin:
         except Exception as exc:
             log.error(f"Unexpected save parse error: {exc}", exc_info=True)
             return self._cache_parse_error(path, exc)
+        last_save_changed = False
         with self._state_lock:
             self._save_cache = out
             self._save_cache_path = path_str
@@ -537,9 +545,16 @@ class Plugin:
                 self._save_cache_at = path.stat().st_mtime
             except OSError:
                 self._save_cache_at = _time.time()
-            self._settings["last_save_path"] = path_str
-        # Persist settings outside the lock to avoid blocking I/O on the event loop.
-        self._save_settings()
+            self._save_cache_at_wall = _time.time()
+            if self._settings.get("last_save_path") != path_str:
+                self._settings["last_save_path"] = path_str
+                last_save_changed = True
+        # Persist settings outside the lock to avoid blocking I/O on the
+        # event loop — and only when the path actually changed: a fresh
+        # parse happens on every game autosave, and rewriting settings.json
+        # each time is pointless flash I/O.
+        if last_save_changed:
+            self._save_settings()
         if self._watcher is not None:
             self._watcher.notify_save_loaded(path)
         return out
@@ -738,6 +753,7 @@ class Plugin:
                 self._save_cache_at = path.stat().st_mtime
             except OSError:
                 self._save_cache_at = _time.time()
+            self._save_cache_at_wall = _time.time()
             if self._settings.get("last_save_path") != str(path):
                 self._settings["last_save_path"] = str(path)
                 last_save_changed = True
@@ -840,11 +856,16 @@ class Plugin:
             # Stream updates are fresher than memory updates.
             if self._live_source == "stream":
                 return
-            if now <= self._save_cache_at:
+            # Compare against the wall-clock recorded at the last cache
+            # write — _save_cache_at holds the file mtime for disk-sourced
+            # caches, which is not a wall clock and can even be in the
+            # future after clock adjustments.
+            if now <= self._save_cache_at_wall:
                 return
             self._save_cache = payload
             self._save_cache_path = f"<memory:{self._memory_pid}>"
             self._save_cache_at = now
+            self._save_cache_at_wall = now
             self._live_source = "memory"
             self._last_live_event = {
                 "kind": "memory_update",
@@ -869,6 +890,7 @@ class Plugin:
             self._save_cache = payload
             self._save_cache_path = f"<stream:9988>"
             self._save_cache_at = now
+            self._save_cache_at_wall = now
             self._live_source = "stream"
             self._mod_needs_restart = False
             self._last_live_event = {
@@ -937,25 +959,6 @@ class Plugin:
         finally:
             with self._lifecycle_lock:
                 self._restarting_memory = False
-
-    def _refresh_memory_reader_pid(self) -> None:
-        """Re-detect the game PID (handles restart) and update the reader."""
-        if not self._settings.get("live_memory_enabled", False):
-            return
-        if self._memory_reader is None:
-            self._start_memory_reader()
-            return
-        procs = find_game_processes()
-        if not procs:
-            return
-        new_pid = int(procs[0].get("pid") or 0)
-        if new_pid > 0 and new_pid != self._memory_pid:
-            log.info(
-                f"Live memory reader: PID changed "
-                f"{self._memory_pid} → {new_pid}"
-            )
-            self._memory_reader.update_pid(new_pid)
-            self._memory_pid = new_pid
 
     @staticmethod
     def _extract_game_name(proc: dict[str, Any] | None) -> str | None:

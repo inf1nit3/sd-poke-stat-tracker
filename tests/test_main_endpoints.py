@@ -5,6 +5,7 @@ ghost-save-cache regression from round 5), moves/PBS endpoints,
 themes, and the process-introspection endpoints with stubbed backends.
 """
 import asyncio
+import os
 import time
 from pathlib import Path
 from typing import ClassVar
@@ -353,3 +354,77 @@ def test_watcher_change_demotes_disconnected_stream(plugin, tmp_path, monkeypatc
     plugin._stream_server = _FakeStreamServer(False, time.time())
     _run_watcher_change(plugin, monkeypatch, save)
     assert plugin._live_source == "disk"
+
+
+# --- get_save_data settings persistence (round 9, C11) ------------------------------
+
+def test_get_save_data_persists_settings_only_on_path_change(
+    plugin, tmp_path, monkeypatch
+):
+    """Regression (round 9): a fresh parse with an unchanged save path
+    (every game autosave) must not rewrite settings.json — flash I/O
+    without any informational change."""
+    import saveparser
+
+    save = tmp_path / "Game.rxdata"
+    save.write_bytes(b"save")
+    monkeypatch.setattr(main, "find_save_file", lambda override: save)
+    # _cached_parse_save_file imports parse_save_file from saveparser at
+    # call time, so the patch must target the source module.
+    monkeypatch.setattr(
+        saveparser, "parse_save_file", lambda p: _FakeParsed()
+    )
+    calls = []
+    monkeypatch.setattr(plugin, "_save_settings", lambda: calls.append(1))
+
+    asyncio.run(plugin.get_save_data())
+    assert len(calls) == 1  # first discovery of the path persists
+
+    # Fresh parse (mtime bumped) with the same path: no settings write.
+    save.write_bytes(b"save2")
+    os.utime(save, None)
+    asyncio.run(plugin.get_save_data())
+    assert len(calls) == 1
+
+    # A different path persists exactly once more.
+    other = tmp_path / "Other.rxdata"
+    other.write_bytes(b"save")
+    monkeypatch.setattr(main, "find_save_file", lambda override: other)
+    asyncio.run(plugin.get_save_data())
+    assert len(calls) == 2
+
+
+# --- _on_memory_update wall-clock comparison (round 9, C12) -------------------------
+
+def test_memory_update_accepted_over_future_mtime_disk_cache(plugin, tmp_path, monkeypatch):
+    """Regression (round 9): memory updates compare against wall clock.
+    A disk cache whose mtime lies in the future (clock adjustment) must
+    not block memory updates forever."""
+    plugin._save_cache = {"trainer_name": "Red"}
+    plugin._save_cache_path = str(tmp_path / "Game.rxdata")
+    plugin._save_cache_at = time.time() + 3600  # future mtime
+    plugin._save_cache_at_wall = time.time() - 30
+    plugin._live_source = "disk"
+    plugin._memory_pid = 4242
+    plugin._on_memory_update({"trainer_name": "Blue", "party": [1]})
+    assert plugin._save_cache == {"trainer_name": "Blue", "party": [1]}
+    assert plugin._live_source == "memory"
+
+
+def test_memory_update_rejected_right_after_disk_write(plugin, monkeypatch):
+    # Freeze time so the memory tick cannot race past the cache write.
+    monkeypatch.setattr(time, "time", lambda: 1000.0)
+    plugin._save_cache = {"trainer_name": "Red"}
+    plugin._live_source = "disk"
+    plugin._memory_pid = 4242
+    plugin._save_cache_at_wall = 1000.0
+    plugin._on_memory_update({"trainer_name": "Blue"})
+    assert plugin._save_cache == {"trainer_name": "Red"}
+    assert plugin._live_source == "disk"
+
+
+def test_memory_update_rejected_while_stream_fresh(plugin):
+    plugin._live_source = "stream"
+    plugin._memory_pid = 4242
+    plugin._on_memory_update({"trainer_name": "Blue"})
+    assert plugin._live_source == "stream"

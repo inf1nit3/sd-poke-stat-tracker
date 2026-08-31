@@ -125,7 +125,12 @@ def parse_moves_pbs(path: str | Path) -> dict[str, dict[str, Any]]:
 
 
 def parse_pokemon_pbs(path: str | Path) -> dict[str, dict[str, Any]]:
-    """Parse ``PBS/pokemon.txt`` and return ``{normalized_name: species_info}``."""
+    """Parse ``PBS/pokemon.txt`` and return ``{normalized_name: species_info}``.
+
+    Currently unused in production (the frontend consumes the static
+    type chart instead); kept as the tested building block for future
+    species-aware features.
+    """
     sections = parse_pbs_file(path)
     out: dict[str, dict[str, Any]] = {}
     for sec in sections:
@@ -182,7 +187,12 @@ def parse_pokemon_pbs(path: str | Path) -> dict[str, dict[str, Any]]:
 
 
 def parse_types_pbs(path: str | Path) -> dict[str, dict[str, Any]]:
-    """Parse ``PBS/types.txt`` for type data (weaknesses, resistances, immunities)."""
+    """Parse ``PBS/types.txt`` for type data (weaknesses, resistances, immunities).
+
+    Currently unused in production (the frontend consumes the static
+    type chart instead); kept as the tested building block for future
+    type-aware features.
+    """
     sections = parse_pbs_file(path)
     out: dict[str, dict[str, Any]] = {}
     for sec in sections:
