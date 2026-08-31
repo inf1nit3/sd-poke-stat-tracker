@@ -116,37 +116,87 @@ def _remove_legacy_poke_plugins(plugins_dir: Path) -> None:
         shutil.rmtree(entry)
 
 
-def install(game_dir: Path, *, force: bool = False) -> bool:
+def _file_differs(src: Path, dst: Path) -> bool:
+    """True if ``dst`` is missing or its content differs from ``src``.
+
+    Compares size first (cheap), then bytes. mtime alone is not
+    trustworthy across git checkouts and file copies.
+    """
+    try:
+        if not dst.is_file():
+            return True
+        if src.stat().st_size != dst.stat().st_size:
+            return True
+        if src.read_bytes() != dst.read_bytes():
+            return True
+    except OSError:
+        return True
+    return False
+
+
+def install(game_dir: Path, *, force: bool = False) -> str:
+    """Install (or refresh) the game mod into ``game_dir``.
+
+    Returns one of:
+      - "fresh":    the plugin was newly installed
+      - "updated":  it already existed but files were stale and got
+                    refreshed (e.g. after a plugin update ships a new
+                    stream.rb)
+      - "unchanged": it existed and all files already match the source
+
+    ``force=True`` wipes the target dir first and always performs a
+    fresh copy.
+    """
     plugin_dir = game_dir / "Plugins" / PLUGIN_NAME
     _remove_legacy_poke_plugins(game_dir / "Plugins")
-    if plugin_dir.is_dir():
-        if not force:
-            print(f"Already installed at {plugin_dir}. Use --force to reinstall.")
-            return True
+    if plugin_dir.is_dir() and force:
         shutil.rmtree(plugin_dir)
-    plugin_dir.mkdir(parents=True, exist_ok=True)
     if not GAME_MOD_SRC.is_dir():
         print(f"ERROR: missing {GAME_MOD_SRC}")
-        return False
+        return None
     if not META_SRC.is_file():
         print(f"ERROR: missing {META_SRC}")
-        return False
-    # Copy every file in the canonical game-mod/ directory (meta.txt,
-    # stream.rb, and any future helpers) so future contributors don't
-    # need to remember to update this script when they add a file.
-    # Hidden files and editor backups (anything starting with '.') are
-    # skipped so a stray .DS_Store doesn't get deployed.
+        return None
+
+    sources = [
+        src for src in sorted(GAME_MOD_SRC.iterdir())
+        if src.is_file() and not src.name.startswith(".")
+    ]
+    stale = [
+        src for src in sources
+        if _file_differs(src, plugin_dir / src.name)
+    ]
+    # Also detect leftovers: files installed by an older version that
+    # are no longer shipped.
+    if plugin_dir.is_dir():
+        try:
+            orphans = [
+                p for p in plugin_dir.iterdir()
+                if p.is_file() and not p.name.startswith(".")
+                and p.name not in {s.name for s in sources}
+            ]
+        except OSError:
+            orphans = []
+        stale.extend(orphans)
+
+    if plugin_dir.is_dir() and not stale and not force:
+        print(f"Already installed and up to date at {plugin_dir}")
+        return "unchanged"
+
+    action = "Installed" if not plugin_dir.is_dir() else "Updated"
+    plugin_dir.mkdir(parents=True, exist_ok=True)
     copied: list[str] = []
-    for src in sorted(GAME_MOD_SRC.iterdir()):
-        if not src.is_file() or src.name.startswith("."):
-            continue
+    for src in sources:
         shutil.copy(src, plugin_dir / src.name)
         copied.append(src.name)
-    print(f"Installed PokeStatStream plugin to {plugin_dir}")
+    for p in plugin_dir.iterdir():
+        if p.is_file() and not p.name.startswith(".") and p.name not in {s.name for s in sources}:
+            p.unlink()
+    print(f"{action} PokeStatStream plugin at {plugin_dir}")
     print(f"Files deployed: {', '.join(copied)}")
     print("Next step: restart the Pokémon game so the PluginManager")
     print("compiles the new plugin into PluginScripts.rxdata.")
-    return True
+    return "fresh" if action == "Installed" else "updated"
 
 
 def main() -> int:
@@ -176,7 +226,8 @@ def main() -> int:
     if not (game_dir / "Plugins").is_dir():
         print(f"ERROR: {game_dir} does not look like a Pokémon game (no Plugins/)")
         return 1
-    return 0 if install(game_dir, force=args.force) else 2
+    result = install(game_dir, force=args.force)
+    return 0 if result in ("fresh", "updated", "unchanged") else 2
 
 
 if __name__ == "__main__":

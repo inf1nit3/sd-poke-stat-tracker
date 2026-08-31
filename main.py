@@ -256,15 +256,18 @@ class Plugin:
             if scripts_dir not in sys.path:
                 sys.path.insert(0, scripts_dir)
             import install_game_mod
-            
+
             game_dir = install_game_mod.find_game_dir()
             if game_dir and (game_dir / "Plugins").is_dir():
-                plugin_dir = game_dir / "Plugins" / install_game_mod.PLUGIN_NAME
-                if not plugin_dir.is_dir():
-                    log.info(f"Auto-installing stream mod to {game_dir}")
-                    if install_game_mod.install(game_dir):
-                        with self._state_lock:
-                            self._mod_needs_restart = True
+                # Always call install(): it is idempotent and refreshes
+                # stale files when the shipped game-mod changed (returns
+                # "fresh" / "updated" / "unchanged"). Only deployment
+                # changes require a game restart.
+                result = install_game_mod.install(game_dir)
+                if result in ("fresh", "updated"):
+                    log.info(f"Game mod {result} at {game_dir}")
+                    with self._state_lock:
+                        self._mod_needs_restart = True
         except Exception as exc:
             log.warning(f"Background auto-installer failed: {exc}")
 

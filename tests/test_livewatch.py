@@ -157,3 +157,123 @@ def test_fast_path_emits_and_caches_region_end(monkeypatch):
     assert len(updates) == 1
     assert updates[0]["_live_source"] == "memory"
     assert reader._known_offset == ("0x1000", 0x10, "0x2010")
+
+
+def test_idle_tick_keeps_offset_and_no_failure(monkeypatch):
+    """Unchanged blob => success without emit; the cached offset must
+    survive and no failure be counted (previously the duplicate skip
+    was misread as a failure, forcing a full rescan every idle tick)."""
+    updates: list = []
+    reader = LiveMemoryReader(pid=4242, on_update=updates.append)
+    parsed = {"player": {"name": "Red"}}
+
+    def fake_read(pid, addr, size):
+        return b"\x04\x08" + b"\x00" * (size - 2)
+
+    monkeypatch.setattr(livewatch, "read_process_memory", fake_read)
+    monkeypatch.setattr(livewatch, "_pid_alive", lambda pid: True)
+    monkeypatch.setattr(
+        livewatch, "_candidate_regions",
+        lambda pid: [{"start": "0x1000", "end": "0x2010", "size": "4096",
+                      "path": "[anon]"}],
+    )
+
+    reader._tick(lambda blob: parsed)
+    assert len(updates) == 1
+    reader._tick(lambda blob: parsed)  # idle: nothing changed
+    reader._tick(lambda blob: parsed)
+    # Still exactly one emit; no failures counted; offset kept (the
+    # full scan found the header at region start, offset 0).
+    assert len(updates) == 1
+    assert reader._consecutive_failures == 0
+    assert reader._known_offset == ("0x1000", 0, "0x2010")
+
+
+def test_change_beyond_4kb_reemits(monkeypatch):
+    """Bytes changing past the first 4 KB must produce a new emit
+    (the old 4 KB CRC sample silently froze live updates)."""
+    updates: list = []
+    reader = LiveMemoryReader(pid=4242, on_update=updates.append)
+    parsed = {"player": {"name": "Red"}}
+    blob = bytearray(b"\x04\x08" + b"\x00" * 8000)
+
+    def fake_read(pid, addr, size):
+        return bytes(blob)
+
+    monkeypatch.setattr(livewatch, "read_process_memory", fake_read)
+    monkeypatch.setattr(livewatch, "_pid_alive", lambda pid: True)
+    monkeypatch.setattr(
+        livewatch, "_candidate_regions",
+        lambda pid: [{"start": "0x1000", "end": "0x3010", "size": "8016",
+                      "path": "[anon]"}],
+    )
+
+    reader._tick(lambda blob: dict(parsed))
+    assert len(updates) == 1
+    blob[6000] = 0x7F  # HP change deep in the payload
+    reader._tick(lambda blob: dict(parsed))
+    assert len(updates) == 2
+
+
+def test_scan_region_duplicate_returns_blob_without_emit(monkeypatch):
+    updates: list = []
+    reader = LiveMemoryReader(pid=4242, on_update=updates.append)
+    parsed = {"player": {"name": "Red"}}
+    blob = b"\x04\x08" + b"\x00" * 62
+
+    monkeypatch.setattr(
+        livewatch, "read_process_memory", lambda pid, addr, size: blob
+    )
+    # First: a successful emit seeds the hash (this also delivers one
+    # update, which we drop from the capture).
+    reader._emit(parsed, blob=blob, region_start="0x1000",
+                 header_offset=0, region_end="0x1040")
+    updates.clear()
+    region = {"start": "0x1000", "end": "0x1040", "size": "64", "path": "[anon]"}
+    result = reader._scan_region(region, lambda b: dict(parsed))
+    assert result == blob  # success...
+    assert updates == []   # ...but no re-emit
+
+
+def test_dispatch_maps_status_int_to_name():
+    captured = []
+    server = _make_server(captured.append)
+    server._dispatch({
+        "kind": "live_state",
+        "party": [
+            {"species": "A", "level": 10, "hp": 5, "max_hp": 5, "status": 4,
+             "moves": [], "type1": "Normal"},
+            {"species": "B", "level": 10, "hp": 5, "max_hp": 5, "status": 0,
+             "moves": [], "type1": "Normal"},
+            {"species": "C", "level": 10, "hp": 5, "max_hp": 5, "status": "junk",
+             "moves": [], "type1": "Normal"},
+        ],
+        "battle_enemies": [], "battle_player": [],
+    })
+    party = captured[0]["party"]
+    assert party[0]["status_name"] == "SLP"
+    assert party[1]["status_name"] == "OK"
+    # Garbage coerces to 0 like saveparser does -> "OK", never a crash.
+    assert party[2]["status_name"] == "OK"
+
+
+def test_candidate_regions_accepts_named_anon(monkeypatch):
+    # _MIN_REGION_BYTES is 8 MB, so every accepted mock region must
+    # exceed that; the last [anon] one (4 KB) tests the size filter.
+    monkeypatch.setattr(livewatch, "get_process_memory_map", lambda pid: [
+        {"start": "0x1000", "end": "0x2000000", "perms": "rw-p",
+         "path": "[anon:libc_malloc]"},
+        {"start": "0x2000000", "end": "0x4000000", "perms": "rw-p", "path": "[anon]"},
+        {"start": "0x4000000", "end": "0x6000000", "perms": "rw-p", "path": "[heap]"},
+        {"start": "0x6000000", "end": "0x8000000", "perms": "rw-p",
+         "path": "/usr/lib/libruby.so"},
+        {"start": "0x8000000", "end": "0x8001000", "perms": "rw-p", "path": "[anon]"},
+    ])
+    out = livewatch._candidate_regions(1)
+    paths = [r["path"] for r in out]
+    assert "[anon:libc_malloc]" in paths
+    assert "[anon]" in paths and "[heap]" in paths
+    # File-backed and tiny (< 8 MB) regions are still excluded: only
+    # the one big "[anon]" region survives the size filter.
+    assert all(not p.startswith("/usr") for p in paths)
+    assert paths.count("[anon]") == 1

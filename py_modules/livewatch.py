@@ -519,6 +519,9 @@ class LiveStreamServer:
                     "hp": p.get("hp"),
                     "max_hp": p.get("max_hp"),
                     "status": p.get("status"),
+                    # The mod sends the raw status int; the frontend
+                    # renders status_name (same contract as saveparser).
+                    "status_name": _STATUS_NAMES.get(_safe_int(p.get("status")), "?"),
                     "moves": p.get("moves") or [],
                     "type1": p.get("type1"),
                     "type2": p.get("type2"),
@@ -626,6 +629,25 @@ import time as _time
 # process memory as a candidate start-of-save and try to parse it.
 _MARSHAL_HEADER = b"\x04\x08"
 
+# Sentinel returned by LiveMemoryReader._try_parse when the candidate
+# blob is byte-identical to the last accepted one. Distinct from None
+# so callers can tell "unchanged, success" from "unparseable, failure".
+_DUPLICATE = object()
+
+# Mirrors saveparser.STATUS_NAMES. Kept as a local copy so the stream
+# dispatch path doesn't need a module-level saveparser import (the
+# memory reader deliberately lazy-imports saveparser to keep a parser
+# failure from taking down the whole live module).
+_STATUS_NAMES: dict[int, str] = {
+    0: "OK",
+    1: "PSN",
+    2: "PAR",
+    3: "BRN",
+    4: "SLP",
+    5: "FRZ",
+    6: "FNT",
+}
+
 # Minimum heap region size worth scanning. Most false positives
 # come from small per-thread stacks or allocator slabs that contain
 # junk bytes. Real Ruby heap pages (and the save blob) live in
@@ -692,8 +714,10 @@ def _candidate_regions(pid: int) -> list[dict[str, str]]:
             continue
         path = r.get("path", "")
         # Wine uses [anon] for Ruby heap. Native Linux uses [heap].
-        # Skip file-backed mappings (DLLs, theme data, etc.).
-        if path not in ("[heap]", "[anon]"):
+        # Kernels >= 4.5 also emit named anonymous mappings such as
+        # "[anon:libc_malloc]" — accept those too. Skip file-backed
+        # mappings (DLLs, theme data, etc.).
+        if path != "[heap]" and not path.startswith("[anon"):
             continue
         try:
             start = int(r["start"], 16)
@@ -852,6 +876,11 @@ class LiveMemoryReader:
             blob = self._read_blob_at(region_start, header_offset, region_end)
             if blob is not None:
                 result = self._try_parse(blob, parse_fn)
+                if result is _DUPLICATE:
+                    # Same bytes as last time: success, nothing to emit.
+                    # Keep the cached offset — dropping it here would
+                    # force a full multi-MB rescan on every idle tick.
+                    return
                 if result is not None:
                     self._emit(
                         result,
@@ -922,6 +951,11 @@ class LiveMemoryReader:
                     continue
                 candidates_tried += 1
                 result = self._try_parse(blob, parse_fn)
+                if result is _DUPLICATE:
+                    # Same bytes we already accepted: report success so
+                    # the caller neither rescans other regions nor
+                    # counts a failure — but don't re-emit.
+                    return blob
                 if result is not None:
                     self._emit(
                         result,
@@ -957,15 +991,21 @@ class LiveMemoryReader:
     def _try_parse(
         self, blob: bytes, parse_fn: Callable[[bytes], Any]
     ) -> Optional[Any]:
-        # Skip duplicate scans (same bytes we've already accepted).
-        # Hash only the first 4 KB to keep the comparison cheap —
-        # if those bytes haven't changed, the save almost certainly
-        # hasn't either.
+        """Parse a candidate blob.
+
+        Returns the parsed object on success, ``_DUPLICATE`` when the
+        blob's bytes are identical to the last accepted blob (callers
+        must treat that as success-without-emit, NOT as a failure),
+        and ``None`` when the blob can't be parsed as a save.
+        """
         import zlib
-        sample = bytes(blob[:4096])
-        sample_hash = zlib.crc32(sample) & 0xFFFFFFFF
-        if sample_hash == self._last_blob_hash:
-            return None
+        # Hash the full blob: changes can land anywhere in the marshal
+        # payload (HP/stats often sit well past the first 4 KB), and a
+        # 4 KB sample would freeze live updates on such edits. CRC32
+        # over <= 2 MB costs microseconds.
+        blob_hash = zlib.crc32(blob) & 0xFFFFFFFF
+        if blob_hash == self._last_blob_hash:
+            return _DUPLICATE
         try:
             parsed = parse_fn(blob)
         except Exception:
@@ -984,8 +1024,7 @@ class LiveMemoryReader:
     ) -> None:
         import zlib
 
-        sample = bytes(blob[:4096])
-        self._last_blob_hash = zlib.crc32(sample) & 0xFFFFFFFF
+        self._last_blob_hash = zlib.crc32(blob) & 0xFFFFFFFF
         self._consecutive_failures = 0
         self._known_offset = (region_start, header_offset, region_end)
 
