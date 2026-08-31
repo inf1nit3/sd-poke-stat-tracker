@@ -1,5 +1,7 @@
 node_modules/
-dist/
+# dist/index.js is tracked (shipped artifact); keep future builds committable
+dist/*
+!dist/index.js
 *.pyc
 __pycache__/
 *.zip
