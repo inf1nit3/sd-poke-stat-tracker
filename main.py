@@ -451,9 +451,12 @@ class Plugin:
         with self._state_lock:
             override = self._settings.get("save_path_override")
         path = await asyncio.to_thread(find_save_file, override if override else None)
+        # An unreadable override makes find_save_file fall back to scanning —
+        # only claim override usage when the returned path IS the override.
+        using_override = bool(override) and path is not None and path == Path(override).expanduser()
         return {
             "path": str(path) if path else None,
-            "using_override": bool(override) and path is not None,
+            "using_override": using_override,
         }
 
     async def list_save_files(self) -> list[dict[str, Any]]:

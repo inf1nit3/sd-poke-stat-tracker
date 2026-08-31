@@ -131,8 +131,18 @@ def _find_via_open_files() -> Optional[Path]:
                 candidates.append((p, proc.pid))
     if not candidates:
         return None
-    candidates.sort(key=lambda item: item[0].stat().st_mtime, reverse=True)
-    best_path, best_pid = candidates[0]
+    # stat() can fail if the game closed/deleted the save between
+    # open_files() and here — drop that candidate instead of crashing.
+    scored: list[tuple[Path, int, float]] = []
+    for p, pid in candidates:
+        try:
+            scored.append((p, pid, p.stat().st_mtime))
+        except OSError:
+            continue
+    if not scored:
+        return None
+    scored.sort(key=lambda item: item[2], reverse=True)
+    best_path, best_pid, _ = scored[0]
     
     global _cached_save_pid, _cached_save_path
     _cached_save_pid = best_pid
@@ -160,29 +170,38 @@ def _safe_walk_find(root: Path, names: tuple[str, ...]) -> list[Path]:
 
 def _scan_wine_prefixes() -> list[Path]:
     out: list[Path] = []
-    
+
     # 1. Steam Compatdata
     for steamapps in candidate_steam_roots():
         compat = steamapps / "compatdata"
         if not compat.is_dir():
             continue
-        for appdir in compat.iterdir():
+        try:
+            appdirs = list(compat.iterdir())
+        except OSError:
+            # One unreadable steamapps dir must not kill the whole scan.
+            continue
+        for appdir in appdirs:
             if not appdir.is_dir():
                 continue
             for search_root in wine_prefix_search_roots(appdir):
                 if not search_root.is_dir():
                     continue
                 out.extend(_safe_walk_find(search_root, SAVENAMES))
-                
+
     # 2. Non-Steam Prefix Roots (Heroic, Lutris, Bottles)
     for pfx_base in candidate_non_steam_roots():
         # Heroic uses pfx directly or inside folders
         for search_root in wine_prefix_search_roots(pfx_base):
             if search_root.is_dir():
                 out.extend(_safe_walk_find(search_root, SAVENAMES))
-        
+
         # Bottles/Lutris prefixes often have 'pfx' inside game folders
-        for pfx_dir in pfx_base.glob("*/pfx"):
+        try:
+            pfx_dirs = list(pfx_base.glob("*/pfx"))
+        except OSError:
+            continue
+        for pfx_dir in pfx_dirs:
             for search_root in wine_prefix_search_roots(pfx_dir.parent):
                 if search_root.is_dir():
                     out.extend(_safe_walk_find(search_root, SAVENAMES))
@@ -202,7 +221,7 @@ def _scan_native_library() -> list[Path]:
 
 def _dedupe_by_mtime(paths: list[Path]) -> list[Path]:
     seen: set[Path] = set()
-    out: list[Path] = []
+    out: list[tuple[Path, float]] = []
     for p in paths:
         try:
             rp = p.resolve()
@@ -211,9 +230,16 @@ def _dedupe_by_mtime(paths: list[Path]) -> list[Path]:
         if rp in seen:
             continue
         seen.add(rp)
-        out.append(p)
-    out.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return out
+        # stat() can fail if the file vanished between the directory scan
+        # and here (games rewrite saves constantly) — drop it instead of
+        # letting the sort key crash the whole resolution.
+        try:
+            mtime = p.stat().st_mtime
+        except OSError:
+            continue
+        out.append((p, mtime))
+    out.sort(key=lambda item: item[1], reverse=True)
+    return [p for p, _ in out]
 
 
 def find_save_file(override: Optional[str] = None) -> Optional[Path]:

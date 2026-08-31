@@ -92,7 +92,11 @@ def find_pbs_files(
     for steamapps in candidate_steam_roots():
         common = steamapps / "common"
         if common.is_dir():
-            for game_dir in common.iterdir():
+            try:
+                game_dirs = list(common.iterdir())
+            except OSError:
+                game_dirs = []
+            for game_dir in game_dirs:
                 if not game_dir.is_dir():
                     continue
                 for hint_dir in GAME_FOLDER_HINTS:
@@ -101,13 +105,21 @@ def find_pbs_files(
                         candidates.append(c)
         compat = steamapps / "compatdata"
         if compat.is_dir():
-            for appdir in compat.iterdir():
+            try:
+                appdirs = list(compat.iterdir())
+            except OSError:
+                appdirs = []
+            for appdir in appdirs:
                 if not appdir.is_dir():
                     continue
                 for search_root in wine_prefix_search_roots(appdir):
                     if not search_root.is_dir():
                         continue
-                    for game_dir in search_root.iterdir():
+                    try:
+                        subdirs = list(search_root.iterdir())
+                    except OSError:
+                        continue
+                    for game_dir in subdirs:
                         if not game_dir.is_dir():
                             continue
                         for hint_dir in GAME_FOLDER_HINTS:

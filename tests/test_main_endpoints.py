@@ -249,3 +249,37 @@ def test_get_process_memory_regions_validation(plugin, monkeypatch):
     for bad in (0, -1, "4242", 1.5, None):
         with pytest.raises(TypeError):
             asyncio.run(plugin.get_process_memory_regions(bad))
+
+
+# --- find_save_path / using_override ------------------------------------------------
+
+def test_find_save_path_reports_override_only_when_used(plugin, tmp_path, monkeypatch):
+    """Regression (round 6): an unreadable override makes find_save_file
+    fall back to scanning — the endpoint must not claim override usage."""
+    scanned = tmp_path / "scanned" / "Game.rxdata"
+    scanned.parent.mkdir()
+    scanned.write_bytes(b"x")
+    plugin._settings["save_path_override"] = str(tmp_path / "missing" / "Game.rxdata")
+    monkeypatch.setattr(main, "find_save_file", lambda override: scanned)
+    out = asyncio.run(plugin.find_save_path())
+    assert out["path"] == str(scanned)
+    assert out["using_override"] is False
+
+
+def test_find_save_path_reports_override_when_it_wins(plugin, tmp_path, monkeypatch):
+    override = tmp_path / "my" / "Game.rxdata"
+    override.parent.mkdir()
+    override.write_bytes(b"x")
+    plugin._settings["save_path_override"] = str(override)
+    monkeypatch.setattr(main, "find_save_file", lambda override: Path(override))
+    out = asyncio.run(plugin.find_save_path())
+    assert out["using_override"] is True
+
+
+def test_find_save_path_without_override(plugin, tmp_path, monkeypatch):
+    scanned = tmp_path / "Game.rxdata"
+    scanned.write_bytes(b"x")
+    monkeypatch.setattr(main, "find_save_file", lambda override: scanned)
+    out = asyncio.run(plugin.find_save_path())
+    assert out["using_override"] is False
+    assert out["path"] == str(scanned)

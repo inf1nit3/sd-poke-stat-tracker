@@ -58,40 +58,35 @@ class ThemeManager:
     def reload(self) -> None:
         self._themes = {}
         self._default_id = "default"
-        if not self._path.is_file():
-            log.warning(f"themes.json missing at {self._path}")
+        data: Any = None
+        if self._path.is_file():
+            try:
+                with self._path.open("r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+            except (json.JSONDecodeError, OSError) as exc:
+                log.error(f"Could not read themes.json: {exc}")
+                data = None
+        themes = data.get("themes") if isinstance(data, dict) else None
+        if isinstance(themes, dict):
+            for tid, tdef in themes.items():
+                if not isinstance(tid, str) or not isinstance(tdef, dict):
+                    continue
+                palette = tdef.get("palette")
+                if not isinstance(palette, dict):
+                    continue
+                self._themes[tid] = {
+                    "name": str(tdef.get("name", tid)),
+                    "description": str(tdef.get("description", "")),
+                    "palette": {str(k): str(v) for k, v in palette.items()},
+                }
+        if not self._themes:
+            # Missing file, corrupt JSON, wrong shape, or an empty themes
+            # dict: always leave at least the built-in default so the
+            # frontend has something selectable.
             self._themes["default"] = {
                 "name": "Default",
                 "description": "Built-in fallback",
                 "palette": dict(DEFAULT_PALETTE),
-            }
-            return
-        try:
-            with self._path.open("r", encoding="utf-8") as fh:
-                data = json.load(fh)
-        except (json.JSONDecodeError, OSError) as exc:
-            log.error(f"Could not read themes.json: {exc}")
-            self._themes["default"] = {
-                "name": "Default",
-                "description": "Built-in fallback",
-                "palette": dict(DEFAULT_PALETTE),
-            }
-            return
-        if not isinstance(data, dict):
-            return
-        themes = data.get("themes")
-        if not isinstance(themes, dict):
-            return
-        for tid, tdef in themes.items():
-            if not isinstance(tid, str) or not isinstance(tdef, dict):
-                continue
-            palette = tdef.get("palette")
-            if not isinstance(palette, dict):
-                continue
-            self._themes[tid] = {
-                "name": str(tdef.get("name", tid)),
-                "description": str(tdef.get("description", "")),
-                "palette": {str(k): str(v) for k, v in palette.items()},
             }
         if "default" in self._themes:
             self._default_id = "default"
