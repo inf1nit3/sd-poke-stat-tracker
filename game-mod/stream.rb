@@ -93,11 +93,22 @@ class PokeStatStream
       payload = build_payload
       return unless payload
       line = to_json(payload) + "\n"
-      begin
-        sock.write_nonblock(line)
-      rescue IO::WaitWritable
-        # Socket buffer full, drop the frame to avoid lagging the game
+      # write_nonblock may accept fewer bytes than given (partial write).
+      # Dropping the remainder would corrupt the frame stream: the next
+      # tick would append its full frame right after the truncated one,
+      # destroying both. Drain the remainder instead; String#b gives a
+      # binary copy so character offsets equal byte offsets.
+      remaining = line.b
+      while !remaining.empty?
+        written = sock.write_nonblock(remaining)
+        # No progress possible (should not happen): drop the rest of the
+        # frame instead of spinning.
+        break if written <= 0
+        remaining = remaining[written..-1]
       end
+    rescue IO::WaitWritable
+      # Socket buffer full: drop the rest of the frame rather than risk
+      # lagging the game. The plugin tolerates the truncated line.
     rescue Errno::EPIPE, Errno::ECONNRESET, Errno::EBADF, IOError, SystemCallError
       close_socket!
     end
