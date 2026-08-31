@@ -101,6 +101,46 @@ export function Dropdown({
   );
 }
 
+export function TextField({
+  label,
+  value,
+  onChange,
+}: {
+  label?: string;
+  value?: string;
+  onChange?: (e: { target: { value: string } }) => void;
+}) {
+  return (
+    <input
+      aria-label={label}
+      value={value ?? ""}
+      onChange={(e) => onChange?.({ target: { value: e.target.value } })}
+    />
+  );
+}
+
+export function ToggleField({
+  label,
+  checked,
+  onChange,
+}: {
+  label?: string;
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={Boolean(checked)}
+      aria-label={label}
+      onClick={() => onChange?.(!checked)}
+    >
+      {checked ? "On" : "Off"}
+    </button>
+  );
+}
+
 export function Spinner() {
   return <div role="status" aria-label="Loading" />;
 }
