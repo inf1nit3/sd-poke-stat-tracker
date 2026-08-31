@@ -267,6 +267,55 @@ describe("store state writes", () => {
   });
 });
 
+describe("store manual refresh helpers", () => {
+  it("refreshMoves updates the moves database and swallows backend errors", async () => {
+    mock.mockCall((method) => {
+      if (method === "get_moves_database")
+        return { merged_count: 42, source: "static" };
+      throw new Error(`unexpected ${method}`);
+    });
+    await store.refreshMoves();
+    expect(store.getState().movesDatabase).toEqual({
+      merged_count: 42,
+      source: "static",
+    });
+
+    // A later failure must not throw nor clobber the existing value.
+    mock.mockCall(() => {
+      throw new Error("backend gone");
+    });
+    await expect(store.refreshMoves()).resolves.toBeUndefined();
+    expect(store.getState().movesDatabase).toEqual({
+      merged_count: 42,
+      source: "static",
+    });
+  });
+
+  it("retryRefreshStatic runs the same retry ladder as refreshStatic", async () => {
+    let attempts = 0;
+    mock.mockCall((method) => {
+      if (method === "get_plugin_info") {
+        attempts++;
+        if (attempts < 2) throw new Error("transient");
+        return { version: "0.1.1" };
+      }
+      if (method === "get_settings") return { theme: "default" };
+      if (method === "get_type_chart") return { types: [] };
+      if (method === "get_moves_database") return { merged_count: 7 };
+      if (method === "get_themes")
+        return { themes: [], active: { id: "default" } };
+      throw new Error(`unexpected ${method}`);
+    });
+
+    const done = store.retryRefreshStatic();
+    await vi.advanceTimersByTimeAsync(500); // single backoff before attempt 2
+    await done;
+    expect(attempts).toBe(2);
+    expect(store.getState().info).toEqual({ version: "0.1.1" });
+    expect(store.getState().movesDatabase).toEqual({ merged_count: 7 });
+  });
+});
+
 describe("store primitives", () => {
   it("subscribe/unsubscribe and updateState fan-out", async () => {
     const seen: number[] = [];
