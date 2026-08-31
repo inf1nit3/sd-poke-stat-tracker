@@ -4,13 +4,13 @@ import { HealthBar } from "./HealthBar";
 import { TypeBadge } from "./TypeBadge";
 
 const STATUS_COLORS: Record<string, string> = {
-  OK: "#5eba7d",
-  PSN: "#a33ea1",
-  PAR: "#e0a458",
-  BRN: "#c22e28",
-  SLP: "#969696",
-  FRZ: "#96d9d6",
-  FNT: "#888",
+  OK: "var(--theme-status-ok, #5eba7d)",
+  PSN: "var(--theme-status-psn, #a33ea1)",
+  PAR: "var(--theme-status-par, #e0a458)",
+  BRN: "var(--theme-status-brn, #c22e28)",
+  SLP: "var(--theme-status-slp, #969696)",
+  FRZ: "var(--theme-status-frz, #96d9d6)",
+  FNT: "var(--theme-status-fnt, #888)",
 };
 
 const GENDER_SYMBOLS: Record<string, string> = {
@@ -53,10 +53,10 @@ export const DEFAULT_DISPLAY: DisplayOptions = {
 
 function statColor(v: number, max: number): string {
   const pct = v / max;
-  if (pct >= 0.9) return "#5eba7d";
-  if (pct >= 0.5) return "#e0a458";
-  if (pct >= 0.25) return "#e87b7b";
-  return "#777";
+  if (pct >= 0.9) return "var(--theme-hp-good, #5eba7d)";
+  if (pct >= 0.5) return "var(--theme-hp-warn, #e0a458)";
+  if (pct >= 0.25) return "var(--theme-hp-bad, #e87b7b)";
+  return "var(--theme-text-faint, #777)";
 }
 
 function resolveDisplay(
@@ -97,7 +97,7 @@ function resolveDisplay(
 export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, forced }: PokemonCardProps) {
   const display = resolveDisplay(p, features, forced);
   const displayName = p.nickname || p.species;
-  const statusColor = STATUS_COLORS[p.status_name] ?? "#888";
+  const statusColor = STATUS_COLORS[p.status_name] ?? "var(--theme-status-fnt, #888)";
   const fainted = p.is_fainted;
 
   const compactInfo: Array<{ label: string; value: string; color?: string }> = [];
@@ -121,7 +121,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
         flexDirection: "column",
         gap: 6,
         padding: 10,
-        background: "rgba(255,255,255,0.03)",
+        background: "var(--theme-bg-secondary, rgba(255,255,255,0.03))",
         borderRadius: 6,
         borderLeft: `3px solid ${statusColor}`,
         opacity: fainted ? 0.6 : 1,
@@ -137,7 +137,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
         {p.shiny && (
           <span
             style={{
-              color: "#f7d02c",
+              color: "var(--theme-shiny, #f7d02c)",
               fontSize: 14,
               textShadow: "0 0 4px rgba(247, 208, 44, 0.5)",
             }}
@@ -150,7 +150,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
           style={{
             fontSize: 14,
             fontWeight: 600,
-            color: "#fff",
+            color: "var(--theme-text, #fff)",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -158,17 +158,17 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
         >
           {displayName}
         </span>
-        <span style={{ fontSize: 11, color: "#888" }}>Lv.{p.level}</span>
+        <span style={{ fontSize: 11, color: "var(--theme-text-muted, #888)" }}>Lv.{p.level}</span>
         {display.gender && (
           <span
             style={{
               fontSize: 12,
               color:
                 p.gender_name === "F"
-                  ? "#e87ba3"
+                  ? "var(--theme-female, #e87ba3)"
                   : p.gender_name === "M"
-                  ? "#7ba3e8"
-                  : "#888",
+                  ? "var(--theme-male, #7ba3e8)"
+                  : "var(--theme-text-muted, #888)",
               fontWeight: 700,
               marginLeft: "auto",
             }}
@@ -189,7 +189,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
         <div
           style={{
             fontSize: 11,
-            color: "#888",
+            color: "var(--theme-text-muted, #888)",
             textTransform: "uppercase",
             letterSpacing: 0.5,
           }}
@@ -213,7 +213,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
           alignItems: "center",
           gap: 12,
           fontSize: 11,
-          color: "#aaa",
+          color: "var(--theme-text-secondary, #aaa)",
           flexWrap: "wrap",
         }}
       >
@@ -222,7 +222,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
         </span>
         {compactInfo.map((c) => (
           <span key={c.label}>
-            <span style={{ color: "#777" }}>{c.label}:</span> {c.value}
+            <span style={{ color: "var(--theme-text-faint, #777)" }}>{c.label}:</span> {c.value}
           </span>
         ))}
       </div>
@@ -244,9 +244,9 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
                 style={{
                   fontSize: 11,
                   padding: "3px 6px",
-                  background: move ? "rgba(255,255,255,0.05)" : "transparent",
+                  background: move ? "var(--theme-bg-secondary, rgba(255,255,255,0.05))" : "transparent",
                   borderRadius: 3,
-                  color: move ? "#ddd" : "#555",
+                  color: move ? "var(--theme-text-secondary, #ddd)" : "var(--theme-text-faint, #555)",
                   fontStyle: move ? "normal" : "italic",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -310,7 +310,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
                 gap: 4,
-                color: "#666",
+                color: "var(--theme-text-muted, #666)",
               }}
             >
               <EVStat label="HP" value={p.ev_hp} />
@@ -324,7 +324,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
           <div
             style={{
               fontSize: 10,
-              color: "#888",
+              color: "var(--theme-text-muted, #888)",
               display: "flex",
               gap: 8,
               marginTop: 2,
@@ -360,7 +360,7 @@ function StatBox({ label, value }: { label: string; value: number | null }) {
       <div
         style={{
           fontSize: 9,
-          color: "#777",
+          color: "var(--theme-text-faint, #777)",
           textTransform: "uppercase",
           letterSpacing: 0.3,
         }}
@@ -370,7 +370,7 @@ function StatBox({ label, value }: { label: string; value: number | null }) {
       <div
         style={{
           fontSize: 12,
-          color: "#ddd",
+          color: "var(--theme-text-secondary, #ddd)",
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -400,7 +400,7 @@ function IVStat({
       <div
         style={{
           fontSize: 9,
-          color: "#5eba7d",
+          color: "var(--theme-accent, #5eba7d)",
           textTransform: "uppercase",
           letterSpacing: 0.3,
         }}
@@ -410,7 +410,7 @@ function IVStat({
       <div
         style={{
           fontSize: 11,
-          color: value == null ? "#555" : statColor(value, 31),
+          color: value == null ? "var(--theme-text-faint, #555)" : statColor(value, 31),
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -440,7 +440,7 @@ function EVStat({
       <div
         style={{
           fontSize: 9,
-          color: "#7ba3e8",
+          color: "var(--theme-male, #7ba3e8)",
           textTransform: "uppercase",
           letterSpacing: 0.3,
         }}
@@ -450,7 +450,7 @@ function EVStat({
       <div
         style={{
           fontSize: 10,
-          color: value == null ? "#555" : "#aaa",
+          color: value == null ? "var(--theme-text-faint, #555)" : "var(--theme-text-secondary, #aaa)",
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -481,18 +481,18 @@ export function CapabilitiesSummary({ features }: { features: SaveFeatures | nul
         flexWrap: "wrap",
         gap: 4,
         fontSize: 10,
-        color: "#888",
+        color: "var(--theme-text-muted, #888)",
       }}
     >
       {items.map(([label, _value]) => (
         <span
           key={label}
           style={{
-            background: "rgba(94,186,125,0.1)",
-            color: "#5eba7d",
+            background: "var(--theme-accent-bg, rgba(94,186,125,0.15))",
+            color: "var(--theme-accent, #5eba7d)",
             padding: "2px 6px",
             borderRadius: 3,
-            border: "1px solid rgba(94,186,125,0.2)",
+            border: "1px solid var(--theme-accent-bg, rgba(94,186,125,0.2))",
           }}
         >
           {label}

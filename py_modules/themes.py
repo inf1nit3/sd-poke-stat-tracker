@@ -14,7 +14,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 PLUGIN_DIR: Path = Path(__file__).resolve().parent
-THEMES_PATH: Path = PLUGIN_DIR / "data" / "themes.json"
+# data/ lives at the plugin root (sibling of py_modules/). The old
+# py_modules/data path never matched on the Deck, so themes.json was
+# silently never loaded and only the built-in default was selectable.
+DATA_DIR: Path = PLUGIN_DIR.parent / "data"
+THEMES_PATH: Path = DATA_DIR / "themes.json"
 
 log = logging.getLogger("pokemon-overlay.themes")
 
@@ -22,6 +26,7 @@ DEFAULT_PALETTE: dict[str, str] = {
     "bg": "#0e0e0e",
     "bgSecondary": "rgba(255,255,255,0.04)",
     "bgTertiary": "rgba(255,255,255,0.02)",
+    "bgActive": "rgba(255,255,255,0.1)",
     "border": "rgba(255,255,255,0.08)",
     "text": "#fff",
     "textSecondary": "#ccc",
@@ -29,6 +34,13 @@ DEFAULT_PALETTE: dict[str, str] = {
     "textFaint": "#555",
     "accent": "#5eba7d",
     "accentBg": "rgba(94,186,125,0.15)",
+    "danger": "#e05858",
+    "dangerBg": "rgba(224, 88, 88, 0.2)",
+    "dangerBorder": "rgba(224, 88, 88, 0.4)",
+    "warning": "#ffcc00",
+    "warningBg": "rgba(255, 204, 0, 0.15)",
+    "warningBorder": "rgba(255, 204, 0, 0.5)",
+    "info": "#56b4e9",
     "shiny": "#f7d02c",
     "female": "#e87ba3",
     "male": "#7ba3e8",

@@ -38,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <PanelSection title="Something went wrong">
         <PanelSectionRow>
-          <div style={{ color: "#e87b7b", fontSize: 13, lineHeight: 1.4 }}>
+          <div style={{ color: "var(--theme-danger, #e87b7b)", fontSize: 13, lineHeight: 1.4 }}>
             {message}
           </div>
         </PanelSectionRow>
@@ -48,8 +48,8 @@ export class ErrorBoundary extends Component<Props, State> {
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
-          <details style={{ fontSize: 11, color: "#888" }}>
-            <summary style={{ cursor: "pointer", color: "#aaa" }}>
+          <details style={{ fontSize: 11, color: "var(--theme-text-muted, #888)" }}>
+            <summary style={{ cursor: "pointer", color: "var(--theme-text-secondary, #aaa)" }}>
               Stack trace
             </summary>
             <pre
@@ -59,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 background: "rgba(0,0,0,0.3)",
                 borderRadius: 4,
                 fontSize: 10,
-                color: "#ccc",
+                color: "var(--theme-text-secondary, #ccc)",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
                 maxHeight: 240,

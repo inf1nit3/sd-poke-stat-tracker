@@ -121,19 +121,19 @@ function PluginContent() {
         }}
       >
         <PokeballIcon size={28} />
-        <span style={{ color: "#e0a458", fontSize: "13px", textAlign: "center", lineHeight: 1.4 }}>
+        <span style={{ color: "var(--theme-hp-warn, #e0a458)", fontSize: "13px", textAlign: "center", lineHeight: 1.4 }}>
           Plugin data isn't loaded yet. The backend may still be starting up.
         </span>
         <Focusable
           onActivate={() => retryRefreshStatic()}
           style={{
             padding: "8px 20px",
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            backgroundColor: "var(--theme-bg-active, rgba(255,255,255,0.1))",
             borderRadius: "6px",
             cursor: "pointer",
           }}
         >
-          <span style={{ fontSize: "13px", color: "#fff", fontWeight: 500 }}>Reload Data</span>
+          <span style={{ fontSize: "13px", color: "var(--theme-text, #fff)", fontWeight: 500 }}>Reload Data</span>
         </Focusable>
       </Focusable>
     );
@@ -152,15 +152,15 @@ function PluginContent() {
             <PanelSectionRow>
               <div
                 style={{
-                  backgroundColor: "rgba(224, 88, 88, 0.2)",
-                  color: "#ff7f7f",
+                  backgroundColor: "var(--theme-danger-bg, rgba(224, 88, 88, 0.2))",
+                  color: "var(--theme-danger, #ff7f7f)",
                   padding: "12px",
                   borderRadius: "8px",
                   fontSize: "13px",
                   lineHeight: "1.4",
                   fontWeight: "bold",
                   marginBottom: "8px",
-                  border: "1px solid rgba(224, 88, 88, 0.4)"
+                  border: "1px solid var(--theme-danger-border, rgba(224, 88, 88, 0.4))"
                 }}
               >
                 The live-tracker mod was just auto-installed. Please restart your Pokémon game once to activate the Battle Analyzer.

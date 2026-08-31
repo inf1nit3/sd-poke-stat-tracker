@@ -13,12 +13,12 @@ const BUCKETS = [
   {
     key: "not_very_effective" as const,
     label: "Not very effective (½×)",
-    color: "#5eba7d",
+    color: "var(--theme-accent, #5eba7d)",
   },
   {
     key: "no_effect" as const,
     label: "No effect (0×)",
-    color: "#888",
+    color: "var(--theme-text-muted, #888)",
   },
 ] as const;
 
@@ -79,7 +79,7 @@ export function MoveLookupTouchMenu() {
         style={{
           padding: 24,
           textAlign: "center",
-          color: "#888",
+          color: "var(--theme-text-muted, #888)",
           fontSize: 13,
         }}
       >
@@ -97,10 +97,10 @@ export function MoveLookupTouchMenu() {
           gap: 8,
           flexWrap: "wrap",
           paddingBottom: 4,
-          borderBottom: "1px solid #2a2a2a",
+          borderBottom: "1px solid var(--theme-border, #2a2a2a)",
         }}
       >
-        <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>
+        <span style={{ fontSize: 11, color: "var(--theme-text-muted, #888)", fontWeight: 600 }}>
           PARTY MOVES:
         </span>
         {partyMoves.map((pm, i) => {
@@ -117,12 +117,12 @@ export function MoveLookupTouchMenu() {
                 padding: "4px 8px",
                 background:
                   selectedMove === pm.move
-                    ? "rgba(94,186,125,0.2)"
-                    : "rgba(255,255,255,0.05)",
-                color: "#ddd",
+                    ? "var(--theme-accent-bg, rgba(94,186,125,0.2))"
+                    : "var(--theme-bg-secondary, rgba(255,255,255,0.05))",
+                color: "var(--theme-text-secondary, #ddd)",
                 border:
                   selectedMove === pm.move
-                    ? "1px solid #5eba7d"
+                    ? "1px solid var(--theme-accent, #5eba7d)"
                     : "1px solid transparent",
                 borderRadius: 4,
                 cursor: "pointer",
@@ -142,7 +142,7 @@ export function MoveLookupTouchMenu() {
           style={{
             padding: 20,
             textAlign: "center",
-            color: "#888",
+            color: "var(--theme-text-muted, #888)",
             fontSize: 12,
             fontStyle: "italic",
           }}
@@ -152,7 +152,7 @@ export function MoveLookupTouchMenu() {
       )}
 
       {selectedMove && loading && (
-        <div style={{ padding: 16, textAlign: "center", color: "#aaa" }}>
+        <div style={{ padding: 16, textAlign: "center", color: "var(--theme-text-secondary, #aaa)" }}>
           Loading…
         </div>
       )}
@@ -165,7 +165,7 @@ export function MoveLookupTouchMenu() {
         <div
           style={{
             fontSize: 10,
-            color: "#555",
+            color: "var(--theme-text-faint, #555)",
             textAlign: "right",
             marginTop: 2,
           }}
@@ -198,7 +198,7 @@ function MoveDetail({
         flexDirection: "column",
         gap: 8,
         padding: 10,
-        background: "rgba(255,255,255,0.04)",
+        background: "var(--theme-bg-secondary, rgba(255,255,255,0.04))",
         borderRadius: 6,
       }}
     >
@@ -207,7 +207,7 @@ function MoveDetail({
           style={{
             fontSize: 16,
             fontWeight: 600,
-            color: "#fff",
+            color: "var(--theme-text, #fff)",
             textTransform: "uppercase",
           }}
         >
@@ -219,7 +219,7 @@ function MoveDetail({
           <span
             style={{
               fontSize: 9,
-              color: "#666",
+              color: "var(--theme-text-muted, #666)",
               textTransform: "uppercase",
               letterSpacing: 0.5,
             }}
@@ -237,7 +237,7 @@ function MoveDetail({
             gridTemplateColumns: "1fr 1fr 1fr",
             gap: 8,
             fontSize: 11,
-            color: "#ccc",
+            color: "var(--theme-text-secondary, #ccc)",
           }}
         >
           <Detail label="Category" value={info.category} />
@@ -250,7 +250,7 @@ function MoveDetail({
         <div
           style={{
             fontSize: 11,
-            color: "#888",
+            color: "var(--theme-text-muted, #888)",
             fontStyle: "italic",
             lineHeight: 1.4,
           }}
@@ -269,7 +269,7 @@ function MoveDetail({
                 key={bucket.key}
                 style={{
                   padding: "5px 7px",
-                  background: "rgba(255,255,255,0.02)",
+                  background: "var(--theme-bg-tertiary, rgba(255,255,255,0.02))",
                   borderRadius: 4,
                   borderLeft: `3px solid ${bucket.color}`,
                 }}
@@ -306,14 +306,14 @@ function Detail({ label, value }: { label: string; value: string }) {
       <div
         style={{
           fontSize: 9,
-          color: "#777",
+          color: "var(--theme-text-faint, #777)",
           textTransform: "uppercase",
           letterSpacing: 0.4,
         }}
       >
         {label}
       </div>
-      <div style={{ fontSize: 12, color: "#ddd" }}>{value}</div>
+      <div style={{ fontSize: 12, color: "var(--theme-text-secondary, #ddd)" }}>{value}</div>
     </div>
   );
 }

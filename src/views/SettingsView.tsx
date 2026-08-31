@@ -316,7 +316,7 @@ export function SettingsView() {
         <PanelSectionRow>
           <Focusable
             style={{
-              color: "#e0a458",
+              color: "var(--theme-hp-warn, #e0a458)",
               fontSize: 12,
               padding: "4px 0",
             }}
@@ -326,12 +326,12 @@ export function SettingsView() {
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 12, color: "#969696", padding: "4px 0" }}>
+          <Focusable style={{ fontSize: 12, color: "var(--theme-text-muted, #969696)", padding: "4px 0" }}>
             Loading…
             <span
               style={{
                 fontSize: 11,
-                color: "#56b4e9",
+                color: "var(--theme-info, #56b4e9)",
                 cursor: "pointer",
                 textDecoration: "underline",
                 marginLeft: 8,
@@ -352,18 +352,18 @@ export function SettingsView() {
     <>
       <PanelSection title="Save resolution">
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
+          <Focusable style={{ fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active save
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 12, color: resolved?.path ? "#5eba7d" : "#e0a458", wordBreak: "break-all" }}>
+          <Focusable style={{ fontSize: 12, color: resolved?.path ? "var(--theme-accent, #5eba7d)" : "var(--theme-hp-warn, #e0a458)", wordBreak: "break-all" }}>
             {resolved?.path || "— no save found —"}
           </Focusable>
         </PanelSectionRow>
         {resolved?.using_override && (
           <PanelSectionRow>
-            <Focusable style={{ fontSize: 10, color: "#777" }}>
+            <Focusable style={{ fontSize: 10, color: "var(--theme-text-faint, #777)" }}>
               (using manual override)
             </Focusable>
           </PanelSectionRow>
@@ -377,7 +377,7 @@ export function SettingsView() {
 
       <PanelSection title="Manual override">
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
+          <Focusable style={{ fontSize: 11, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }}>
             If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection.
           </Focusable>
         </PanelSectionRow>
@@ -435,12 +435,12 @@ export function SettingsView() {
 
       <PanelSection title="Theme">
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
+          <Focusable style={{ fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active theme
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 12, color: theme ? theme.palette.accent : "#888" }}>
+          <Focusable style={{ fontSize: 12, color: theme ? theme.palette.accent : "var(--theme-text-muted, #888)" }}>
             {theme ? theme.name : "Loading…"}
           </Focusable>
         </PanelSectionRow>
@@ -457,17 +457,17 @@ export function SettingsView() {
 
       <PanelSection title="PBS moves database">
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 11, color: "#969696", textTransform: "uppercase", letterSpacing: 0.4 }}>
+          <Focusable style={{ fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }}>
             Active PBS source
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 11, color: movesDb?.pbs_source ? "#5eba7d" : "#888", wordBreak: "break-all" }}>
+          <Focusable style={{ fontSize: 11, color: movesDb?.pbs_source ? "var(--theme-accent, #5eba7d)" : "var(--theme-text-muted, #888)", wordBreak: "break-all" }}>
             {movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —"}
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 10, color: "#777" }}>
+          <Focusable style={{ fontSize: 10, color: "var(--theme-text-faint, #777)" }}>
             {movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…"}
           </Focusable>
         </PanelSectionRow>
@@ -509,7 +509,7 @@ export function SettingsView() {
 
       <PanelSection title="Live memory reading">
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>
+          <Focusable style={{ fontSize: 11, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }}>
             When the game is running, read party state directly from the
             game's process memory. Updates arrive every ~1s without waiting
             for the game to save to disk. Opt-in: the disk watcher still
@@ -527,7 +527,7 @@ export function SettingsView() {
 
       <PanelSection title="Polling">
         <PanelSectionRow>
-          <Focusable style={{ fontSize: 11, color: "#888" }}>
+          <Focusable style={{ fontSize: 11, color: "var(--theme-text-muted, #888)" }}>
             The backend save watcher checks the disk every 2–5 seconds
             (derived from the interval below). UI updates arrive within
             seconds of any save.
@@ -558,10 +558,10 @@ export function SettingsView() {
           {candidates.slice(0, 20).map((c) => (
             <PanelSectionRow key={c.path}>
               <Focusable style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <div style={{ fontSize: 11, color: "#ddd", wordBreak: "break-all" }}>
+                <div style={{ fontSize: 11, color: "var(--theme-text-secondary, #ddd)", wordBreak: "break-all" }}>
                   {c.path}
                 </div>
-                <div style={{ fontSize: 10, color: "#777" }}>
+                <div style={{ fontSize: 10, color: "var(--theme-text-faint, #777)" }}>
                   {fmtSize(c.size)} · modified {fmtTime(c.modified)}
                 </div>
               </Focusable>
@@ -572,7 +572,7 @@ export function SettingsView() {
           ))}
           {candidates.length > 20 && (
             <PanelSectionRow>
-              <Focusable style={{ fontSize: 11, color: "#777", fontStyle: "italic" }}>
+              <Focusable style={{ fontSize: 11, color: "var(--theme-text-faint, #777)", fontStyle: "italic" }}>
                 …and {candidates.length - 20} more. Use override to select specific file.
               </Focusable>
             </PanelSectionRow>
@@ -584,12 +584,12 @@ export function SettingsView() {
         <PanelSection title="Status">
           {statusMsg && (
             <PanelSectionRow>
-              <Focusable style={{ fontSize: 12, color: "#5eba7d" }}><div>{statusMsg}</div></Focusable>
+              <Focusable style={{ fontSize: 12, color: "var(--theme-accent, #5eba7d)" }}><div>{statusMsg}</div></Focusable>
             </PanelSectionRow>
           )}
           {statusError && (
             <PanelSectionRow>
-              <Focusable style={{ fontSize: 12, color: "#e87b7b" }}><div>{statusError}</div></Focusable>
+              <Focusable style={{ fontSize: 12, color: "var(--theme-danger, #e87b7b)" }}><div>{statusError}</div></Focusable>
             </PanelSectionRow>
           )}
         </PanelSection>

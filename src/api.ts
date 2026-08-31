@@ -200,6 +200,7 @@ export interface ThemePalette {
   bg: string;
   bgSecondary: string;
   bgTertiary: string;
+  bgActive: string;
   border: string;
   text: string;
   textSecondary: string;
@@ -207,6 +208,13 @@ export interface ThemePalette {
   textFaint: string;
   accent: string;
   accentBg: string;
+  danger: string;
+  dangerBg: string;
+  dangerBorder: string;
+  warning: string;
+  warningBg: string;
+  warningBorder: string;
+  info: string;
   shiny: string;
   female: string;
   male: string;

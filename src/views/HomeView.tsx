@@ -11,7 +11,7 @@ function StatusDot({ ok }: { ok: boolean }) {
         height: 8,
         borderRadius: "50%",
         marginRight: 8,
-        backgroundColor: ok ? "#5eba7d" : "#e0a458",
+        backgroundColor: ok ? "var(--theme-accent, #5eba7d)" : "var(--theme-hp-warn, #e0a458)",
         boxShadow: ok
           ? "0 0 4px rgba(94, 186, 125, 0.6)"
           : "0 0 4px rgba(224, 164, 88, 0.6)",
@@ -45,7 +45,7 @@ export function HomeView() {
           <Focusable
             onActivate={() => {}}
             style={{
-              color: "#e0a458",
+              color: "var(--theme-hp-warn, #e0a458)",
               fontSize: "14px",
               padding: "12px",
               backgroundColor: "rgba(224, 164, 88, 0.1)",
@@ -66,12 +66,12 @@ export function HomeView() {
               gap: "8px",
               padding: "12px",
               marginTop: "12px",
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              backgroundColor: "var(--theme-bg-active, rgba(255,255,255,0.1))",
               borderRadius: "6px",
               cursor: "pointer",
             }}
           >
-            <span style={{ fontSize: "14px", color: "#fff", fontWeight: 500 }}>Reload Data</span>
+            <span style={{ fontSize: "14px", color: "var(--theme-text, #fff)", fontWeight: 500 }}>Reload Data</span>
           </Focusable>
         </PanelSectionRow>
       </PanelSection>
@@ -89,17 +89,17 @@ export function HomeView() {
               flexDirection: "column",
               gap: "6px",
               padding: "8px",
-              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              backgroundColor: "var(--theme-bg-secondary, rgba(255,255,255,0.05))",
               borderRadius: "8px",
             }}
           >
-            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fff" }}>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--theme-text, #fff)" }}>
               {String(info.name)}{" "}
-              <span style={{ color: "rgba(255, 255, 255, 0.5)", fontWeight: "normal", fontSize: "14px" }}>
+              <span style={{ color: "var(--theme-text-muted, rgba(255,255,255,0.5))", fontWeight: "normal", fontSize: "14px" }}>
                 v{String(info.version)}
               </span>
             </div>
-            <div style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.7)", lineHeight: "1.5" }}>
+            <div style={{ fontSize: "13px", color: "var(--theme-text-secondary, rgba(255,255,255,0.7))", lineHeight: "1.5" }}>
               {String(info.description)}
             </div>
           </Focusable>
@@ -116,23 +116,23 @@ export function HomeView() {
               flexDirection: "column",
               gap: "10px",
               padding: "12px",
-              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              backgroundColor: "var(--theme-bg-secondary, rgba(255,255,255,0.05))",
               borderRadius: "8px",
             }}
           >
             <div style={{ display: "flex", alignItems: "center" }}>
               <StatusDot ok={info.initialized} />
-              <span style={{ color: "#fff" }}>{info.initialized ? "Backend ready" : "Backend not initialized"}</span>
+              <span style={{ color: "var(--theme-text, #fff)" }}>{info.initialized ? "Backend ready" : "Backend not initialized"}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
               <StatusDot ok={info.type_chart_loaded} />
-              <span style={{ color: "#fff" }}>
+              <span style={{ color: "var(--theme-text, #fff)" }}>
                 {info.type_chart_loaded ? `Type chart loaded (${info.type_chart_types} types)` : "Type chart not loaded"}
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
               <StatusDot ok={movesDb?.loaded ?? false} />
-              <span style={{ color: "#fff" }}>
+              <span style={{ color: "var(--theme-text, #fff)" }}>
                 {movesDb?.loaded
                   ? movesDb.pbs_source
                     ? `Moves DB: ${movesDb.merged_count} (PBS loaded)`
@@ -144,26 +144,26 @@ export function HomeView() {
               <>
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <StatusDot ok={live.game_running} />
-                  <span style={{ color: "#fff" }}>
+                  <span style={{ color: "var(--theme-text, #fff)" }}>
                     {live.game_running
                       ? `Game running: ${live.detected_game_name || String(live.active_process?.name ?? "unknown")} (pid ${String(live.active_process?.pid ?? "?")})`
                       : "No game process detected"}
                   </span>
                 </div>
                 {live.game_running && live.stream_status && (
-                  <div style={{ marginTop: "6px", paddingTop: "10px", borderTop: "1px solid rgba(255, 255, 255, 0.1)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "bold" }}>
+                  <div style={{ marginTop: "6px", paddingTop: "10px", borderTop: "1px solid var(--theme-border, rgba(255,255,255,0.1))", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "var(--theme-text-muted, rgba(255,255,255,0.5))", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "bold" }}>
                       Live Injection Status
                     </div>
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <StatusDot ok={live.stream_status.listening} />
-                      <span style={{ color: "#fff" }}>
+                      <span style={{ color: "var(--theme-text, #fff)" }}>
                         {live.stream_status.listening ? "Stream server listening (127.0.0.1:9988)" : "Stream server not started"}
                       </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <StatusDot ok={live.stream_status.connected} />
-                      <span style={{ color: "#fff" }}>
+                      <span style={{ color: "var(--theme-text, #fff)" }}>
                         {live.stream_status.connected
                           ? `Game mod connected${live.stream_status.last_data_trainer ? ` (Trainer: ${live.stream_status.last_data_trainer})` : ""}`
                           : "Game mod not connected"}
@@ -172,7 +172,7 @@ export function HomeView() {
                     {live.stream_status.total_frames > 0 ? (
                       <div style={{ display: "flex", alignItems: "center" }}>
                         <StatusDot ok={true} />
-                        <span style={{ color: "#fff" }}>
+                        <span style={{ color: "var(--theme-text, #fff)" }}>
                           {`Injection active — ${live.stream_status.total_frames} frames` +
                             (live.stream_status.last_data_at ? ` · last ${timeAgo(live.stream_status.last_data_at)}` : "")}
                         </span>
@@ -180,7 +180,7 @@ export function HomeView() {
                     ) : (
                       <div style={{ display: "flex", alignItems: "center" }}>
                         <StatusDot ok={false} />
-                        <span style={{ color: "#fff" }}>
+                        <span style={{ color: "var(--theme-text, #fff)" }}>
                           {live.stream_status.listening ? "Waiting for game mod data…" : "Injection not started"}
                         </span>
                       </div>
@@ -189,7 +189,7 @@ export function HomeView() {
                 )}
                 <div style={{ display: "flex", alignItems: "center", marginTop: live.game_running && live.stream_status ? "6px" : "0" }}>
                   <StatusDot ok={live.watcher_active} />
-                  <span style={{ color: "#fff" }}>
+                  <span style={{ color: "var(--theme-text, #fff)" }}>
                     {live.watcher_active
                       ? `Save watcher active${live.last_live_event?.at ? ` · last event ${timeAgo(live.last_live_event.at)}` : ""}`
                       : "Save watcher inactive"}
@@ -198,7 +198,7 @@ export function HomeView() {
                 {settings?.live_memory_enabled && (
                   <div style={{ display: "flex", alignItems: "center" }}>
                     <StatusDot ok={live.live_source === "memory"} />
-                    <span style={{ color: "#fff" }}>
+                    <span style={{ color: "var(--theme-text, #fff)" }}>
                       {live.live_source === "memory"
                         ? `Live memory reading active (pid ${live.active_process?.pid ?? "?"})`
                         : `Live memory idle · ${live.memory_failure_log?.length ? `last: ${live.memory_failure_log[live.memory_failure_log.length - 1]}` : "disk fallback"}`}
@@ -208,8 +208,8 @@ export function HomeView() {
               </>
             )}
             {saveData && !saveData.error && saveData.features && (
-              <div style={{ marginTop: "6px", paddingTop: "10px", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
-                <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "bold", marginBottom: "8px" }}>
+              <div style={{ marginTop: "6px", paddingTop: "10px", borderTop: "1px solid var(--theme-border, rgba(255,255,255,0.1))" }}>
+                <div style={{ fontSize: "11px", color: "var(--theme-text-muted, rgba(255,255,255,0.5))", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "bold", marginBottom: "8px" }}>
                   Save features ({saveData.version})
                 </div>
                 <CapabilitiesSummary features={saveData.features} />
@@ -233,10 +233,10 @@ export function HomeView() {
                 alignItems: "center"
               }}
             >
-              <span style={{ color: "rgba(255, 255, 255, 0.8)" }}>Fainted Pokémon (Nuzlocke):</span>
+              <span style={{ color: "var(--theme-text-secondary, rgba(255,255,255,0.8))" }}>Fainted Pokémon (Nuzlocke):</span>
               <span style={{ 
-                color: faintedCount > 0 ? "#e05858" : "#5eba7d",
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
+                color: faintedCount > 0 ? "var(--theme-danger, #e05858)" : "var(--theme-accent, #5eba7d)",
+                backgroundColor: "var(--theme-bg-active, rgba(255,255,255,0.1))",
                 padding: "4px 10px",
                 borderRadius: "12px",
                 fontSize: "13px"

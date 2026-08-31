@@ -81,7 +81,7 @@ export function TypeChartView() {
         <PanelSectionRow>
           <div
             style={{
-              color: "#e0a458",
+              color: "var(--theme-hp-warn, #e0a458)",
               fontSize: 12,
               padding: "8px 0",
             }}
@@ -154,7 +154,7 @@ export function TypeChartView() {
           <PanelSectionRow>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
               <Spinner />
-              <span style={{ fontSize: 12, color: "#969696" }}>Updating…</span>
+              <span style={{ fontSize: 12, color: "var(--theme-text-muted, #969696)" }}>Updating…</span>
             </div>
           </PanelSectionRow>
         </PanelSection>
@@ -163,7 +163,7 @@ export function TypeChartView() {
       {error && (
         <PanelSection>
           <PanelSectionRow>
-            <div style={{ color: "#e87b7b", fontSize: 12, padding: "4px 0" }}>{error}</div>
+            <div style={{ color: "var(--theme-danger, #e87b7b)", fontSize: 12, padding: "4px 0" }}>{error}</div>
           </PanelSectionRow>
         </PanelSection>
       )}

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { MoveLookupTouchMenu } from "./MoveLookupTouchMenu";
 import { PartyTouchMenu } from "./PartyTouchMenu";
 import { TypeLookupTouchMenu } from "./TypeLookupTouchMenu";
 import { useStore } from "../store";
+import { DEFAULT_PALETTE, paletteToCssVars } from "../theme";
 
 function CoachModeWidget() {
   const analysis = useStore((s) => s.liveState?.battle_analysis);
@@ -13,18 +14,18 @@ function CoachModeWidget() {
   return (
     <div style={{
       padding: "8px",
-      backgroundColor: "rgba(255, 204, 0, 0.15)",
-      border: "1px solid rgba(255, 204, 0, 0.5)",
+      backgroundColor: "var(--theme-warning-bg, rgba(255, 204, 0, 0.15))",
+      border: "1px solid var(--theme-warning-border, rgba(255, 204, 0, 0.5))",
       borderRadius: "4px",
       marginBottom: "8px",
     }}>
-      <div style={{ color: "#ffcc00", fontWeight: "bold", fontSize: "12px", marginBottom: "2px" }}>
+      <div style={{ color: "var(--theme-warning, #ffcc00)", fontWeight: "bold", fontSize: "12px", marginBottom: "2px" }}>
         COACH SUGGESTION
       </div>
-      <div style={{ fontSize: "13px", color: "#fff" }}>
+      <div style={{ fontSize: "13px", color: "var(--theme-text, #fff)" }}>
         Switch to <strong>{coach_suggestion.suggested_pokemon}</strong>
       </div>
-      <div style={{ fontSize: "11px", color: "#ddd", marginTop: "2px" }}>
+      <div style={{ fontSize: "11px", color: "var(--theme-text-secondary, #ddd)", marginTop: "2px" }}>
         {coach_suggestion.reason}
       </div>
     </div>
@@ -48,8 +49,8 @@ function NuzlockeCounterWidget() {
       fontSize: "12px",
       fontWeight: "bold",
     }}>
-      <span style={{ color: "#ddd" }}>Fainted (Nuzlocke):</span>
-      <span style={{ color: faintedCount > 0 ? "#e05858" : "#5eba7d" }}>{faintedCount}</span>
+      <span style={{ color: "var(--theme-text-secondary, #ddd)" }}>Fainted (Nuzlocke):</span>
+      <span style={{ color: faintedCount > 0 ? "var(--theme-danger, #e05858)" : "var(--theme-accent, #5eba7d)" }}>{faintedCount}</span>
     </div>
   );
 }
@@ -64,6 +65,14 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function TouchMenuContent() {
   const [tab, setTab] = useState<Tab>("party");
+  const theme = useStore((s) => s.theme);
+  // Touch menus render outside the QAM plugin panel, so the CSS vars
+  // set on PluginContent's root do not reach them — apply them here too.
+  const palette = theme?.palette ?? DEFAULT_PALETTE;
+  const themeStyle = useMemo<CSSProperties>(
+    () => paletteToCssVars(palette) as CSSProperties,
+    [palette]
+  );
 
   return (
     <div
@@ -74,6 +83,7 @@ export function TouchMenuContent() {
         padding: "10px 12px 14px 12px",
         minWidth: 360,
         maxWidth: 720,
+        ...themeStyle,
       }}
     >
       <div
@@ -81,7 +91,7 @@ export function TouchMenuContent() {
           display: "flex",
           gap: 6,
           paddingBottom: 4,
-          borderBottom: "1px solid #2a2a2a",
+          borderBottom: "1px solid var(--theme-border, #2a2a2a)",
         }}
       >
         {TABS.map((t) => (
@@ -120,9 +130,9 @@ function TabButton({
       style={{
         flex: 1,
         padding: "6px 10px",
-        background: active ? "rgba(94,186,125,0.15)" : "rgba(255,255,255,0.04)",
-        color: active ? "#5eba7d" : "#aaa",
-        border: active ? "1px solid #5eba7d" : "1px solid transparent",
+        background: active ? "var(--theme-accent-bg, rgba(94,186,125,0.15))" : "var(--theme-bg-secondary, rgba(255,255,255,0.04))",
+        color: active ? "var(--theme-accent, #5eba7d)" : "var(--theme-text-secondary, #aaa)",
+        border: active ? "1px solid var(--theme-accent, #5eba7d)" : "1px solid transparent",
         borderRadius: 4,
         cursor: "pointer",
         fontSize: 12,

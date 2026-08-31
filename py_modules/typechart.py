@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any
 
 PLUGIN_DIR: Path = Path(__file__).resolve().parent
-TYPE_CHART_PATH: Path = PLUGIN_DIR / "data" / "type_chart.json"
+# data/ lives at the plugin root (sibling of py_modules/) — see themes.py.
+DATA_DIR: Path = PLUGIN_DIR.parent / "data"
+TYPE_CHART_PATH: Path = DATA_DIR / "type_chart.json"
 
 VALID_MULTIPLIERS = {0.0, 0.25, 0.5, 1.0, 2.0, 4.0}
 

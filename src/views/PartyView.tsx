@@ -56,7 +56,7 @@ export function PartyView() {
           <Focusable
             onActivate={() => {}}
             style={{
-              color: "#e0a458",
+              color: "var(--theme-hp-warn, #e0a458)",
               fontSize: 12,
               padding: "4px 0",
             }}
@@ -83,7 +83,7 @@ export function PartyView() {
     return (
       <PanelSection title="Party">
         <PanelSectionRow>
-          <Focusable onActivate={() => {}} style={{ fontSize: 13, color: "#969696", lineHeight: 1.5 }}>
+          <Focusable onActivate={() => {}} style={{ fontSize: 13, color: "var(--theme-text-muted, #969696)", lineHeight: 1.5 }}>
             No save file found. Start the game and save once, or set a
             manual path in <strong>Settings</strong>.
           </Focusable>
@@ -100,13 +100,13 @@ export function PartyView() {
       <PanelSection title="Party">
         <PanelSectionRow>
           <Focusable onActivate={() => {}}>
-            <div style={{ color: "#e87b7b", fontSize: 13 }}>
+            <div style={{ color: "var(--theme-danger, #e87b7b)", fontSize: 13 }}>
               Parse error: {data.message}
             </div>
             <div
               style={{
                 fontSize: 11,
-                color: "#777",
+                color: "var(--theme-text-faint, #777)",
                 marginTop: 6,
                 wordBreak: "break-all",
               }}
@@ -174,7 +174,7 @@ function PartyContent({
           </Focusable>
         </PanelSectionRow>
         <PanelSectionRow>
-          <Focusable onActivate={() => {}} style={{ fontSize: 11, color: "#777" }}>
+          <Focusable onActivate={() => {}} style={{ fontSize: 11, color: "var(--theme-text-faint, #777)" }}>
             Updated {timeAgo(data.parsed_at)} · auto-refresh active while the game runs
           </Focusable>
         </PanelSectionRow>
@@ -209,12 +209,12 @@ function PartyContent({
                 onActivate={() => {}}
                 style={{
                   padding: 10,
-                  background: "rgba(255,255,255,0.02)",
+                  background: "var(--theme-bg-tertiary, rgba(255,255,255,0.02))",
                   borderRadius: 6,
-                  border: "1px dashed #333",
+                  border: "1px dashed var(--theme-border, #333)",
                   textAlign: "center",
                   fontSize: 11,
-                  color: "#555",
+                  color: "var(--theme-text-faint, #555)",
                   fontStyle: "italic",
                 }}
               >
@@ -231,7 +231,7 @@ function PartyContent({
             onActivate={() => {}}
             style={{
               fontSize: 10,
-              color: "#666",
+              color: "var(--theme-text-muted, #666)",
               wordBreak: "break-all",
               lineHeight: 1.4,
             }}
@@ -250,14 +250,14 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div
         style={{
           fontSize: 10,
-          color: "#777",
+          color: "var(--theme-text-faint, #777)",
           textTransform: "uppercase",
           letterSpacing: 0.4,
         }}
       >
         {label}
       </div>
-      <div style={{ fontSize: 12, color: "#ddd" }}>{value}</div>
+      <div style={{ fontSize: 12, color: "var(--theme-text-secondary, #ddd)" }}>{value}</div>
     </div>
   );
 }

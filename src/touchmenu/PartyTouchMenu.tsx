@@ -5,13 +5,13 @@ import { normalizeKey } from "../utils/normalize";
 import { useStore, saveDataEqual } from "../store";
 
 const STATUS_COLORS: Record<string, string> = {
-  OK: "#5eba7d",
-  PSN: "#a33ea1",
-  PAR: "#e0a458",
-  BRN: "#c22e28",
-  SLP: "#969696",
-  FRZ: "#96d9d6",
-  FNT: "#888",
+  OK: "var(--theme-status-ok, #5eba7d)",
+  PSN: "var(--theme-status-psn, #a33ea1)",
+  PAR: "var(--theme-status-par, #e0a458)",
+  BRN: "var(--theme-status-brn, #c22e28)",
+  SLP: "var(--theme-status-slp, #969696)",
+  FRZ: "var(--theme-status-frz, #96d9d6)",
+  FNT: "var(--theme-status-fnt, #888)",
 };
 
 const GENDER_SYMBOLS: Record<string, string> = {
@@ -113,32 +113,32 @@ function Header({
         alignItems: "center",
         gap: 10,
         padding: "4px 8px",
-        background: "rgba(255,255,255,0.04)",
+        background: "var(--theme-bg-secondary, rgba(255,255,255,0.04))",
         borderRadius: 4,
         fontSize: 12,
-        color: "#ccc",
+        color: "var(--theme-text-secondary, #ccc)",
         flexWrap: "wrap",
       }}
     >
-      <span style={{ fontWeight: 600, color: "#fff" }}>{trainer || "Trainer"}</span>
-      <span style={{ color: "#666" }}>·</span>
+      <span style={{ fontWeight: 600, color: "var(--theme-text, #fff)" }}>{trainer || "Trainer"}</span>
+      <span style={{ color: "var(--theme-text-muted, #666)" }}>·</span>
       <span>Party {count}/{max}</span>
       {features?.items && money > 0 && (
         <>
-          <span style={{ color: "#666" }}>·</span>
+          <span style={{ color: "var(--theme-text-muted, #666)" }}>·</span>
           <span>₽{money.toLocaleString("en-US")}</span>
         </>
       )}
       {badges > 0 && (
         <>
-          <span style={{ color: "#666" }}>·</span>
-          <span style={{ color: "#f7d02c" }}>{badges} 🏆</span>
+          <span style={{ color: "var(--theme-text-muted, #666)" }}>·</span>
+          <span style={{ color: "var(--theme-shiny, #f7d02c)" }}>{badges} 🏆</span>
         </>
       )}
       {location && (
         <>
-          <span style={{ color: "#666" }}>·</span>
-          <span style={{ color: "#888" }}>{location}</span>
+          <span style={{ color: "var(--theme-text-muted, #666)" }}>·</span>
+          <span style={{ color: "var(--theme-text-muted, #888)" }}>{location}</span>
         </>
       )}
       {pbsSource && (
@@ -146,8 +146,8 @@ function Header({
           style={{
             marginLeft: "auto",
             fontSize: 9,
-            color: "#5eba7d",
-            background: "rgba(94,186,125,0.1)",
+            color: "var(--theme-accent, #5eba7d)",
+            background: "var(--theme-accent-bg, rgba(94,186,125,0.15))",
             padding: "1px 4px",
             borderRadius: 2,
           }}
@@ -169,7 +169,7 @@ function PartyRow({
   movesDb: MovesDatabase | null;
   features: SaveFeatures | null | undefined;
 }) {
-  const statusColor = STATUS_COLORS[p.status_name] ?? "#888";
+  const statusColor = STATUS_COLORS[p.status_name] ?? "var(--theme-status-fnt, #888)";
   const showStats = p.has_stats;
   const showGender = p.has_gender_data;
   const showType2 = p.has_type2 && p.type2;
@@ -182,7 +182,7 @@ function PartyRow({
         alignItems: "center",
         gap: 10,
         padding: "8px 10px",
-        background: "rgba(255,255,255,0.04)",
+        background: "var(--theme-bg-secondary, rgba(255,255,255,0.04))",
         borderRadius: 5,
         borderLeft: `3px solid ${statusColor}`,
         opacity: p.is_fainted ? 0.55 : 1,
@@ -198,17 +198,17 @@ function PartyRow({
         }}
       >
         {p.shiny && (
-          <span style={{ color: "#f7d02c", fontSize: 11, lineHeight: 1 }}>★</span>
+          <span style={{ color: "var(--theme-shiny, #f7d02c)", fontSize: 11, lineHeight: 1 }}>★</span>
         )}
         {showGender && (
           <span
             style={{
               color:
                 p.gender_name === "F"
-                  ? "#e87ba3"
+                  ? "var(--theme-female, #e87ba3)"
                   : p.gender_name === "M"
-                  ? "#7ba3e8"
-                  : "#888",
+                  ? "var(--theme-male, #7ba3e8)"
+                  : "var(--theme-text-muted, #888)",
               fontSize: 12,
               fontWeight: 700,
               lineHeight: 1,
@@ -233,7 +233,7 @@ function PartyRow({
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#fff",
+              color: "var(--theme-text, #fff)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -242,9 +242,9 @@ function PartyRow({
           >
             {p.nickname || p.species}
           </span>
-          <span style={{ fontSize: 10, color: "#888" }}>Lv.{p.level}</span>
+          <span style={{ fontSize: 10, color: "var(--theme-text-muted, #888)" }}>Lv.{p.level}</span>
           {p.nature && (
-            <span style={{ fontSize: 9, color: "#888" }}>{p.nature}</span>
+            <span style={{ fontSize: 9, color: "var(--theme-text-muted, #888)" }}>{p.nature}</span>
           )}
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", gap: 3 }}>
@@ -263,7 +263,7 @@ function PartyRow({
             display: "flex",
             gap: 8,
             fontSize: 10,
-            color: "#888",
+            color: "var(--theme-text-muted, #888)",
             marginTop: 3,
             alignItems: "center",
             flexWrap: "wrap",
@@ -277,19 +277,19 @@ function PartyRow({
           </span>
           {p.ability && (
             <span>
-              <span style={{ color: "#666" }}>·</span> {p.ability}
+              <span style={{ color: "var(--theme-text-muted, #666)" }}>·</span> {p.ability}
             </span>
           )}
           {p.item && (
             <span>
-              <span style={{ color: "#666" }}>·</span> {p.item}
+              <span style={{ color: "var(--theme-text-muted, #666)" }}>·</span> {p.item}
             </span>
           )}
           {features?.happiness && p.happiness != null && (
-            <span style={{ color: "#e87ba3" }}>♥{p.happiness}</span>
+            <span style={{ color: "var(--theme-female, #e87ba3)" }}>♥{p.happiness}</span>
           )}
           {showStats && p.speed != null && (
-            <span style={{ color: "#666" }}>SPE:{p.speed}</span>
+            <span style={{ color: "var(--theme-text-muted, #666)" }}>SPE:{p.speed}</span>
           )}
         </div>
         {showMoves && (
@@ -311,10 +311,10 @@ function PartyRow({
                     alignItems: "center",
                     gap: 3,
                     padding: "1px 5px",
-                    background: "rgba(255,255,255,0.05)",
+                    background: "var(--theme-bg-secondary, rgba(255,255,255,0.05))",
                     borderRadius: 3,
                     fontSize: 10,
-                    color: "#ccc",
+                    color: "var(--theme-text-secondary, #ccc)",
                   }}
                 >
                   {type && <TypeBadge type={type} size="sm" />}
@@ -334,12 +334,12 @@ function EmptySlot({ index }: { index: number }) {
     <div
       style={{
         padding: 8,
-        background: "rgba(255,255,255,0.02)",
+        background: "var(--theme-bg-tertiary, rgba(255,255,255,0.02))",
         borderRadius: 4,
-        border: "1px dashed #333",
+        border: "1px dashed var(--theme-border, #333)",
         textAlign: "center",
         fontSize: 11,
-        color: "#555",
+        color: "var(--theme-text-faint, #555)",
         fontStyle: "italic",
       }}
     >
@@ -354,7 +354,7 @@ function EmptyState({ children }: { children: React.ReactNode }) {
       style={{
         padding: 24,
         textAlign: "center",
-        color: "#888",
+        color: "var(--theme-text-muted, #888)",
         fontSize: 13,
         lineHeight: 1.5,
       }}

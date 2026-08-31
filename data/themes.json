@@ -31,7 +31,15 @@
         "statusFRZ": "#96d9d6",
         "statusFNT": "#888",
         "typeBadgeText": "#fff",
-        "badgeShadow": "0 1px 2px rgba(0,0,0,0.5)"
+        "badgeShadow": "0 1px 2px rgba(0,0,0,0.5)",
+        "bgActive": "rgba(255,255,255,0.1)",
+        "danger": "#e05858",
+        "dangerBg": "rgba(224, 88, 88, 0.2)",
+        "dangerBorder": "rgba(224, 88, 88, 0.4)",
+        "warning": "#ffcc00",
+        "warningBg": "rgba(255, 204, 0, 0.15)",
+        "warningBorder": "rgba(255, 204, 0, 0.5)",
+        "info": "#56b4e9"
       }
     },
     "light": {
@@ -63,12 +71,20 @@
         "statusFRZ": "#2c8a8a",
         "statusFNT": "#666",
         "typeBadgeText": "#fff",
-        "badgeShadow": "0 1px 2px rgba(0,0,0,0.2)"
+        "badgeShadow": "0 1px 2px rgba(0,0,0,0.2)",
+        "bgActive": "rgba(0, 0, 0, 0.08)",
+        "danger": "#c44141",
+        "dangerBg": "rgba(196, 65, 65, 0.15)",
+        "dangerBorder": "rgba(196, 65, 65, 0.35)",
+        "warning": "#c9a200",
+        "warningBg": "rgba(201, 162, 0, 0.15)",
+        "warningBorder": "rgba(201, 162, 0, 0.45)",
+        "info": "#2f6fa8"
       }
     },
     "solarized": {
       "name": "Solarized",
-      "description": "Solarized Dark — high-contrast, easy on the eyes",
+      "description": "Solarized Dark \u2014 high-contrast, easy on the eyes",
       "palette": {
         "bg": "#002b36",
         "bgSecondary": "rgba(7,54,66,0.6)",
@@ -95,12 +111,20 @@
         "statusFRZ": "#2aa198",
         "statusFNT": "#586e75",
         "typeBadgeText": "#002b36",
-        "badgeShadow": "0 1px 2px rgba(0,0,0,0.4)"
+        "badgeShadow": "0 1px 2px rgba(0,0,0,0.4)",
+        "bgActive": "rgba(255, 255, 255, 0.08)",
+        "danger": "#dc322f",
+        "dangerBg": "rgba(220, 50, 47, 0.2)",
+        "dangerBorder": "rgba(220, 50, 47, 0.4)",
+        "warning": "#cb4b16",
+        "warningBg": "rgba(203, 75, 22, 0.2)",
+        "warningBorder": "rgba(203, 75, 22, 0.5)",
+        "info": "#268bd2"
       }
     },
     "colorblind": {
       "name": "Colorblind (Wong palette)",
-      "description": "Wong colorblind-safe palette — distinguishable for all common CVD types",
+      "description": "Wong colorblind-safe palette \u2014 distinguishable for all common CVD types",
       "palette": {
         "bg": "#1a1a1a",
         "bgSecondary": "rgba(255,255,255,0.05)",
@@ -127,7 +151,15 @@
         "statusFRZ": "#56b4e9",
         "statusFNT": "#555555",
         "typeBadgeText": "#000000",
-        "badgeShadow": "0 1px 2px rgba(0,0,0,0.5)"
+        "badgeShadow": "0 1px 2px rgba(0,0,0,0.5)",
+        "bgActive": "rgba(255, 255, 255, 0.12)",
+        "danger": "#d55e00",
+        "dangerBg": "rgba(213, 94, 0, 0.2)",
+        "dangerBorder": "rgba(213, 94, 0, 0.4)",
+        "warning": "#e69f00",
+        "warningBg": "rgba(230, 159, 0, 0.2)",
+        "warningBorder": "rgba(230, 159, 0, 0.5)",
+        "info": "#56b4e9"
       }
     }
   }

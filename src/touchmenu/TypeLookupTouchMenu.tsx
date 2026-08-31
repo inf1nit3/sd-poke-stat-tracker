@@ -12,12 +12,12 @@ const BUCKETS = [
   {
     key: "not_very_effective" as const,
     label: "Not very effective (½×)",
-    color: "#5eba7d",
+    color: "var(--theme-accent, #5eba7d)",
   },
   {
     key: "no_effect" as const,
     label: "No effect (0×)",
-    color: "#888",
+    color: "var(--theme-text-muted, #888)",
   },
 ] as const;
 
@@ -56,7 +56,7 @@ export function TypeLookupTouchMenu() {
         style={{
           padding: 24,
           textAlign: "center",
-          color: "#888",
+          color: "var(--theme-text-muted, #888)",
           fontSize: 13,
         }}
       >
@@ -73,7 +73,7 @@ export function TypeLookupTouchMenu() {
           alignItems: "center",
           gap: 8,
           fontSize: 12,
-          color: "#aaa",
+          color: "var(--theme-text-secondary, #aaa)",
         }}
       >
         <span>Attacker:</span>
@@ -83,9 +83,9 @@ export function TypeLookupTouchMenu() {
           style={{
             flex: 1,
             padding: "6px 8px",
-            background: "#1a1a1a",
-            color: "#fff",
-            border: "1px solid #444",
+            background: "var(--theme-bg, #1a1a1a)",
+            color: "var(--theme-text, #fff)",
+            border: "1px solid var(--theme-border, #444)",
             borderRadius: 4,
             fontSize: 13,
             outline: "none",
@@ -101,7 +101,7 @@ export function TypeLookupTouchMenu() {
       </div>
 
       {error && (
-        <div style={{ color: "#e87b7b", fontSize: 12, padding: "4px 0" }}>
+        <div style={{ color: "var(--theme-danger, #e87b7b)", fontSize: 12, padding: "4px 0" }}>
           {error}
         </div>
       )}
@@ -116,7 +116,7 @@ export function TypeLookupTouchMenu() {
                 key={bucket.key}
                 style={{
                   padding: "6px 8px",
-                  background: "rgba(255,255,255,0.03)",
+                  background: "var(--theme-bg-secondary, rgba(255,255,255,0.03))",
                   borderRadius: 4,
                   borderLeft: `3px solid ${bucket.color}`,
                 }}
@@ -144,7 +144,7 @@ export function TypeLookupTouchMenu() {
           <div
             style={{
               fontSize: 10,
-              color: "#555",
+              color: "var(--theme-text-faint, #555)",
               textAlign: "right",
               marginTop: 2,
             }}

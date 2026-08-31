@@ -124,3 +124,24 @@ def test_get_without_any_theme_uses_builtin_palette():
     out = mgr.get()
     assert out["id"] == "default"
     assert out["palette"] == DEFAULT_PALETTE
+
+
+# --- shipped data/themes.json -------------------------------------------------------
+
+def test_shipped_themes_file_is_complete():
+    """The shipped themes.json must load cleanly and every theme must
+    provide exactly the same palette keys as the built-in DEFAULT_PALETTE
+    (components reference every key via var(--theme-...))."""
+    import themes as themes_mod
+
+    path = themes_mod.DATA_DIR / "themes.json"
+    assert path.is_file(), "shipped data/themes.json is missing"
+    mgr = ThemeManager(path)
+    listed = mgr.list_themes()
+    assert len(listed) >= 4  # default, light, solarized, colorblind
+    expected_keys = set(DEFAULT_PALETTE)
+    for t in listed:
+        palette = mgr.get(t["id"])["palette"]
+        assert set(palette) == expected_keys, f"theme '{t['id']}' palette keys differ"
+        for key, value in palette.items():
+            assert isinstance(value, str) and value, f"{t['id']}.{key} empty"

@@ -9,22 +9,22 @@ interface HealthBarProps {
 }
 
 function colorForPercent(pct: number): string {
-  if (pct >= 0.5) return "#5eba7d";
-  if (pct >= 0.25) return "#e0a458";
-  return "#e87b7b";
+  if (pct >= 0.5) return "var(--theme-hp-good, #5eba7d)";
+  if (pct >= 0.25) return "var(--theme-hp-warn, #e0a458)";
+  return "var(--theme-hp-bad, #e87b7b)";
 }
 
 function statusToBar(statusName?: string): { color: string; overlay?: string } {
   if (!statusName || statusName === "OK") return { color: "" };
   const colors: Record<string, string> = {
-    PSN: "#a33ea1",
-    PAR: "#e0a458",
-    BRN: "#c22e28",
-    SLP: "#969696",
-    FRZ: "#96d9d6",
-    FNT: "#444",
+    PSN: "var(--theme-status-psn, #a33ea1)",
+    PAR: "var(--theme-status-par, #e0a458)",
+    BRN: "var(--theme-status-brn, #c22e28)",
+    SLP: "var(--theme-status-slp, #969696)",
+    FRZ: "var(--theme-status-frz, #96d9d6)",
+    FNT: "var(--theme-status-fnt, #444)",
   };
-  return { color: colors[statusName] || "#888" };
+  return { color: colors[statusName] || "var(--theme-text-muted, #888)" };
 }
 
 export function HealthBar({
@@ -46,7 +46,7 @@ export function HealthBar({
     background: "rgba(255,255,255,0.08)",
     borderRadius: 2,
     overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.1)",
+    border: "1px solid var(--theme-border, rgba(255,255,255,0.1))",
   };
 
   const fillStyle: CSSProperties = {
@@ -83,7 +83,7 @@ export function HealthBar({
         <div
           style={{
             fontSize: 11,
-            color: "#bbb",
+            color: "var(--theme-text-secondary, #bbb)",
             minWidth: 56,
             textAlign: "right",
             fontVariantNumeric: "tabular-nums",

@@ -5,6 +5,7 @@ import { TypeBadge } from "../components/TypeBadge";
 
 function EffectivenessBadge({ label }: { label?: string }) {
   if (!label) return null;
+  // Effectiveness semantics: fixed colors like the type chart, not themable.
   let bgColor = "#555";
   let textColor = "#fff";
 
@@ -45,10 +46,10 @@ function StatBadges({ stages }: { stages?: number[] | null }) {
     <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
       {stages.map((stage, i) => {
         if (stage === 0 || i >= STAT_NAMES.length) return null;
-        const color = stage > 0 ? "#5eba7d" : "#e05858";
+        const color = stage > 0 ? "var(--theme-accent, #5eba7d)" : "var(--theme-danger, #e05858)";
         const sign = stage > 0 ? "+" : "";
         return (
-          <span key={i} style={{ backgroundColor: color, color: "#fff", padding: "2px 4px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>
+          <span key={i} style={{ backgroundColor: color, color: "var(--theme-text, #fff)", padding: "2px 4px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>
             {STAT_NAMES[i]} {sign}{stage}
           </span>
         );
@@ -84,19 +85,19 @@ export function BattleAnalyzerView() {
             <Focusable
               style={{
                 padding: "10px",
-                backgroundColor: "rgba(255, 204, 0, 0.2)",
-                border: "1px solid #ffcc00",
+                backgroundColor: "var(--theme-warning-bg, rgba(255, 204, 0, 0.2))",
+                border: "1px solid var(--theme-warning-border, rgba(255, 204, 0, 0.5))",
                 borderRadius: "4px",
                 marginBottom: "8px",
               }}
             >
-              <div style={{ color: "#ffcc00", fontWeight: "bold", fontSize: "14px", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ color: "var(--theme-warning, #ffcc00)", fontWeight: "bold", fontSize: "14px", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
                 <span>COACH SUGGESTION</span>
               </div>
               <div style={{ fontSize: "14px" }}>
                 Switch to <strong>{coach_suggestion.suggested_pokemon}</strong>
               </div>
-              <div style={{ fontSize: "12px", color: "#ddd", marginTop: "2px" }}>
+              <div style={{ fontSize: "12px", color: "var(--theme-text-secondary, #ddd)", marginTop: "2px" }}>
                 Reason: {coach_suggestion.reason}
               </div>
             </Focusable>
@@ -115,12 +116,12 @@ export function BattleAnalyzerView() {
               Enemy: {enemy.name}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
-              <div style={{ flex: 1, height: "12px", backgroundColor: "#333", borderRadius: "6px", overflow: "hidden" }}>
+              <div style={{ flex: 1, height: "12px", backgroundColor: "var(--theme-bg-tertiary, #333)", borderRadius: "6px", overflow: "hidden" }}>
                 <div
                   style={{
                     height: "100%",
                     width: `${pct}%`,
-                    backgroundColor: pct > 50 ? "#5eba7d" : pct > 20 ? "#e0b058" : "#e05858",
+                    backgroundColor: pct > 50 ? "var(--theme-accent, #5eba7d)" : pct > 20 ? "#e0b058" : "var(--theme-danger, #e05858)",
                     transition: "width 0.3s ease-in-out, background-color 0.3s ease-in-out"
                   }}
                 />
@@ -143,10 +144,10 @@ export function BattleAnalyzerView() {
                 style={{
                   padding: "8px",
                   backgroundColor: isBest
-                    ? "rgba(94, 186, 125, 0.2)"
-                    : "rgba(255, 255, 255, 0.05)",
+                    ? "var(--theme-accent-bg, rgba(94, 186, 125, 0.2))"
+                    : "var(--theme-bg-secondary, rgba(255,255,255,0.05))",
                   borderRadius: "4px",
-                  border: isBest ? "1px solid #5eba7d" : "1px solid transparent",
+                  border: isBest ? "1px solid var(--theme-accent, #5eba7d)" : "1px solid transparent",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -160,7 +161,7 @@ export function BattleAnalyzerView() {
                         style={{
                           marginLeft: "8px",
                           fontSize: "10px",
-                          color: "#5eba7d",
+                          color: "var(--theme-accent, #5eba7d)",
                           fontWeight: "bold",
                         }}
                       >
@@ -169,7 +170,7 @@ export function BattleAnalyzerView() {
                     )}
                   </div>
                   {move.type && (
-                    <div style={{ fontSize: "12px", color: "#aaa", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--theme-text-secondary, #aaa)", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
                       <TypeBadge type={move.type} size="sm" />
                       {move.power ? <span>Power: {move.power}</span> : null}
                     </div>

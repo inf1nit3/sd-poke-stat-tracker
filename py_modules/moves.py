@@ -22,7 +22,9 @@ from pbsparser import normalize_name, parse_moves_pbs
 from pbsfinder import find_pbs_files
 
 PLUGIN_DIR: Path = Path(__file__).resolve().parent
-MOVES_PATH: Path = PLUGIN_DIR / "data" / "moves.json"
+# data/ lives at the plugin root (sibling of py_modules/) — see themes.py.
+DATA_DIR: Path = PLUGIN_DIR.parent / "data"
+MOVES_PATH: Path = DATA_DIR / "moves.json"
 
 log = logging.getLogger("pokemon-overlay.moves")
 
