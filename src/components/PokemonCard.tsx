@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { PokemonSummary, SaveFeatures } from "../api";
 import { HealthBar } from "./HealthBar";
+import { PokeSprite } from "./PokeSprite";
 import { TypeBadge } from "./TypeBadge";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -134,6 +135,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
           gap: 8,
         }}
       >
+        <PokeSprite species={p.species} size={34} />
         {p.shiny && (
           <span
             style={{
@@ -328,6 +330,7 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
               display: "flex",
               gap: 8,
               marginTop: 2,
+              flexWrap: "wrap",
             }}
           >
             <span>
@@ -338,6 +341,17 @@ export const PokemonCard = memo(function PokemonCard({ pokemon: p, features, for
               <span>
                 EV: {p.ev_total}/510{" "}
                 <span style={{ color: statColor(p.ev_total, 510) }}>●</span>
+              </span>
+            )}
+            {p.hidden_power && (
+              <span
+                title="Hidden Power type (from IVs)"
+                style={{
+                  color: "var(--theme-info, #7ba3e8)",
+                  fontWeight: 600,
+                }}
+              >
+                Hidden Power: {p.hidden_power}
               </span>
             )}
           </div>

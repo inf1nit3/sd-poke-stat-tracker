@@ -42,6 +42,27 @@ GENDER_NAMES: dict[int, str] = {
 }
 
 
+_HIDDEN_POWER_TYPES = (
+    "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug",
+    "Ghost", "Steel", "Fire", "Water", "Grass", "Electric",
+    "Psychic", "Ice", "Dragon", "Dark",
+)
+
+
+def _hidden_power_type(*ivs: Optional[int]) -> Optional[str]:
+    """Gen 3+ Hidden Power type from the IV bit pattern (gen 2 formula differs).
+
+    Returns None when any IV is missing/out of range — no guesswork.
+    """
+    if any(v is None for v in ivs):
+        return None
+    if any(not isinstance(v, int) or not (0 <= v <= 31) for v in ivs):
+        return None
+    a, b, c, d, e, f = (v & 1 for v in ivs)
+    idx = (a + 2 * b + 4 * c + 8 * d + 16 * e + 32 * f) * 15 // 63
+    return _HIDDEN_POWER_TYPES[idx]
+
+
 @dataclass
 class PokemonSummary:
     species: str
@@ -130,6 +151,10 @@ class PokemonSummary:
         d["has_moves"] = len(self.moves) > 0
         d["has_type2"] = self.type2 is not None
         d["has_gender_data"] = self.gender_name != "?"
+        d["hidden_power"] = _hidden_power_type(
+            self.iv_hp, self.iv_attack, self.iv_defense,
+            self.iv_spatk, self.iv_spdef, self.iv_speed,
+        )
         return d
 
 
@@ -918,3 +943,74 @@ def _parse_and_extract(
         parsed_at=time.time(),
         source_path=source,
     )
+
+
+def parse_boxes_blob(
+    raw: bytes,
+    source: str = "<memory>",
+    save_path: Optional[Path] = None,
+) -> dict[str, Any]:
+    """Extract PC storage boxes from a save blob.
+
+    Best-effort: returns ``{"boxes": [], "box_count": 0}`` when the save
+    has no recognizable ``$PokemonStorage`` structure instead of raising.
+    Each mon slot is a normal ``PokemonSummary`` dict or ``None`` (empty
+    slot / unparseable entry).
+    """
+    if len(raw) < 2 or raw[:2] != MARSHAL_VERSION:
+        raise SaveParseError(
+            f"Not a Ruby Marshal v4.8 file (header={raw[:2].hex() if raw else 'empty'}, source={source})"
+        )
+    try:
+        parsed = marshal_loads(raw)
+    except Exception as exc:
+        raise SaveParseError(f"Marshal parse failed: {exc}") from exc
+
+    storage: Any = None
+    if isinstance(parsed, dict):
+        storage = _top_key(parsed, "$PokemonStorage", "storage", "Storage")
+        if storage is None:
+            pg = _top_key(parsed, "$PokemonGlobal", "PokemonGlobal", "global_metadata")
+            if isinstance(pg, RubyObject):
+                storage = _attr(pg, "@storage", "storage")
+    if not isinstance(storage, RubyObject):
+        return {"boxes": [], "box_count": 0}
+
+    boxes_raw = _attr(storage, "@boxes", "boxes")
+    if not isinstance(boxes_raw, list):
+        return {"boxes": [], "box_count": 0}
+
+    boxes: list[dict[str, Any]] = []
+    for box_obj in boxes_raw:
+        box: dict[str, Any] = {"name": None, "mons": []}
+        if isinstance(box_obj, RubyObject):
+            name = _attr(box_obj, "@name", "name")
+            # rubymarshal's reader returns strings as RubyString (== str,
+            # but not an isinstance-str) — coerce; a Symbol name is odd
+            # enough to keep as str() too rather than dropping the box name.
+            box["name"] = None if name is None else str(name)
+            mons_raw = _attr(box_obj, "@mon", "mon", "@mons", "mons")
+            if isinstance(mons_raw, list):
+                for mon_obj in mons_raw:
+                    if not isinstance(mon_obj, RubyObject):
+                        box["mons"].append(None)
+                        continue
+                    try:
+                        summary = _parse_pokemon(mon_obj, save_path=save_path)
+                        box["mons"].append(summary.to_dict() if summary else None)
+                    except Exception:
+                        box["mons"].append(None)
+        boxes.append(box)
+    return {"boxes": boxes, "box_count": len(boxes)}
+
+
+def parse_save_boxes(path: str | Path) -> dict[str, Any]:
+    """Extract PC storage boxes from a save file on disk."""
+    p = Path(path)
+    if not p.is_file():
+        raise SaveParseError(f"Save file not found: {p}")
+    try:
+        raw = p.read_bytes()
+    except OSError as exc:
+        raise SaveParseError(f"Cannot read save file: {exc}") from exc
+    return parse_boxes_blob(raw, source=str(p), save_path=p)

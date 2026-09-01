@@ -69,6 +69,13 @@ const api = {
     setWatcherEnabled: (enabled) => callOrThrow("set_watcher_enabled", enabled),
     findProcessBySave: (savePath) => callOrThrow("find_process_by_save", savePath),
     getProcessMemoryRegions: (pid) => callOrThrow("get_process_memory_regions", pid),
+    getBoxes: () => callOrThrow("get_boxes"),
+    getNuzlockeLog: () => callOrThrow("get_nuzlocke_log"),
+    clearNuzlockeLog: () => callOrThrow("clear_nuzlocke_log"),
+    getSaveBackups: () => callOrThrow("get_save_backups"),
+    restoreSaveBackup: (name) => callOrThrow("restore_save_backup", name),
+    exportSaveSummary: () => callOrThrow("export_save_summary"),
+    getPokemonSprite: (species) => callOrThrow("get_pokemon_sprite", species),
 };
 
 const initialState = {
@@ -425,6 +432,100 @@ function TabBar({ tabs, activeId, onChange }) {
         }) }));
 }
 
+const EMPTY_SNAPSHOT = {
+    boostWarned: false,
+    party: [],
+    shinySeen: new Set(),
+};
+function partySnapshot(party) {
+    return (party ?? []).map((p) => ({
+        species: p.species ?? "",
+        level: p.level ?? 0,
+        fainted: !!p.is_fainted,
+    }));
+}
+class ToastDeduper {
+    constructor(initial) {
+        this.prev = { ...EMPTY_SNAPSHOT, ...initial };
+    }
+    /** Feed the newest state; returns the toasts to show now. */
+    update(input) {
+        const events = [];
+        const analysis = input.battle_analysis ?? null;
+        const inBattle = !!analysis;
+        const enemyName = analysis?.enemy?.name;
+        const coach = analysis?.coach_suggestion?.suggested_pokemon;
+        const stages = analysis?.enemy?.stages;
+        const enemyHasBoosts = !!stages && stages.some((v) => v > 0);
+        // 1. Battle start / enemy switch (existing behavior).
+        if (inBattle && enemyName && enemyName !== this.prev.enemyName) {
+            const types = analysis?.enemy?.types ?? analysis?.enemy?.type;
+            events.push({
+                title: "Battle Update",
+                body: `Enemy sent out ${enemyName} (Type: ${types?.join("/") || "Unknown"})`,
+            });
+        }
+        this.prev.enemyName = enemyName;
+        // 2. Coach suggestion.
+        if (inBattle && coach && coach !== this.prev.coach) {
+            const reason = analysis?.coach_suggestion?.reason || "";
+            events.push({
+                title: "Coach Suggestion",
+                body: `Switch to ${coach}! ${reason}`,
+            });
+        }
+        this.prev.coach = coach;
+        // 3. Enemy stat boost warning.
+        if (inBattle && enemyHasBoosts && !this.prev.boostWarned) {
+            events.push({
+                title: "Stat Warning",
+                body: "Enemy stats are boosted! Be careful!",
+            });
+            this.prev.boostWarned = true;
+        }
+        else if (!enemyHasBoosts) {
+            this.prev.boostWarned = false;
+        }
+        // 4. Faint transitions (healthy -> fainted per party slot).
+        const cur = partySnapshot(input.party);
+        cur.forEach((mon, i) => {
+            const was = this.prev.party[i];
+            if (mon.fainted && was && !was.fainted && mon.species) {
+                events.push({
+                    title: "Pokémon Fainted",
+                    body: `${mon.species} (Lv.${mon.level}) has fainted!`,
+                });
+            }
+        });
+        // 5. Shiny appearance — once per species until it leaves the party.
+        const shinySpecies = (input.party ?? [])
+            .filter((p) => p.shiny && p.species)
+            .map((p) => p.species);
+        for (const species of shinySpecies) {
+            if (!this.prev.shinySeen.has(species)) {
+                events.push({
+                    title: "✦ Shiny Found!",
+                    body: `${species} is shiny!`,
+                });
+            }
+        }
+        // Species no longer shiny in the party can re-trigger later.
+        const curShiny = new Set(shinySpecies);
+        for (const seen of this.prev.shinySeen) {
+            if (!curShiny.has(seen))
+                this.prev.shinySeen.delete(seen);
+        }
+        for (const s of curShiny)
+            this.prev.shinySeen.add(s);
+        this.prev.party = cur;
+        return events;
+    }
+}
+/** Convenience: newest available party from store state. */
+function newestParty(saveData, liveSaveData) {
+    return liveSaveData?.party ?? saveData?.party ?? null;
+}
+
 const DEFAULT_PALETTE = {
     bg: "#0e0e0e",
     bgSecondary: "rgba(255,255,255,0.04)",
@@ -692,6 +793,64 @@ function Detail({ label, value }) {
                     textTransform: "uppercase",
                     letterSpacing: 0.4,
                 }, children: label }), window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "var(--theme-text-secondary, #ddd)" }, children: value })] }));
+}
+
+/**
+ * Touch-menu view of the nuzlocke event log: faints and newly-joined
+ * party members, newest first. The log itself lives in the backend
+ * (nuzlocke_log.jsonl) and survives plugin restarts.
+ */
+function fmtEvent(ev) {
+    const time = new Date(ev.at * 1000).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+    const where = ev.location ? ` @ ${ev.location}` : "";
+    return `${time} — ${ev.species} (Lv.${ev.level})${where}`;
+}
+function NuzlockeLogTouchMenu() {
+    const [events, setEvents] = window.SP_REACT.useState(null);
+    const [error, setError] = window.SP_REACT.useState(null);
+    const [loading, setLoading] = window.SP_REACT.useState(false);
+    const load = window.SP_REACT.useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.getNuzlockeLog();
+            setEvents(res.events);
+        }
+        catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        }
+        finally {
+            setLoading(false);
+        }
+    }, []);
+    window.SP_REACT.useEffect(() => {
+        load();
+    }, [load]);
+    if (error) {
+        return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Nuzlocke Log", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { color: "var(--theme-danger, #e87b7b)", fontSize: 12, padding: "4px 0" }, children: error }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: load, disabled: loading, children: loading ? "Loading…" : "Try again" })] }));
+    }
+    if (events === null) {
+        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Nuzlocke Log", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "var(--theme-text-muted, #969696)", padding: "4px 0" }, children: "Loading log\u2026" }) }) }));
+    }
+    const ordered = [...events].reverse();
+    return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: `Nuzlocke Log (${events.length})`, children: [ordered.length === 0 && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { onActivate: () => { }, style: { fontSize: 12, color: "var(--theme-text-muted, #969696)" }, children: "No events yet. Faints and new party members are recorded automatically when the game saves." }) })), ordered.map((ev, i) => (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { onActivate: () => { }, style: {
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        padding: "6px 0",
+                        borderBottom: "1px solid var(--theme-border, #333)",
+                    }, children: [window.SP_JSX.jsxs("div", { style: {
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: ev.kind === "faint"
+                                    ? "var(--theme-danger, #e87b7b)"
+                                    : "var(--theme-accent, #5eba7d)",
+                            }, children: [ev.kind === "faint" ? "✝ Fainted" : "+ Caught/Evolved", ": ", ev.species] }), window.SP_JSX.jsx("div", { style: { fontSize: 10, color: "var(--theme-text-faint, #777)" }, children: fmtEvent(ev) })] }) }, `ev-${i}`))), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: load, disabled: loading, children: loading ? "Loading…" : "Refresh log" })] }));
 }
 
 function colorForPercent(pct) {
@@ -1039,6 +1198,7 @@ const TABS$1 = [
     { id: "party", label: "Party" },
     { id: "types", label: "Type Lookup" },
     { id: "moves", label: "Move Lookup" },
+    { id: "log", label: "Log" },
 ];
 function TouchMenuContent() {
     const [tab, setTab] = window.SP_REACT.useState("party");
@@ -1060,7 +1220,7 @@ function TouchMenuContent() {
                     gap: 6,
                     paddingBottom: 4,
                     borderBottom: "1px solid var(--theme-border, #2a2a2a)",
-                }, children: TABS$1.map((t) => (window.SP_JSX.jsx(TabButton, { active: tab === t.id, onClick: () => setTab(t.id), children: t.label }, t.id))) }), window.SP_JSX.jsx(CoachModeWidget, {}), window.SP_JSX.jsx(NuzlockeCounterWidget, {}), tab === "party" && window.SP_JSX.jsx(PartyTouchMenu, {}), tab === "types" && window.SP_JSX.jsx(TypeLookupTouchMenu, {}), tab === "moves" && window.SP_JSX.jsx(MoveLookupTouchMenu, {})] }));
+                }, children: TABS$1.map((t) => (window.SP_JSX.jsx(TabButton, { active: tab === t.id, onClick: () => setTab(t.id), children: t.label }, t.id))) }), window.SP_JSX.jsx(CoachModeWidget, {}), window.SP_JSX.jsx(NuzlockeCounterWidget, {}), tab === "party" && window.SP_JSX.jsx(PartyTouchMenu, {}), tab === "types" && window.SP_JSX.jsx(TypeLookupTouchMenu, {}), tab === "moves" && window.SP_JSX.jsx(MoveLookupTouchMenu, {}), tab === "log" && window.SP_JSX.jsx(NuzlockeLogTouchMenu, {})] }));
 }
 function TabButton({ active, onClick, children, }) {
     return (window.SP_JSX.jsx("button", { onClick: onClick, style: {
@@ -1115,6 +1275,69 @@ function unregisterTouchMenu() {
         unpatch = null;
         console.log("[pokemon-overlay] touch menu unregistered");
     }
+}
+
+/**
+ * Renders a user-provided sprite (data/sprites/<SPECIES>.png, served as a
+ * data URL by the backend) or nothing — the card falls back to its text
+ * badges. Sprites are optional; a missing one is not an error state.
+ */
+const cache = new Map();
+const waiters = new Map();
+function fetchSprite(species) {
+    const key = species.toUpperCase();
+    return new Promise((resolve) => {
+        const waiters_ = waiters.get(key) ?? [];
+        if (cache.get(key) === "pending") {
+            waiters_.push(resolve);
+            waiters.set(key, waiters_);
+            return;
+        }
+        cache.set(key, "pending");
+        api
+            .getPokemonSprite(key)
+            .then((res) => {
+            cache.set(key, res.found ? res : "missing");
+            resolve(res.found ? res : "missing");
+            for (const w of waiters.get(key) ?? [])
+                w(res.found ? res : "missing");
+        })
+            .catch(() => {
+            cache.set(key, "missing");
+            resolve("missing");
+            for (const w of waiters.get(key) ?? [])
+                w("missing");
+        })
+            .finally(() => waiters.delete(key));
+    });
+}
+function PokeSprite({ species, size = 36 }) {
+    const [dataUrl, setDataUrl] = window.SP_REACT.useState(() => {
+        const c = cache.get(species.toUpperCase());
+        return c && c !== "pending" && c !== "missing" ? c.data_url ?? null : null;
+    });
+    window.SP_REACT.useEffect(() => {
+        let cancelled = false;
+        if (!species)
+            return;
+        fetchSprite(species).then((res) => {
+            if (cancelled)
+                return;
+            setDataUrl(res === "missing" ? null : res.data_url ?? null);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [species]);
+    if (!dataUrl)
+        return null;
+    return (window.SP_JSX.jsx("img", { src: dataUrl, alt: species, width: size, height: size, style: {
+            width: size,
+            height: size,
+            objectFit: "contain",
+            imageRendering: "pixelated",
+            flexShrink: 0,
+        } }));
 }
 
 const STATUS_COLORS = {
@@ -1204,7 +1427,7 @@ const PokemonCard = window.SP_REACT.memo(function PokemonCard({ pokemon: p, feat
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                }, children: [p.shiny && (window.SP_JSX.jsx("span", { style: {
+                }, children: [window.SP_JSX.jsx(PokeSprite, { species: p.species, size: 34 }), p.shiny && (window.SP_JSX.jsx("span", { style: {
                             color: "var(--theme-shiny, #f7d02c)",
                             fontSize: 14,
                             textShadow: "0 0 4px rgba(247, 208, 44, 0.5)",
@@ -1287,7 +1510,11 @@ const PokemonCard = window.SP_REACT.memo(function PokemonCard({ pokemon: p, feat
                             display: "flex",
                             gap: 8,
                             marginTop: 2,
-                        }, children: [window.SP_JSX.jsxs("span", { children: ["IV: ", p.iv_total, "/186", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.iv_total, 186) }, children: "\u25CF" })] }), display.evs && p.has_evs && p.ev_total != null && (window.SP_JSX.jsxs("span", { children: ["EV: ", p.ev_total, "/510", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.ev_total, 510) }, children: "\u25CF" })] }))] })] }))] }));
+                            flexWrap: "wrap",
+                        }, children: [window.SP_JSX.jsxs("span", { children: ["IV: ", p.iv_total, "/186", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.iv_total, 186) }, children: "\u25CF" })] }), display.evs && p.has_evs && p.ev_total != null && (window.SP_JSX.jsxs("span", { children: ["EV: ", p.ev_total, "/510", " ", window.SP_JSX.jsx("span", { style: { color: statColor(p.ev_total, 510) }, children: "\u25CF" })] })), p.hidden_power && (window.SP_JSX.jsxs("span", { title: "Hidden Power type (from IVs)", style: {
+                                    color: "var(--theme-info, #7ba3e8)",
+                                    fontWeight: 600,
+                                }, children: ["Hidden Power: ", p.hidden_power] }))] })] }))] }));
 });
 function StatBox({ label, value }) {
     return (window.SP_JSX.jsxs("div", { style: {
@@ -1481,6 +1708,81 @@ function HomeView() {
                                     }, children: faintedCount })] }) }))] })] }));
 }
 
+/**
+ * PC storage box viewer (round 14). Parses $PokemonStorage from the active
+ * save and renders each box as a compact 6-column grid. Best-effort: a save
+ * without a recognizable storage structure renders nothing at all.
+ */
+const BOX_COLS = 6;
+function speciesOf(mon) {
+    return mon?.species ?? "";
+}
+function PCBoxViewer() {
+    const [result, setResult] = window.SP_REACT.useState(null);
+    const [error, setError] = window.SP_REACT.useState(null);
+    const [loading, setLoading] = window.SP_REACT.useState(false);
+    const load = window.SP_REACT.useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.getBoxes();
+            setResult(res);
+        }
+        catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        }
+        finally {
+            setLoading(false);
+        }
+    }, []);
+    window.SP_REACT.useEffect(() => {
+        load();
+    }, [load]);
+    if (error) {
+        return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PC Boxes", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { color: "var(--theme-danger, #e87b7b)", fontSize: 12, padding: "4px 0" }, children: error }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: load, disabled: loading, children: loading ? "Loading…" : "Try again" })] }));
+    }
+    const boxes = result?.boxes ?? [];
+    // First load still running.
+    if (loading && !result) {
+        return (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "PC Boxes", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "var(--theme-text-muted, #969696)", padding: "4px 0" }, children: "Loading boxes\u2026" }) }) }));
+    }
+    // No storage structure found — stay invisible instead of showing an
+    // empty panel (many fan games store boxes elsewhere).
+    if (boxes.length === 0) {
+        return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PC Boxes", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "var(--theme-text-muted, #969696)", padding: "4px 0" }, children: "No PC boxes found in this save." }) }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: load, disabled: loading, children: loading ? "Loading…" : "Refresh boxes" })] }));
+    }
+    return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PC Boxes", children: [boxes.map((box, bi) => {
+                const mons = box.mons ?? [];
+                const filled = mons.filter((m) => m && speciesOf(m)).length;
+                return (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { onActivate: () => { }, style: { width: "100%" }, children: [window.SP_JSX.jsxs("div", { style: {
+                                    fontSize: 11,
+                                    color: "var(--theme-text-muted, #969696)",
+                                    marginBottom: 4,
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                }, children: [window.SP_JSX.jsx("span", { children: box.name || `Box ${bi + 1}` }), window.SP_JSX.jsxs("span", { children: [filled, " Pok\u00E9mon"] })] }), window.SP_JSX.jsx("div", { style: {
+                                    display: "grid",
+                                    gridTemplateColumns: `repeat(${BOX_COLS}, 1fr)`,
+                                    gap: 3,
+                                }, children: mons.map((mon, mi) => (window.SP_JSX.jsx("div", { title: mon ? `${mon.species} Lv.${mon.level}` : "empty", style: {
+                                        fontSize: 8,
+                                        padding: "3px 1px",
+                                        textAlign: "center",
+                                        borderRadius: 3,
+                                        overflow: "hidden",
+                                        whiteSpace: "nowrap",
+                                        textOverflow: "ellipsis",
+                                        background: mon
+                                            ? "var(--theme-bg-tertiary, rgba(255,255,255,0.05))"
+                                            : "transparent",
+                                        border: `1px solid ${mon ? "var(--theme-border, #333)" : "transparent"}`,
+                                        color: mon
+                                            ? "var(--theme-text-secondary, #ddd)"
+                                            : "var(--theme-text-faint, #444)",
+                                    }, children: mon ? speciesOf(mon) : "·" }, `box-${bi}-slot-${mi}`))) })] }) }, `box-${bi}`));
+            }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: load, disabled: loading, children: loading ? "Loading…" : "Refresh boxes" })] }));
+}
+
 function formatMoney(n) {
     return `₽${n.toLocaleString("en-US")}`;
 }
@@ -1569,7 +1871,7 @@ function PartyContent({ data, reloading, onReload, forced, }) {
                             color: "var(--theme-text-muted, #666)",
                             wordBreak: "break-all",
                             lineHeight: 1.4,
-                        }, children: data.source_path }) }) })] }));
+                        }, children: data.source_path }) }) }), window.SP_JSX.jsx(PCBoxViewer, {})] }));
 }
 function Stat({ label, value }) {
     return (window.SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [window.SP_JSX.jsx("div", { style: {
@@ -1887,6 +2189,93 @@ function SettingsView() {
             setStatusError(msg);
         }
     }, []);
+    const [backups, setBackups] = window.SP_REACT.useState(null);
+    const [backupDir, setBackupDir] = window.SP_REACT.useState("");
+    const [backupBusy, setBackupBusy] = window.SP_REACT.useState(false);
+    const refreshBackups = window.SP_REACT.useCallback(async () => {
+        setBackupBusy(true);
+        try {
+            const r = await api.getSaveBackups();
+            setBackups(r.backups);
+            setBackupDir(r.dir);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBackupBusy(false);
+        }
+    }, []);
+    window.SP_REACT.useEffect(() => {
+        refreshBackups();
+    }, [refreshBackups]);
+    const setBackupsEnabled = window.SP_REACT.useCallback(async (v) => {
+        try {
+            await applySettingsPatch({ backups_enabled: v });
+            setStatusMsg(v ? "Save backups enabled." : "Save backups disabled.");
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+    }, []);
+    const restoreBackup = window.SP_REACT.useCallback(async (name) => {
+        setBackupBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            const r = await api.restoreSaveBackup(name);
+            if (r.ok) {
+                setStatusMsg(`Backup restored: ${name}`);
+            }
+            else {
+                setStatusError(r.error ?? "Restore failed.");
+            }
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBackupBusy(false);
+        }
+    }, []);
+    const exportSave = window.SP_REACT.useCallback(async () => {
+        setBackupBusy(true);
+        setStatusMsg(null);
+        setStatusError(null);
+        try {
+            const r = await api.exportSaveSummary();
+            if (r.ok && r.path) {
+                setStatusMsg(`Save exported (${fmtSize(r.bytes ?? 0)}): ${shortenPath(r.path, 80)}`);
+            }
+            else {
+                setStatusError(r.error ?? "Export failed (is a save loaded?).");
+            }
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBackupBusy(false);
+        }
+    }, []);
+    const clearNuzlocke = window.SP_REACT.useCallback(async () => {
+        setBackupBusy(true);
+        try {
+            await api.clearNuzlockeLog();
+            setStatusMsg("Nuzlocke log cleared.");
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setStatusError(msg);
+        }
+        finally {
+            setBackupBusy(false);
+        }
+    }, []);
     if (!settings) {
         return (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Settings", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: {
                             color: "var(--theme-hp-warn, #e0a458)",
@@ -1905,12 +2294,14 @@ function SettingsView() {
     return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Save resolution", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active save" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: resolved?.path ? "var(--theme-accent, #5eba7d)" : "var(--theme-hp-warn, #e0a458)", wordBreak: "break-all" }, children: resolved?.path || "— no save found —" }) }), resolved?.using_override && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 10, color: "var(--theme-text-faint, #777)" }, children: "(using manual override)" }) })), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: refresh, disabled: busy, children: busy ? "Scanning…" : "Rescan saves" }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Manual override", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }, children: "If auto-detection fails, paste the full path to a save file here. Leave blank to use auto-detection." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Path to save file", value: overrideInput, onChange: (e) => setOverrideInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyOverride, disabled: busy, children: "Apply override" }) }), settings.save_path_override && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearOverride, disabled: busy, children: "Clear override" }) }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Auto-detect options", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Auto-scan running processes and Wine prefixes", checked: settings.auto_scan_enabled, onChange: setAutoScan }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Display", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Compact mode (auto-hide empty sections)", checked: settings.compact_mode, onChange: setCompactMode }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type Chart Generation", selectedOption: settings.type_chart_gen ?? 9, onChange: (opt) => setTypeChartGen(opt.data), rgOptions: [
                                 { data: 9, label: "Gen 6+ (Modern: Fairy, Steel nerfed)" },
                                 { data: 5, label: "Gen 2-5 (Classic: No Fairy, Steel resists Dark/Ghost)" },
-                            ] }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Theme", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active theme" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: theme ? theme.palette.accent : "var(--theme-text-muted, #888)" }, children: theme ? theme.name : "Loading…" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), rgOptions: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PBS moves database", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active PBS source" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: movesDb?.pbs_source ? "var(--theme-accent, #5eba7d)" : "var(--theme-text-muted, #888)", wordBreak: "break-all" }, children: movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 10, color: "var(--theme-text-faint, #777)" }, children: movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }) }), movesDb?.pbs_source && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }) }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "TouchMenu overlay", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Enable in-game touch menu", checked: settings.touchmenu_enabled, onChange: setTouchmenu }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Live memory reading", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }, children: "When the game is running, read party state directly from the game's process memory. Updates arrive every ~1s without waiting for the game to save to disk. Opt-in: the disk watcher still runs as a fallback if memory reading fails." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Read live data from game process memory", checked: Boolean(settings?.live_memory_enabled), onChange: setLiveMemory }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Polling", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #888)" }, children: "The backend save watcher checks the disk every 2\u20135 seconds (derived from the interval below). UI updates arrive within seconds of any save." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Interval (seconds)", value: scanIntervalInput, onChange: (e) => {
+                            ] }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Theme", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active theme" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: theme ? theme.palette.accent : "var(--theme-text-muted, #888)" }, children: theme ? theme.name : "Loading…" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Theme", selectedOption: settings.theme || "default", onChange: (opt) => setTheme(opt.data), rgOptions: themes.map((t) => ({ data: t.id, label: t.name })), disabled: themes.length === 0 }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "PBS moves database", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #969696)", textTransform: "uppercase", letterSpacing: 0.4 }, children: "Active PBS source" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: movesDb?.pbs_source ? "var(--theme-accent, #5eba7d)" : "var(--theme-text-muted, #888)", wordBreak: "break-all" }, children: movesDb?.pbs_source ? shortenPath(movesDb.pbs_source, 80) : "— not loaded (using static DB) —" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 10, color: "var(--theme-text-faint, #777)" }, children: movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…" }) }), Object.keys(settings.pbs_profiles ?? {}).length > 0 && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { style: { fontSize: 10, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }, children: ["Saved per-game PBS profiles:", " ", Object.entries(settings.pbs_profiles ?? {})
+                                    .map(([game, path]) => `${game} → ${shortenPath(path, 40)}`)
+                                    .join(" · ")] }) })), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: reloadPbsAuto, disabled: pbsBusy, children: pbsBusy ? "Scanning…" : "Auto-discover PBS" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Manual PBS path (moves.txt)", value: pbsInput, onChange: (e) => setPbsInput(e.target.value) }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: applyPbsPath, disabled: pbsBusy || !pbsInput.trim(), children: "Load PBS from path" }) }), movesDb?.pbs_source && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearPbs, disabled: pbsBusy, children: "Clear PBS (use static only)" }) }))] }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "TouchMenu overlay", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Enable in-game touch menu", checked: settings.touchmenu_enabled, onChange: setTouchmenu }) }) }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Live memory reading", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }, children: "When the game is running, read party state directly from the game's process memory. Updates arrive every ~1s without waiting for the game to save to disk. Opt-in: the disk watcher still runs as a fallback if memory reading fails." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Read live data from game process memory", checked: Boolean(settings?.live_memory_enabled), onChange: setLiveMemory }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Polling", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #888)" }, children: "The backend save watcher checks the disk every 2\u20135 seconds (derived from the interval below). UI updates arrive within seconds of any save." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.TextField, { label: "Interval (seconds)", value: scanIntervalInput, onChange: (e) => {
                                 const n = parseInt(e.target.value, 10);
                                 setScanIntervalInput(e.target.value);
                                 if (!isNaN(n))
                                     setScanInterval(n);
-                            } }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Live save watcher (sub-second updates)", checked: settings.watcher_enabled ?? true, onChange: setWatcherEnabled }) })] }), candidates.length > 0 && (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: [candidates.slice(0, 20).map((c) => (window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsxs(window.DFL.Focusable, { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [window.SP_JSX.jsx("div", { style: { fontSize: 11, color: "var(--theme-text-secondary, #ddd)", wordBreak: "break-all" }, children: c.path }), window.SP_JSX.jsxs("div", { style: { fontSize: 10, color: "var(--theme-text-faint, #777)" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] })] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }, c.path))), candidates.length > 20 && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-faint, #777)", fontStyle: "italic" }, children: ["\u2026and ", candidates.length - 20, " more. Use override to select specific file."] }) }))] })), (statusMsg || statusError) && (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Status", children: [statusMsg && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: "var(--theme-accent, #5eba7d)" }, children: window.SP_JSX.jsx("div", { children: statusMsg }) }) })), statusError && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: "var(--theme-danger, #e87b7b)" }, children: window.SP_JSX.jsx("div", { children: statusError }) }) }))] }))] }));
+                            } }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Live save watcher (sub-second updates)", checked: settings.watcher_enabled ?? true, onChange: setWatcherEnabled }) })] }), window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Safety & data", children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }, children: "Every time the game saves, the plugin can keep a copy of the save file. If the save ever gets corrupted, restore one of the backups below." }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ToggleField, { label: "Rolling save backups", checked: settings.backups_enabled ?? true, onChange: setBackupsEnabled }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: exportSave, disabled: backupBusy, children: "Export save summary (JSON)" }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "below", onClick: clearNuzlocke, disabled: backupBusy, children: "Clear Nuzlocke log" }) }), backups && backups.length > 0 && (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { style: { fontSize: 10, color: "var(--theme-text-faint, #777)", wordBreak: "break-all" }, children: [backups.length, " backup(s) in ", shortenPath(backupDir, 70)] }) }), backups.slice(0, 5).map((b) => (window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsxs(window.DFL.Focusable, { style: { display: "flex", flexDirection: "column", gap: 3 }, children: [window.SP_JSX.jsx("div", { style: { fontSize: 10, color: "var(--theme-text-secondary, #ddd)", wordBreak: "break-all" }, children: b.name }), window.SP_JSX.jsxs("div", { style: { fontSize: 9, color: "var(--theme-text-faint, #777)" }, children: [fmtSize(b.size), " \u00B7 ", fmtTime(b.modified)] })] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "inline", onClick: () => restoreBackup(b.name), disabled: backupBusy, children: "Restore" })] }, b.name)))] }))] }), candidates.length > 0 && (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: `Discovered saves (${candidates.length})`, children: [candidates.slice(0, 20).map((c) => (window.SP_JSX.jsxs(window.DFL.PanelSectionRow, { children: [window.SP_JSX.jsxs(window.DFL.Focusable, { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [window.SP_JSX.jsx("div", { style: { fontSize: 11, color: "var(--theme-text-secondary, #ddd)", wordBreak: "break-all" }, children: c.path }), window.SP_JSX.jsxs("div", { style: { fontSize: 10, color: "var(--theme-text-faint, #777)" }, children: [fmtSize(c.size), " \u00B7 modified ", fmtTime(c.modified)] })] }), window.SP_JSX.jsx(window.DFL.ButtonItem, { layout: "inline", onClick: () => useCandidate(c.path), children: "Use this save" })] }, c.path))), candidates.length > 20 && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.Focusable, { style: { fontSize: 11, color: "var(--theme-text-faint, #777)", fontStyle: "italic" }, children: ["\u2026and ", candidates.length - 20, " more. Use override to select specific file."] }) }))] })), (statusMsg || statusError) && (window.SP_JSX.jsxs(window.DFL.PanelSection, { title: "Status", children: [statusMsg && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: "var(--theme-accent, #5eba7d)" }, children: window.SP_JSX.jsx("div", { children: statusMsg }) }) })), statusError && (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Focusable, { style: { fontSize: 12, color: "var(--theme-danger, #e87b7b)" }, children: window.SP_JSX.jsx("div", { children: statusError }) }) }))] }))] }));
 }
 
 const BUCKET_LABELS = {
@@ -1980,9 +2371,48 @@ function OffenseGrid({ attacker, summary }) {
             })] }));
 }
 
+/**
+ * Team-wide defense analysis computed entirely from the type chart
+ * multipliers the backend already ships (get_type_chart). For each
+ * attacking type we compute the product of its effectiveness against
+ * every party member's types — combined >= 2 means at least a shared
+ * 2x weakness across members.
+ */
+function computeTeamDefense(members, multipliers) {
+    const rows = [];
+    for (const attack of Object.keys(multipliers)) {
+        const atkRow = multipliers[attack] ?? {};
+        const weakMembers = [];
+        const resistMembers = [];
+        let combined = 1;
+        for (const member of members) {
+            let product = 1;
+            for (const t of member.types) {
+                if (!t)
+                    continue;
+                product *= atkRow[t] ?? 1;
+            }
+            combined *= product;
+            if (product > 1)
+                weakMembers.push(member.name);
+            else if (product < 1)
+                resistMembers.push(member.name);
+        }
+        rows.push({ attack, combined, weakMembers, resistMembers });
+    }
+    const sharedWeaknesses = rows
+        .filter((r) => r.weakMembers.length >= 2)
+        .sort((a, b) => b.weakMembers.length - a.weakMembers.length || b.combined - a.combined);
+    const safeTypes = rows
+        .filter((r) => r.weakMembers.length === 0)
+        .map((r) => r.attack);
+    return { rows, sharedWeaknesses, safeTypes };
+}
+
 const NO_TYPE = "(none)";
 function TypeChartView() {
     const chart = useStore((s) => s.typeChart);
+    const saveData = useStore((s) => s.saveData, saveDataEqual);
     const [error, setError] = window.SP_REACT.useState(null);
     const [mode, setMode] = window.SP_REACT.useState("defense");
     const [attacker, setAttacker] = window.SP_REACT.useState("Fire");
@@ -2010,6 +2440,8 @@ function TypeChartView() {
     window.SP_REACT.useEffect(() => {
         if (!chart)
             return;
+        if (mode === "team")
+            return; // team mode is computed client-side
         let cancelled = false;
         setLoading(true);
         setError(null);
@@ -2051,7 +2483,35 @@ function TypeChartView() {
                             retryRefreshStatic();
                         }, children: "Reload" }) })] }));
     }
-    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Mode", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.ButtonItem, { layout: "below", onClick: () => setMode(mode === "defense" ? "offense" : "defense"), children: ["Mode: ", mode === "defense" ? "Defender" : "Attacker", " (click to switch)"] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: mode === "defense" ? "Defender types" : "Attacker type", children: mode === "defense" ? (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), rgOptions: attackerOptions }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), rgOptions: typeOptions }) })] })) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), rgOptions: attackerOptions }) })) }), loading && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: 12, color: "var(--theme-text-muted, #969696)" }, children: "Updating\u2026" })] }) }) })), error && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { color: "var(--theme-danger, #e87b7b)", fontSize: 12, padding: "4px 0" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What does it hit?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) }))] }));
+    const MODE_LABELS = {
+        defense: "Defender",
+        offense: "Attacker",
+        team: "Team",
+    };
+    const nextMode = (m) => m === "defense" ? "offense" : m === "offense" ? "team" : "defense";
+    const teamMembers = window.SP_REACT.useMemo(() => (saveData?.party ?? [])
+        .filter((p) => p.type1 || p.type2)
+        .map((p) => ({
+        name: p.nickname || p.species,
+        types: [p.type1, p.type2],
+    })), [saveData]);
+    const teamDefense = window.SP_REACT.useMemo(() => mode === "team" && chart
+        ? computeTeamDefense(teamMembers, chart.multipliers ?? {})
+        : null, [mode, chart, teamMembers]);
+    return (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Mode", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs(window.DFL.ButtonItem, { layout: "below", onClick: () => setMode(nextMode(mode)), children: ["Mode: ", MODE_LABELS[mode], " (click to switch)"] }) }) }), window.SP_JSX.jsx(window.DFL.PanelSection, { title: mode === "defense" ? "Defender types" : mode === "offense" ? "Attacker type" : "Team defense", children: mode === "defense" ? (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 1", selectedOption: def1, onChange: (opt) => setDef1(opt.data), rgOptions: attackerOptions }) }), window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Type 2", selectedOption: def2, onChange: (opt) => setDef2(opt.data), rgOptions: typeOptions }) })] })) : (window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(window.DFL.Dropdown, { menuLabel: "Attacker", selectedOption: attacker, onChange: (opt) => setAttacker(opt.data), rgOptions: attackerOptions }) })) }), loading && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }, children: [window.SP_JSX.jsx(window.DFL.Spinner, {}), window.SP_JSX.jsx("span", { style: { fontSize: 12, color: "var(--theme-text-muted, #969696)" }, children: "Updating\u2026" })] }) }) })), error && (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { color: "var(--theme-danger, #e87b7b)", fontSize: 12, padding: "4px 0" }, children: error }) }) })), mode === "defense" && defense && defense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What hits this Pok\u00E9mon?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(DefenseGrid, { defenders: defense.defenders ?? [], summary: defense.summary }) }) })), mode === "offense" && offense && offense.summary && (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "What does it hit?", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx(OffenseGrid, { attacker: offense.attacker ?? attacker, summary: offense.summary }) }) })), mode === "team" && (window.SP_JSX.jsx(window.SP_JSX.Fragment, { children: teamMembers.length === 0 ? (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "var(--theme-text-muted, #969696)", padding: "4px 0" }, children: "Load a save first \u2014 the team analysis uses your party's types." }) }) })) : (window.SP_JSX.jsxs(window.SP_JSX.Fragment, { children: [teamDefense.sharedWeaknesses.length > 0 ? (window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Shared weaknesses", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { display: "flex", flexDirection: "column", gap: 6, width: "100%" }, children: teamDefense.sharedWeaknesses.map((row) => (window.SP_JSX.jsxs("div", { style: {
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                            padding: "6px 8px",
+                                            background: "var(--theme-danger-bg, rgba(224,88,88,0.15))",
+                                            border: "1px solid var(--theme-danger-border, rgba(224,88,88,0.4))",
+                                            borderRadius: 6,
+                                        }, children: [window.SP_JSX.jsx("span", { style: {
+                                                    fontSize: 12,
+                                                    fontWeight: 700,
+                                                    color: "var(--theme-danger, #e87b7b)",
+                                                    minWidth: 70,
+                                                }, children: row.attack }), window.SP_JSX.jsxs("span", { style: { fontSize: 11, color: "var(--theme-text-secondary, #ddd)" }, children: [row.weakMembers.length, " members weak: ", row.weakMembers.join(", ")] })] }, row.attack))) }) }) })) : (window.SP_JSX.jsx(window.DFL.PanelSection, { children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { fontSize: 12, color: "var(--theme-accent, #5eba7d)", padding: "4px 0" }, children: "No shared weaknesses \u2014 good team typing!" }) }) })), window.SP_JSX.jsx(window.DFL.PanelSection, { title: "Team members", children: window.SP_JSX.jsx(window.DFL.PanelSectionRow, { children: window.SP_JSX.jsx("div", { style: { display: "flex", flexDirection: "column", gap: 3, width: "100%" }, children: teamMembers.map((m) => (window.SP_JSX.jsxs("div", { style: { fontSize: 11, color: "var(--theme-text-secondary, #ddd)" }, children: [m.name, ": ", m.types.filter(Boolean).join(" / ")] }, m.name))) }) }) })] })) }))] }));
 }
 
 function EffectivenessBadge({ label }) {
@@ -2148,41 +2608,22 @@ function BattleAnalyzerView() {
                 })] }) }));
 }
 
-let lastEnemyName = undefined;
-let lastCoach = undefined;
-let lastBoostWarned = false;
 let unsubscribeToasts = null;
+let toastDeduper = null;
 function initGlobalToasts() {
     if (unsubscribeToasts) {
         unsubscribeToasts();
     }
+    toastDeduper = new ToastDeduper();
     unsubscribeToasts = subscribe(() => {
+        if (!toastDeduper)
+            return;
         const s = getState();
-        const inBattle = !!s.liveState?.battle_analysis;
-        const enemyName = s.liveState?.battle_analysis?.enemy?.name;
-        const coachSuggestion = s.liveState?.battle_analysis?.coach_suggestion?.suggested_pokemon;
-        const stages = s.liveState?.battle_analysis?.enemy?.stages;
-        const enemyHasBoosts = !!stages && stages.some((v) => v > 0);
-        // 1. Battle Start / Enemy Switch
-        if (inBattle && enemyName && enemyName !== lastEnemyName) {
-            const types = s.liveState?.battle_analysis?.enemy?.types;
-            const typeStr = types?.join("/") || "Unknown";
-            toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyName} (Type: ${typeStr})` });
-        }
-        lastEnemyName = enemyName;
-        // 2. Coach Suggestion
-        if (inBattle && coachSuggestion && coachSuggestion !== lastCoach) {
-            const reason = s.liveState?.battle_analysis?.coach_suggestion?.reason || "";
-            toaster.toast({ title: "Coach Suggestion", body: `Switch to ${coachSuggestion}! ${reason}` });
-        }
-        lastCoach = coachSuggestion;
-        // 3. Stat Warning
-        if (inBattle && enemyHasBoosts && !lastBoostWarned) {
-            toaster.toast({ title: "Stat Warning", body: "Enemy stats are boosted! Be careful!" });
-            lastBoostWarned = true;
-        }
-        else if (!enemyHasBoosts) {
-            lastBoostWarned = false;
+        for (const event of toastDeduper.update({
+            battle_analysis: s.liveState?.battle_analysis ?? null,
+            party: newestParty(s.saveData, s.liveState?.last_save_data ?? null),
+        })) {
+            toaster.toast(event);
         }
     });
 }

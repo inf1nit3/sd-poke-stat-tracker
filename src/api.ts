@@ -20,6 +20,10 @@ export interface PluginSettings {
   compact_mode: boolean;
   watcher_enabled: boolean;
   live_memory_enabled: boolean;
+  backups_enabled?: boolean;
+  backup_count?: number;
+  nuzlocke_enabled?: boolean;
+  pbs_profiles?: Record<string, string>;
   [key: string]: unknown;
 }
 
@@ -86,6 +90,7 @@ export interface PokemonSummary {
   iv_spatk: number | null;
   iv_spdef: number | null;
   iv_speed: number | null;
+  hidden_power?: string | null;
   ev_hp: number | null;
   ev_attack: number | null;
   ev_defense: number | null;
@@ -320,6 +325,44 @@ export interface MemoryRegion {
   perms: string;
 }
 
+export interface SaveBox {
+  name: string | null;
+  mons: Array<PokemonSummary | null>;
+}
+
+export interface BoxesResult {
+  boxes: SaveBox[];
+  box_count: number;
+  path?: string | null;
+  error?: string;
+}
+
+export interface NuzlockeEvent {
+  kind: "faint" | "joined";
+  species: string;
+  level: number;
+  location: string;
+  at: number;
+}
+
+export interface NuzlockeLogResult {
+  events: NuzlockeEvent[];
+  path: string;
+}
+
+export interface SaveBackupInfo {
+  name: string;
+  path: string;
+  size: number;
+  modified: number;
+}
+
+export interface SpriteResult {
+  found: boolean;
+  species: string;
+  data_url?: string;
+}
+
 async function callOrThrow<T>(method: string, ...args: unknown[]): Promise<T> {
   try {
     return await call<T>(method, ...args);
@@ -369,4 +412,20 @@ export const api = {
     callOrThrow<GameProcess | null>("find_process_by_save", savePath),
   getProcessMemoryRegions: (pid: number) =>
     callOrThrow<MemoryRegion[]>("get_process_memory_regions", pid),
+  getBoxes: () => callOrThrow<BoxesResult>("get_boxes"),
+  getNuzlockeLog: () => callOrThrow<NuzlockeLogResult>("get_nuzlocke_log"),
+  clearNuzlockeLog: () => callOrThrow<{ ok: boolean }>("clear_nuzlocke_log"),
+  getSaveBackups: () =>
+    callOrThrow<{ backups: SaveBackupInfo[]; dir: string }>("get_save_backups"),
+  restoreSaveBackup: (name: string) =>
+    callOrThrow<{ ok: boolean; path?: string; error?: string }>(
+      "restore_save_backup",
+      name
+    ),
+  exportSaveSummary: () =>
+    callOrThrow<{ ok: boolean; path?: string; bytes?: number; error?: string }>(
+      "export_save_summary"
+    ),
+  getPokemonSprite: (species: string) =>
+    callOrThrow<SpriteResult>("get_pokemon_sprite", species),
 };

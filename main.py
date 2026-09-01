@@ -65,8 +65,10 @@ from livewatch import (
     read_process_memory,
 )
 from moves import MovesDB
+from nuzlockelog import NuzlockeLog
 from pbsfinder import find_pbs_files
-from saveparser import SaveData, SaveParseError, parse_save_file
+from savebackup import SaveBackupManager
+from saveparser import SaveData, SaveParseError, parse_save_boxes, parse_save_file
 from savepath import find_save_file, list_save_files
 from themes import ThemeManager
 from typechart import TypeChart
@@ -82,6 +84,7 @@ def _cached_parse_save_file(path_str: str, mtime: float) -> dict[str, Any]:
 DATA_DIR: Path = PLUGIN_DIR / "data"
 TYPE_CHART_PATH: Path = DATA_DIR / "type_chart.json"
 THEMES_PATH: Path = DATA_DIR / "themes.json"
+SPRITES_DIR: Path = DATA_DIR / "sprites"
 
 # Use Decky Loader's dedicated settings directory for persistence
 try:
@@ -108,6 +111,14 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # Pokémon Essentials session. Default OFF so users don't pay the CPU
     # cost without opt-in awareness.
     "live_memory_enabled": False,  # Phase 6: opt-in
+    # Rolling save backups: copy the save on every watcher change, keep
+    # the last N copies (corruption safety net for SD-card saves).
+    "backups_enabled": True,
+    "backup_count": 5,
+    # Nuzlocke event log (faints / newly-joined party members).
+    "nuzlocke_enabled": True,
+    # Per-game PBS mapping: {detected_game_name: pbs_moves_path}.
+    "pbs_profiles": {},
 }
 
 # Type guards for settings.json loaded from disk. Without this a manually
@@ -128,6 +139,17 @@ def _coerce_settings(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _coerce_setting_value(key: str, value: Any, default: Any) -> Any:
     """Coerce a single setting value to the type of its default."""
+    if key == "pbs_profiles":
+        # Free-form {game_name: pbs_path} mapping — pass through as a
+        # shallow string dict instead of the generic dict-merge branch
+        # (whose default-keys-only merge would wipe all profiles).
+        if isinstance(value, dict):
+            return {
+                str(k): str(v)
+                for k, v in value.items()
+                if isinstance(v, str) and v
+            }
+        return dict(default) if isinstance(default, dict) else {}
     if value is None:
         return None if default is None else default
     if isinstance(default, bool):
@@ -219,6 +241,15 @@ class Plugin:
         # Game-mod TCP stream (most reliable live source when the
         # game's Plugins/ folder has our stream.rb hook installed).
         self._stream_server: Optional[LiveStreamServer] = None
+        # Rolling save backups + nuzlocke log (round 14 features).
+        self._backups = SaveBackupManager(SETTINGS_DIR / "backups")
+        self._nuzlocke = NuzlockeLog(SETTINGS_DIR / "nuzlocke_log.jsonl")
+        # PC box cache, invalidated by (path, mtime) like _save_cache.
+        self._boxes_cache: dict[str, Any] | None = None
+        self._boxes_cache_path: str | None = None
+        self._boxes_cache_at: float = 0.0
+        # User-provided sprite data URLs (species → response dict).
+        self._sprite_cache: dict[str, dict[str, Any]] = {}
 
     async def _main(self) -> None:
         """Called once when the plugin is loaded."""
@@ -621,6 +652,8 @@ class Plugin:
                 "error": "invalid_extension",
             }
         count = await asyncio.to_thread(self._moves_db.load_pbs, path)
+        if count > 0:
+            await self._remember_pbs_profile(path)
         return {
             "loaded": count > 0,
             "count": count,
@@ -629,8 +662,21 @@ class Plugin:
         }
 
     async def auto_load_pbs(self) -> dict[str, Any]:
-        """Re-attempt PBS auto-discovery. Returns the loaded path or None."""
+        """Re-attempt PBS auto-discovery. A per-game PBS profile takes
+        priority when the running game was recognized before."""
         import asyncio
+        # 1. Per-game profile (fast path, exact path known).
+        profile_path = await self._pbs_profile_path()
+        if profile_path is not None:
+            count = await asyncio.to_thread(self._moves_db.load_pbs, profile_path)
+            if count > 0:
+                return {
+                    "loaded": True,
+                    "source": profile_path,
+                    "database": self._moves_db.to_api(),
+                    "profile_used": True,
+                }
+        # 2. Discovery fallback.
         with self._state_lock:
             last_save = self._settings.get("last_save_path")
         sp = Path(last_save) if last_save else None
@@ -639,12 +685,200 @@ class Plugin:
             "loaded": loaded is not None,
             "source": str(loaded) if loaded else None,
             "database": self._moves_db.to_api(),
+            "profile_used": False,
         }
+
+    async def _pbs_profile_path(self) -> Optional[str]:
+        """PBS path stored for the currently detected game, if any."""
+        import asyncio
+        procs = await asyncio.to_thread(find_game_processes)
+        game = self._extract_game_name(procs[0] if procs else None)
+        if not game:
+            return None
+        with self._state_lock:
+            profiles = self._settings.get("pbs_profiles")
+        path = profiles.get(game) if isinstance(profiles, dict) else None
+        return path if isinstance(path, str) and path else None
+
+    async def _remember_pbs_profile(self, pbs_path: str) -> None:
+        """Store {game_name: pbs_path} for the currently running game."""
+        import asyncio
+        try:
+            procs = await asyncio.to_thread(find_game_processes)
+            game = self._extract_game_name(procs[0] if procs else None)
+            if not game:
+                return
+            with self._state_lock:
+                profiles = self._settings.get("pbs_profiles")
+                if not isinstance(profiles, dict):
+                    profiles = {}
+                if profiles.get(game) == pbs_path:
+                    return
+                profiles = {**profiles, game: pbs_path}
+                self._settings["pbs_profiles"] = profiles
+            self._save_settings()
+            log.info(f"PBS profile saved for '{game}': {pbs_path}")
+        except Exception as exc:
+            log.warning(f"PBS profile save failed: {exc}")
+
+    async def get_boxes(self) -> dict[str, Any]:
+        """Parse PC storage boxes from the active save file.
+
+        Cached by (path, mtime) like get_save_data; re-parses when the
+        game has saved since the last call. Returns ``{"boxes": []}``
+        when no save exists or the save has no storage structure.
+        """
+        import asyncio
+        with self._state_lock:
+            override = self._settings.get("save_path_override")
+            last_save = self._settings.get("last_save_path")
+        path: Optional[Path] = None
+        if override and Path(override).is_file():
+            path = Path(override)
+        elif last_save and Path(last_save).is_file():
+            path = Path(last_save)
+        else:
+            path = await asyncio.to_thread(find_save_file, override if override else None)
+        if path is None or not path.is_file():
+            return {"boxes": [], "box_count": 0, "path": None}
+        path_str = str(path)
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            mtime = 0
+        with self._state_lock:
+            if (
+                self._boxes_cache is not None
+                and self._boxes_cache_path == path_str
+                and mtime
+                and mtime <= self._boxes_cache_at
+            ):
+                return self._boxes_cache
+        try:
+            out = await asyncio.to_thread(parse_save_boxes, path_str)
+        except SaveParseError as exc:
+            log.warning(f"Box parse failed: {exc}")
+            return {"boxes": [], "box_count": 0, "path": path_str, "error": str(exc)}
+        except Exception as exc:
+            log.error(f"Unexpected box parse error: {exc}", exc_info=True)
+            return {"boxes": [], "box_count": 0, "path": path_str, "error": str(exc)}
+        with self._state_lock:
+            self._boxes_cache = out
+            self._boxes_cache_path = path_str
+            self._boxes_cache_at = mtime or 0.0
+        return out
+
+    async def get_nuzlocke_log(self) -> dict[str, Any]:
+        """Recorded nuzlocke events (faints / newly-joined members)."""
+        return {
+            "events": self._nuzlocke.events(),
+            "path": str(self._nuzlocke.log_path),
+        }
+
+    async def clear_nuzlocke_log(self) -> dict[str, Any]:
+        """Wipe the nuzlocke log (file + in-memory events)."""
+        self._nuzlocke.clear()
+        return {"ok": True}
+
+    async def get_save_backups(self) -> dict[str, Any]:
+        """List rolling save backups, newest first."""
+        return {
+            "backups": self._backups.list(),
+            "dir": str(self._backups.backup_dir),
+        }
+
+    async def restore_save_backup(self, name: str) -> dict[str, Any]:
+        """Overwrite the active save file with the named backup."""
+        import asyncio
+        if not isinstance(name, str) or not name:
+            raise TypeError("name must be a non-empty string")
+        # Only plain filenames inside our backup dir (no traversal).
+        if "/" in name or "\\" in name or name in (".", ".."):
+            return {"ok": False, "error": "invalid_backup_name"}
+        backup = self._backups.backup_dir / name
+        with self._state_lock:
+            override = self._settings.get("save_path_override")
+            last_save = self._settings.get("last_save_path")
+        target: Optional[Path] = None
+        if override and Path(override).is_file():
+            target = Path(override)
+        elif last_save and Path(last_save).is_file():
+            target = Path(last_save)
+        if target is None:
+            return {"ok": False, "error": "no_active_save"}
+        try:
+            restored = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: self._backups.restore(backup, target)
+            )
+        except (ValueError, FileNotFoundError, OSError) as exc:
+            return {"ok": False, "error": str(exc)}
+        # Invalidate caches so the next poll parses the restored file.
+        with self._state_lock:
+            self._save_cache = None
+            self._save_cache_path = None
+            self._save_cache_at = 0.0
+            self._save_cache_at_wall = 0.0
+            self._boxes_cache = None
+        return {"ok": True, "path": str(restored)}
+
+    async def export_save_summary(self) -> dict[str, Any]:
+        """Write the current save summary as a JSON file next to the
+        plugin data. Returns the written file's path for the UI."""
+        import asyncio
+        import time as _time
+        data = self._save_cache
+        if not isinstance(data, dict) or "party" not in data:
+            return {"ok": False, "error": "no_save_data"}
+        export_dir = SETTINGS_DIR / "exports"
+        try:
+            trainer = str(data.get("trainer_name") or "trainer")
+            safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in trainer)[:32]
+            export_dir.mkdir(parents=True, exist_ok=True)
+            ts = _time.strftime("%Y%m%d-%H%M%S")
+            dest = export_dir / f"save-{safe}-{ts}.json"
+            payload = json.dumps(data, ensure_ascii=False, indent=2)
+            await asyncio.to_thread(lambda: dest.write_text(payload, encoding="utf-8"))
+        except OSError as exc:
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True, "path": str(dest), "bytes": dest.stat().st_size}
 
     async def clear_pbs(self) -> dict[str, Any]:
         """Clear PBS overlay and revert to static moves database only."""
         self._moves_db.clear_pbs()
         return {"database": self._moves_db.to_api()}
+
+    async def get_pokemon_sprite(self, species: str) -> dict[str, Any]:
+        """Return an optional user-provided sprite as a data URL.
+
+        Users can drop PNGs named by species constant (e.g. PIKACHU.png)
+        into ``data/sprites/``. No bundled artwork: unknown species or a
+        missing folder return ``{"found": False}`` and the frontend falls
+        back to its text badges. In-memory cache per species.
+        """
+        import asyncio
+        import base64
+        if not isinstance(species, str) or not species:
+            raise TypeError("species must be a non-empty string")
+        key = "".join(c for c in species.upper() if c.isalnum())
+        if not key:
+            return {"found": False, "species": species}
+        cached = self._sprite_cache.get(key)
+        if cached is not None:
+            return cached
+        result: dict[str, Any] = {"found": False, "species": key}
+        sprite_path = SPRITES_DIR / f"{key}.png"
+        try:
+            if sprite_path.is_file() and sprite_path.stat().st_size <= 512 * 1024:
+                raw = await asyncio.to_thread(sprite_path.read_bytes)
+                result = {
+                    "found": True,
+                    "species": key,
+                    "data_url": "data:image/png;base64," + base64.b64encode(raw).decode("ascii"),
+                }
+        except Exception as exc:
+            log.debug(f"Sprite load failed for {key}: {exc}")
+        self._sprite_cache[key] = result
+        return result
 
     async def get_themes(self) -> dict[str, Any]:
         """Return all available themes and the currently active one."""
@@ -774,10 +1008,42 @@ class Plugin:
         # hammering flash I/O on every autosave).
         if last_save_changed:
             self._save_settings()
+        self._post_save_update(
+            out,
+            source="disk",
+            location=out.get("location_name") or "",
+            file_path=path,
+        )
         log.info(
             f"Live save change: {data.trainer_name} "
             f"({len(data.party)} Pokemon)"
         )
+
+    def _post_save_update(
+        self,
+        out: dict[str, Any],
+        source: str,
+        location: str = "",
+        file_path: Optional[Path] = None,
+    ) -> None:
+        """Shared work after every live-source cache update: rolling
+        backups (disk source only — memory/stream payloads have no file)
+        and the nuzlocke party diff. Strictly best-effort: a failure in
+        either feature must never break the live pipeline.
+        """
+        try:
+            if file_path is not None and self._settings.get("backups_enabled", True):
+                self._backups.count = max(1, int(self._settings.get("backup_count", 5)))
+                self._backups.backup(file_path)
+        except Exception as exc:
+            log.warning(f"Save backup error: {exc}")
+        try:
+            if self._settings.get("nuzlocke_enabled", True):
+                party = out.get("party")
+                if isinstance(party, list):
+                    self._nuzlocke.diff_and_record(party, location=location)
+        except Exception as exc:
+            log.warning(f"Nuzlocke log error: {exc}")
 
     # --- Phase 6: live memory reading ---------------------------------
 
@@ -878,6 +1144,9 @@ class Plugin:
             f"Live memory update: trainer={payload.get('trainer_name')} "
             f"party={len(payload.get('party', []))}"
         )
+        self._post_save_update(
+            payload, source="memory", location=payload.get("location_name") or ""
+        )
 
     def _on_stream_state(self, payload: dict[str, Any]) -> None:
         """Game-mod TCP stream produced a fresh state update. Stream
@@ -905,6 +1174,9 @@ class Plugin:
             f"Live stream update: trainer={payload.get('trainer_name')} "
             f"party={payload.get('party_count')} "
             f"menu={payload.get('in_menu')}"
+        )
+        self._post_save_update(
+            payload, source="stream", location=payload.get("location_name") or ""
         )
 
     def _on_stream_disconnect(self) -> None:

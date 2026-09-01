@@ -13,6 +13,7 @@ import {
   stopPolling,
   useStore,
 } from "./store";
+import { ToastDeduper, newestParty } from "./toasts";
 import { DEFAULT_PALETTE, paletteToCssVars } from "./theme";
 import { registerTouchMenu, unregisterTouchMenu } from "./touchmenu";
 import { HomeView } from "./views/HomeView";
@@ -21,44 +22,22 @@ import { SettingsView } from "./views/SettingsView";
 import { TypeChartView } from "./views/TypeChartView";
 import { BattleAnalyzerView } from "./views/BattleAnalyzerView";
 
-let lastEnemyName: string | undefined = undefined;
-let lastCoach: string | undefined = undefined;
-let lastBoostWarned = false;
 let unsubscribeToasts: (() => void) | null = null;
+let toastDeduper: ToastDeduper | null = null;
 
 function initGlobalToasts() {
   if (unsubscribeToasts) {
     unsubscribeToasts();
   }
+  toastDeduper = new ToastDeduper();
   unsubscribeToasts = subscribe(() => {
+    if (!toastDeduper) return;
     const s = getState();
-    const inBattle = !!s.liveState?.battle_analysis;
-    const enemyName = s.liveState?.battle_analysis?.enemy?.name;
-    const coachSuggestion = s.liveState?.battle_analysis?.coach_suggestion?.suggested_pokemon;
-    const stages = s.liveState?.battle_analysis?.enemy?.stages;
-    const enemyHasBoosts = !!stages && stages.some((v: number) => v > 0);
-
-    // 1. Battle Start / Enemy Switch
-    if (inBattle && enemyName && enemyName !== lastEnemyName) {
-      const types = s.liveState?.battle_analysis?.enemy?.types;
-      const typeStr = types?.join("/") || "Unknown";
-      toaster.toast({ title: "Battle Update", body: `Enemy sent out ${enemyName} (Type: ${typeStr})` });
-    }
-    lastEnemyName = enemyName;
-
-    // 2. Coach Suggestion
-    if (inBattle && coachSuggestion && coachSuggestion !== lastCoach) {
-      const reason = s.liveState?.battle_analysis?.coach_suggestion?.reason || "";
-      toaster.toast({ title: "Coach Suggestion", body: `Switch to ${coachSuggestion}! ${reason}` });
-    }
-    lastCoach = coachSuggestion;
-
-    // 3. Stat Warning
-    if (inBattle && enemyHasBoosts && !lastBoostWarned) {
-      toaster.toast({ title: "Stat Warning", body: "Enemy stats are boosted! Be careful!" });
-      lastBoostWarned = true;
-    } else if (!enemyHasBoosts) {
-      lastBoostWarned = false;
+    for (const event of toastDeduper.update({
+      battle_analysis: s.liveState?.battle_analysis ?? null,
+      party: newestParty(s.saveData, s.liveState?.last_save_data ?? null),
+    })) {
+      toaster.toast(event);
     }
   });
 }

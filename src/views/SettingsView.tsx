@@ -8,7 +8,7 @@ import {
   ToggleField,
 } from "@decky/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, SaveFileCandidate, SavePathResult } from "../api";
+import { api, SaveBackupInfo, SaveFileCandidate, SavePathResult } from "../api";
 import { applySettingsPatch, refreshMoves, retryRefreshStatic, useStore } from "../store";
 
 function fmtTime(epoch: number): string {
@@ -310,6 +310,89 @@ export function SettingsView() {
     }
   }, []);
 
+  const [backups, setBackups] = useState<SaveBackupInfo[] | null>(null);
+  const [backupDir, setBackupDir] = useState<string>("");
+  const [backupBusy, setBackupBusy] = useState<boolean>(false);
+
+  const refreshBackups = useCallback(async () => {
+    setBackupBusy(true);
+    try {
+      const r = await api.getSaveBackups();
+      setBackups(r.backups);
+      setBackupDir(r.dir);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatusError(msg);
+    } finally {
+      setBackupBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshBackups();
+  }, [refreshBackups]);
+
+  const setBackupsEnabled = useCallback(async (v: boolean) => {
+    try {
+      await applySettingsPatch({ backups_enabled: v });
+      setStatusMsg(v ? "Save backups enabled." : "Save backups disabled.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatusError(msg);
+    }
+  }, []);
+
+  const restoreBackup = useCallback(async (name: string) => {
+    setBackupBusy(true);
+    setStatusMsg(null);
+    setStatusError(null);
+    try {
+      const r = await api.restoreSaveBackup(name);
+      if (r.ok) {
+        setStatusMsg(`Backup restored: ${name}`);
+      } else {
+        setStatusError(r.error ?? "Restore failed.");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatusError(msg);
+    } finally {
+      setBackupBusy(false);
+    }
+  }, []);
+
+  const exportSave = useCallback(async () => {
+    setBackupBusy(true);
+    setStatusMsg(null);
+    setStatusError(null);
+    try {
+      const r = await api.exportSaveSummary();
+      if (r.ok && r.path) {
+        setStatusMsg(`Save exported (${fmtSize(r.bytes ?? 0)}): ${shortenPath(r.path, 80)}`);
+      } else {
+        setStatusError(r.error ?? "Export failed (is a save loaded?).");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatusError(msg);
+    } finally {
+      setBackupBusy(false);
+    }
+  }, []);
+
+  const clearNuzlocke = useCallback(async () => {
+    setBackupBusy(true);
+    try {
+      await api.clearNuzlockeLog();
+      setStatusMsg("Nuzlocke log cleared.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatusError(msg);
+    } finally {
+      setBackupBusy(false);
+    }
+  }, []);
+
   if (!settings) {
     return (
       <PanelSection title="Settings">
@@ -471,6 +554,16 @@ export function SettingsView() {
             {movesDb ? `${movesDb.merged_count} moves total · ${movesDb.static_count} static · ${movesDb.pbs_count} from game PBS` : "Loading…"}
           </Focusable>
         </PanelSectionRow>
+        {Object.keys(settings.pbs_profiles ?? {}).length > 0 && (
+          <PanelSectionRow>
+            <Focusable style={{ fontSize: 10, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }}>
+              Saved per-game PBS profiles:{" "}
+              {Object.entries(settings.pbs_profiles ?? {})
+                .map(([game, path]) => `${game} → ${shortenPath(path, 40)}`)
+                .join(" · ")}
+            </Focusable>
+          </PanelSectionRow>
+        )}
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={reloadPbsAuto} disabled={pbsBusy}>
             {pbsBusy ? "Scanning…" : "Auto-discover PBS"}
@@ -551,6 +644,57 @@ export function SettingsView() {
             onChange={setWatcherEnabled}
           />
         </PanelSectionRow>
+      </PanelSection>
+
+      <PanelSection title="Safety & data">
+        <PanelSectionRow>
+          <Focusable style={{ fontSize: 11, color: "var(--theme-text-muted, #888)", lineHeight: 1.4 }}>
+            Every time the game saves, the plugin can keep a copy of the
+            save file. If the save ever gets corrupted, restore one of the
+            backups below.
+          </Focusable>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label="Rolling save backups"
+            checked={settings.backups_enabled ?? true}
+            onChange={setBackupsEnabled}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={exportSave} disabled={backupBusy}>
+            Export save summary (JSON)
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={clearNuzlocke} disabled={backupBusy}>
+            Clear Nuzlocke log
+          </ButtonItem>
+        </PanelSectionRow>
+        {backups && backups.length > 0 && (
+          <>
+            <PanelSectionRow>
+              <Focusable style={{ fontSize: 10, color: "var(--theme-text-faint, #777)", wordBreak: "break-all" }}>
+                {backups.length} backup(s) in {shortenPath(backupDir, 70)}
+              </Focusable>
+            </PanelSectionRow>
+            {backups.slice(0, 5).map((b) => (
+              <PanelSectionRow key={b.name}>
+                <Focusable style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={{ fontSize: 10, color: "var(--theme-text-secondary, #ddd)", wordBreak: "break-all" }}>
+                    {b.name}
+                  </div>
+                  <div style={{ fontSize: 9, color: "var(--theme-text-faint, #777)" }}>
+                    {fmtSize(b.size)} · {fmtTime(b.modified)}
+                  </div>
+                </Focusable>
+                <ButtonItem layout="inline" onClick={() => restoreBackup(b.name)} disabled={backupBusy}>
+                  Restore
+                </ButtonItem>
+              </PanelSectionRow>
+            ))}
+          </>
+        )}
       </PanelSection>
 
       {candidates.length > 0 && (

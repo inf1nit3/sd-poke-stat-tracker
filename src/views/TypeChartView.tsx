@@ -1,15 +1,17 @@
 import { ButtonItem, Dropdown, PanelSection, PanelSectionRow, Spinner } from "@decky/ui";
 import { useEffect, useMemo, useState } from "react";
 import { api, DefenseSummary, OffenseSummary } from "../api";
-import { useStore, retryRefreshStatic } from "../store";
+import { useStore, retryRefreshStatic, saveDataEqual } from "../store";
 import { DefenseGrid, OffenseGrid } from "../components/TypeChartGrid";
+import { computeTeamDefense } from "../utils/teamdefense";
 
-type Mode = "defense" | "offense";
+type Mode = "defense" | "offense" | "team";
 
 const NO_TYPE = "(none)";
 
 export function TypeChartView() {
   const chart = useStore((s) => s.typeChart);
+  const saveData = useStore((s) => s.saveData, saveDataEqual);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("defense");
   const [attacker, setAttacker] = useState<string>("Fire");
@@ -46,6 +48,7 @@ export function TypeChartView() {
 
   useEffect(() => {
     if (!chart) return;
+    if (mode === "team") return; // team mode is computed client-side
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -104,20 +107,44 @@ export function TypeChartView() {
     );
   }
 
+  const MODE_LABELS: Record<Mode, string> = {
+    defense: "Defender",
+    offense: "Attacker",
+    team: "Team",
+  };
+  const nextMode = (m: Mode): Mode =>
+    m === "defense" ? "offense" : m === "offense" ? "team" : "defense";
+
+  const teamMembers = useMemo(
+    () =>
+      (saveData?.party ?? [])
+        .filter((p) => p.type1 || p.type2)
+        .map((p) => ({
+          name: p.nickname || p.species,
+          types: [p.type1, p.type2],
+        })),
+    [saveData]
+  );
+
+  const teamDefense = useMemo(
+    () =>
+      mode === "team" && chart
+        ? computeTeamDefense(teamMembers, chart.multipliers ?? {})
+        : null,
+    [mode, chart, teamMembers]
+  );
+
   return (
     <>
       <PanelSection title="Mode">
         <PanelSectionRow>
-          <ButtonItem
-            layout="below"
-            onClick={() => setMode(mode === "defense" ? "offense" : "defense")}
-          >
-            Mode: {mode === "defense" ? "Defender" : "Attacker"} (click to switch)
+          <ButtonItem layout="below" onClick={() => setMode(nextMode(mode))}>
+            Mode: {MODE_LABELS[mode]} (click to switch)
           </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
 
-      <PanelSection title={mode === "defense" ? "Defender types" : "Attacker type"}>
+      <PanelSection title={mode === "defense" ? "Defender types" : mode === "offense" ? "Attacker type" : "Team defense"}>
         {mode === "defense" ? (
           <>
             <PanelSectionRow>
@@ -182,6 +209,78 @@ export function TypeChartView() {
             <OffenseGrid attacker={offense.attacker ?? attacker} summary={offense.summary} />
           </PanelSectionRow>
         </PanelSection>
+      )}
+
+      {mode === "team" && (
+        <>
+          {teamMembers.length === 0 ? (
+            <PanelSection>
+              <PanelSectionRow>
+                <div style={{ fontSize: 12, color: "var(--theme-text-muted, #969696)", padding: "4px 0" }}>
+                  Load a save first — the team analysis uses your party's types.
+                </div>
+              </PanelSectionRow>
+            </PanelSection>
+          ) : (
+            <>
+              {teamDefense!.sharedWeaknesses.length > 0 ? (
+                <PanelSection title="Shared weaknesses">
+                  <PanelSectionRow>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+                      {teamDefense!.sharedWeaknesses.map((row) => (
+                        <div
+                          key={row.attack}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "6px 8px",
+                            background: "var(--theme-danger-bg, rgba(224,88,88,0.15))",
+                            border: "1px solid var(--theme-danger-border, rgba(224,88,88,0.4))",
+                            borderRadius: 6,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "var(--theme-danger, #e87b7b)",
+                              minWidth: 70,
+                            }}
+                          >
+                            {row.attack}
+                          </span>
+                          <span style={{ fontSize: 11, color: "var(--theme-text-secondary, #ddd)" }}>
+                            {row.weakMembers.length} members weak: {row.weakMembers.join(", ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </PanelSectionRow>
+                </PanelSection>
+              ) : (
+                <PanelSection>
+                  <PanelSectionRow>
+                    <div style={{ fontSize: 12, color: "var(--theme-accent, #5eba7d)", padding: "4px 0" }}>
+                      No shared weaknesses — good team typing!
+                    </div>
+                  </PanelSectionRow>
+                </PanelSection>
+              )}
+              <PanelSection title="Team members">
+                <PanelSectionRow>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
+                    {teamMembers.map((m) => (
+                      <div key={m.name} style={{ fontSize: 11, color: "var(--theme-text-secondary, #ddd)" }}>
+                        {m.name}: {m.types.filter(Boolean).join(" / ")}
+                      </div>
+                    ))}
+                  </div>
+                </PanelSectionRow>
+              </PanelSection>
+            </>
+          )}
+        </>
       )}
     </>
   );

@@ -8,6 +8,7 @@ import {
   PokemonCard,
 } from "../components/PokemonCard";
 import { refreshSave, retryRefreshStatic, useStore, saveDataEqual } from "../store";
+import { PCBoxViewer } from "../components/PCBoxViewer";
 
 function formatMoney(n: number): string {
   return `₽${n.toLocaleString("en-US")}`;
@@ -240,6 +241,8 @@ function PartyContent({
           </Focusable>
         </PanelSectionRow>
       </PanelSection>
+
+      <PCBoxViewer />
     </>
   );
 }

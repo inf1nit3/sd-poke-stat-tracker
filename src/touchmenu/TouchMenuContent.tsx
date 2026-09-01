@@ -1,5 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { MoveLookupTouchMenu } from "./MoveLookupTouchMenu";
+import { NuzlockeLogTouchMenu } from "./NuzlockeLogTouchMenu";
 import { PartyTouchMenu } from "./PartyTouchMenu";
 import { TypeLookupTouchMenu } from "./TypeLookupTouchMenu";
 import { useStore } from "../store";
@@ -55,12 +56,13 @@ function NuzlockeCounterWidget() {
   );
 }
 
-type Tab = "party" | "types" | "moves";
+type Tab = "party" | "types" | "moves" | "log";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "party", label: "Party" },
   { id: "types", label: "Type Lookup" },
   { id: "moves", label: "Move Lookup" },
+  { id: "log", label: "Log" },
 ];
 
 export function TouchMenuContent() {
@@ -111,6 +113,7 @@ export function TouchMenuContent() {
       {tab === "party" && <PartyTouchMenu />}
       {tab === "types" && <TypeLookupTouchMenu />}
       {tab === "moves" && <MoveLookupTouchMenu />}
+      {tab === "log" && <NuzlockeLogTouchMenu />}
     </div>
   );
 }
