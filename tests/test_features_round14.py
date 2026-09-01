@@ -135,6 +135,47 @@ def test_nuzlocke_log_endpoints(plugin):
     assert not plugin._nuzlocke.log_path.exists()
 
 
+# --- sprites endpoint ------------------------------------------------------------
+
+def test_sprite_endpoint_found_and_cached(plugin, tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "SPRITES_DIR", tmp_path / "sprites")
+    (tmp_path / "sprites").mkdir()
+    (tmp_path / "sprites" / "PIKACHU.png").write_bytes(b"\x89PNG-fake")
+
+    out = asyncio.run(plugin.get_pokemon_sprite("pikachu"))
+    assert out["found"] is True
+    assert out["data_url"].startswith("data:image/png;base64,")
+    import base64
+    assert base64.b64decode(out["data_url"].split(",", 1)[1]) == b"\x89PNG-fake"
+
+    # Cached: delete the file, still served from memory.
+    (tmp_path / "sprites" / "PIKACHU.png").unlink()
+    out2 = asyncio.run(plugin.get_pokemon_sprite("PIKACHU"))
+    assert out2["found"] is True
+
+
+def test_sprite_endpoint_missing_and_oversize(plugin, tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "SPRITES_DIR", tmp_path / "sprites")
+    (tmp_path / "sprites").mkdir()
+    # Unknown species -> not found (no error).
+    out = asyncio.run(plugin.get_pokemon_sprite("MEW"))
+    assert out == {"found": False, "species": "MEW"}
+    # Oversize file (>512 KB) is ignored.
+    big = tmp_path / "sprites" / "SNORLAX.png"
+    big.write_bytes(b"x" * (512 * 1024 + 1))
+    out2 = asyncio.run(plugin.get_pokemon_sprite("SNORLAX"))
+    assert out2["found"] is False
+
+
+def test_sprite_endpoint_sanitizes_species(plugin, tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "SPRITES_DIR", tmp_path / "sprites")
+    (tmp_path / "sprites").mkdir()
+    # Odd characters are stripped; traversal via species can't escape the dir.
+    out = asyncio.run(plugin.get_pokemon_sprite("../EVIL!MON"))
+    assert out["found"] is False
+    assert out["species"] == "EVILMON"
+
+
 # --- export ----------------------------------------------------------------------
 
 def test_export_save_summary(plugin, tmp_path, monkeypatch):

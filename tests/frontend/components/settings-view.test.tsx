@@ -38,6 +38,10 @@ vi.mock("../../../src/api", async (importOriginal) => {
       autoLoadPbs: vi.fn(async () => null),
       loadPbsMoves: vi.fn(async () => null),
       clearPbs: vi.fn(async () => null),
+      getSaveBackups: vi.fn(async () => ({ backups: [], dir: "" })),
+      restoreSaveBackup: vi.fn(async () => ({ ok: true })),
+      exportSaveSummary: vi.fn(async () => ({ ok: false })),
+      clearNuzlockeLog: vi.fn(async () => ({ ok: true })),
     },
   };
 });
@@ -344,5 +348,85 @@ describe("SettingsView", () => {
     mockedApi.findSavePath.mockRejectedValue(new Error("[find_save_path] backend exploded"));
     render(<SettingsView />);
     expect(await screen.findByText("[find_save_path] backend exploded")).toBeInTheDocument();
+  });
+});
+
+describe("SettingsView safety & data (round 14)", () => {
+  it("toggles rolling backups and reports the new state", async () => {
+    await refreshStore();
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("switch", { name: /Rolling save backups/ }));
+    await waitFor(() =>
+      expect(mockedApi.updateSettings).toHaveBeenCalledWith({ backups_enabled: false })
+    );
+    expect(await screen.findByText("Save backups disabled.")).toBeInTheDocument();
+  });
+
+  it("exports the save summary and shows the target path", async () => {
+    mockedApi.exportSaveSummary.mockResolvedValue({
+      ok: true,
+      path: "/home/deck/pokestat-export/save-summary.json",
+      bytes: 1024,
+    });
+    await refreshStore();
+    await renderSettings();
+    fireEvent.click(screen.getByRole("button", { name: "Export save summary (JSON)" }));
+    expect(
+      await screen.findByText(/Save exported \(1\.0 KB\).*save-summary\.json/)
+    ).toBeInTheDocument();
+  });
+
+  it("reports an export failure when no save is loaded", async () => {
+    mockedApi.exportSaveSummary.mockResolvedValue({ ok: false, error: "no active save" });
+    await refreshStore();
+    await renderSettings();
+    fireEvent.click(screen.getByRole("button", { name: "Export save summary (JSON)" }));
+    expect(await screen.findByText("no active save")).toBeInTheDocument();
+  });
+
+  it("lists backups and restores one", async () => {
+    mockedApi.getSaveBackups.mockResolvedValue({
+      backups: [
+        {
+          name: "Game-20240102-030405.rxdata",
+          path: "/b/Game-20240102-030405.rxdata",
+          size: 512,
+          modified: 1704164645,
+        },
+      ],
+      dir: "/home/deck/saves/backups",
+    });
+    await refreshStore();
+    await renderSettings();
+    expect(await screen.findByText("1 backup(s) in /home/deck/saves/backups")).toBeInTheDocument();
+    expect(screen.getByText("Game-20240102-030405.rxdata")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+    expect(mockedApi.restoreSaveBackup).toHaveBeenCalledWith("Game-20240102-030405.rxdata");
+    expect(
+      await screen.findByText("Backup restored: Game-20240102-030405.rxdata")
+    ).toBeInTheDocument();
+  });
+
+  it("surfaces a failed restore as an error", async () => {
+    mockedApi.getSaveBackups.mockResolvedValue({
+      backups: [
+        { name: "bad.rxdata", path: "/b/bad.rxdata", size: 1, modified: 1704164645 },
+      ],
+      dir: "/home/deck/saves/backups",
+    });
+    mockedApi.restoreSaveBackup.mockResolvedValue({ ok: false, error: "corrupt backup" });
+    await refreshStore();
+    await renderSettings();
+    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
+    expect(await screen.findByText("corrupt backup")).toBeInTheDocument();
+  });
+
+  it("clears the Nuzlocke log", async () => {
+    await refreshStore();
+    await renderSettings();
+    fireEvent.click(screen.getByRole("button", { name: "Clear Nuzlocke log" }));
+    await waitFor(() => expect(mockedApi.clearNuzlockeLog).toHaveBeenCalled());
+    expect(await screen.findByText("Nuzlocke log cleared.")).toBeInTheDocument();
   });
 });
